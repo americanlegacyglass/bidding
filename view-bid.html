@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>American Legacy Glass — Bid Approval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Web3Forms sends the acceptance notification email — no library needed, just a direct request -->
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #171717;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #f0f0f0;
+    --muted: #888;
+    --accent: #ffffff;
+    --green: #7ed4a0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  .wrap { width: 100%; max-width: 600px; }
+  .logo-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.05em; text-align: center; margin-bottom: 0.25rem; }
+  .logo-sub { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; }
+  .row { display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 0.9rem; }
+  .row.total { border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; }
+  .piece-line { display: flex; justify-content: space-between; padding: 0.35rem 0; font-size: 0.85rem; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .piece-line span:first-child { color: var(--text); }
+  .btn-approve {
+    width: 100%; background: var(--green); border: none; border-radius: 10px; color: #0a1f14;
+    cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.05em;
+    padding: 1rem; transition: all 0.15s;
+  }
+  .btn-approve:hover { background: #8fe0b3; }
+  .btn-approve:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  .status-msg { text-align: center; padding: 2rem 1rem; }
+  .status-msg .icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .status-msg .title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .status-msg .sub { color: var(--muted); font-size: 0.9rem; }
+  .loading { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .wrap.wide { max-width: 880px; }
+  .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem; margin-bottom: 1.25rem; }
+  .opt-card { background: var(--surface); border: 2px solid var(--border); border-radius: 14px; padding: 1.25rem; cursor: pointer; display: flex; flex-direction: column; gap: 0.5rem; transition: border-color 0.15s, background 0.15s; text-align: left; font-family: inherit; color: inherit; }
+  .opt-card:hover { border-color: #444; }
+  .opt-card.selected { border-color: var(--green); background: rgba(126,212,160,0.07); }
+  .opt-card .opt-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.04em; }
+  .opt-card .opt-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+  .opt-card ul { list-style: none; font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .opt-card ul li::before { content: '• '; color: var(--green); }
+  .opt-card .opt-total { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; margin-top: auto; padding-top: 0.5rem; }
+  .opt-card .opt-dep { color: var(--muted); font-size: 0.75rem; }
+  .opt-card .opt-pick { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .opt-card.selected .opt-pick { color: var(--green); }
+  .opt-intro { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+  .fine-print { text-align: center; font-size: 0.72rem; color: var(--muted); margin-top: 1rem; line-height: 1.5; }
+  .page-footer { text-align: center; font-size: 0.78rem; color: var(--muted); margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+  .page-footer a { color: var(--text); text-decoration: none; }
+  .page-footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="logo-title">AMERICAN LEGACY <span style="color:var(--green)">GLASS</span></div>
+  <div class="logo-sub">Bid Approval</div>
+
+  <div id="content">
+    <div class="loading">Loading your bid…</div>
+  </div>
+
+  <div class="page-footer">
+    Questions? Call <a href="tel:4804428121">480-442-8121</a> or email <a href="mailto:americanlegacyglass@gmail.com">americanlegacyglass@gmail.com</a>
+  </div>
+</div>
+
+<script>
+  // This page never talks to the database. It asks the Worker for a safe view of the bid (name, job,
+  // totals — nothing about margins, costs, notes or contact details) and asks it to record the approval.
+  const WORKER = 'https://morning-frost-ce94.rdenmyers1201.workers.dev';
+
+  // ── Web3Forms sends the acceptance notification email — no library needed, just a direct request.
+  // Sign up free at https://web3forms.com (just verify an email, no login needed). The key is public by design.
+  const WEB3FORMS_ACCESS_KEY = 'cc74c432-5567-46e2-9c05-56b505e5b126';
+
+  const params = new URLSearchParams(window.location.search);
+  const bidId = params.get('id');
+  const content = document.getElementById('content');
+
+  // Customer name / job description / option names come from the database, so they're
+  // escaped before going into innerHTML — plain text only, never markup.
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function fmt(n) {
+    const safe = isNaN(n) ? 0 : n;
+    return '$' + safe.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  // A network call that never resolves (a stalled connection, a Worker that hangs) would otherwise
+  // leave the customer stuck on "Approving…" forever. This forces any call to give up after a few seconds.
+  async function fetchWithTimeout(url, options, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function showError(msg) {
+    content.innerHTML = `<div class="status-msg"><div class="icon">⚠️</div><div class="title">${escapeHtml(msg)}</div></div>`;
+  }
+
+  function showApproved(view, chosen) {
+    const depositRequired = view.depositRequired !== false; // ON unless explicitly turned off
+    const depositLines = depositRequired
+      ? 'An invoice will follow shortly for the deposit. Production begins as soon as deposit is received. '
+      : '';
+    const chosenLine = chosen
+      ? `<div class="sub" style="color:var(--text);margin-bottom:0.6rem;">You chose: <b>${escapeHtml(chosen.label)}</b> — ${fmt(chosen.total || 0)}</div>`
+      : '';
+    content.innerHTML = `
+      <div class="status-msg">
+        <div class="icon">✓</div>
+        <div class="title" style="color:var(--green);">Bid Approved</div>
+        ${chosenLine}
+        <div class="sub">Thanks${view.customer ? ', ' + escapeHtml(view.customer) : ''}! ${depositLines}Once fabrication is complete our office will contact you to schedule installation.</div>
+      </div>`;
+  }
+
+  function chosenOf(view) {
+    return view.options ? (view.options.find(o => o.id === view.selectedOptionId) || null) : null;
+  }
+
+  async function loadBid() {
+    if (!bidId) { showError('No bid specified'); return; }
+    try {
+      const res = await fetchWithTimeout(WORKER + '/bid-view?id=' + encodeURIComponent(bidId), { cache: 'no-store' }, 15000);
+      if (res.status === 404) { showError('Bid not found'); return; }
+      let view = null;
+      try { view = await res.json(); } catch (e) { /* handled below */ }
+      if (!res.ok || !view || !view.ok) { showError('Could not load this bid right now. Please try again in a moment, or call us.'); return; }
+
+      if (view.status === 'accepted') { showApproved(view, chosenOf(view)); return; }
+      if (view.options) { renderOptionChoice(view, view.options); return; }
+
+      content.innerHTML = `
+        <div class="card">
+          <div class="card-label">Prepared For</div>
+          <div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
+          ${view.jobDesc ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">${escapeHtml(view.jobDesc)}</div>` : ''}
+        </div>
+        <div class="card">
+          <div class="row total">
+            <span style="display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap;">
+              <span>Total</span>
+              <span style="font-family:'DM Sans',sans-serif;text-transform:none;letter-spacing:normal;font-size:0.55rem;color:var(--muted);">(includes all materials and installation)</span>
+            </span>
+            <span>${fmt(view.total || 0)}</span>
+          </div>
+          ${view.depositRequired !== false ? `<div class="row" style="color:var(--muted);font-size:0.8rem;">50% deposit required to begin production</div>` : ''}
+        </div>
+        <button class="btn-approve" id="approveBtn">✓ Approve Bid Now</button>
+        <div class="fine-print">By approving, you authorize American Legacy Glass to proceed with the work described above at the price quoted.</div>
+      `;
+      document.getElementById('approveBtn').addEventListener('click', () => approveBid(view, null));
+    } catch (err) {
+      console.error('Bid load error:', err);
+      showError('Could not load this bid — please check your connection and try again, or call us.');
+    }
+  }
+
+  function renderOptionChoice(view, opts) {
+    document.querySelector('.wrap').classList.add('wide');
+    const depositOn = view.depositRequired !== false;
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-label">Prepared For</div>
+        <div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
+        ${view.jobDesc ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">${escapeHtml(view.jobDesc)}</div>` : ''}
+      </div>
+      <div class="opt-intro">We've prepared ${opts.length} options for you. Tap the one you'd like, then approve it below.</div>
+      <div class="opt-grid">
+        ${opts.map(o => {
+          const items = (o.items || []).filter(Boolean);
+          const shown = items.slice(0, 8);
+          return `<button type="button" class="opt-card" data-id="${escapeHtml(o.id)}">
+            <div class="opt-name">${escapeHtml(o.label)}</div>
+            ${o.description ? `<div class="opt-desc">${escapeHtml(o.description)}</div>` : ''}
+            ${shown.length ? `<ul>${shown.map(d => `<li>${escapeHtml(d)}</li>`).join('')}${items.length > shown.length ? `<li>…and ${items.length - shown.length} more</li>` : ''}</ul>` : ''}
+            <div class="opt-total">${fmt(o.total || 0)}</div>
+            <div class="opt-dep">(includes all materials and installation)${depositOn ? ' · 50% deposit: ' + fmt((o.total || 0) * 0.5) : ''}</div>
+            <div class="opt-pick">Tap to choose</div>
+          </button>`;
+        }).join('')}
+      </div>
+      <button class="btn-approve" id="approveBtn" disabled>Choose an option above</button>
+      <div class="fine-print">By approving, you authorize American Legacy Glass to proceed with the option you chose, at the price quoted.</div>
+    `;
+    let chosen = null;
+    const btn = document.getElementById('approveBtn');
+    content.querySelectorAll('.opt-card').forEach(card => {
+      card.addEventListener('click', () => {
+        chosen = opts.find(o => o.id === card.dataset.id) || null;
+        content.querySelectorAll('.opt-card').forEach(c => {
+          const on = c === card;
+          c.classList.toggle('selected', on);
+          c.querySelector('.opt-pick').textContent = on ? '✓ Selected' : 'Tap to choose';
+        });
+        if (chosen) { btn.disabled = false; btn.textContent = '✓ Approve ' + chosen.label + ' — ' + fmt(chosen.total || 0); }
+      });
+    });
+    btn.addEventListener('click', () => {
+      if (!chosen) return;
+      // Approval is permanent and creates an invoice, so confirm the exact option and price first.
+      if (!confirm('Approve "' + chosen.label + '" for ' + fmt(chosen.total || 0) + '?')) return;
+      approveBid(view, chosen);
+    });
+  }
+
+  async function approveBid(view, chosenOption) {
+    const btn = document.getElementById('approveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Approving…';
+    try {
+      // The Worker records the approval atomically: if the same bid is approved from two devices at once,
+      // exactly one succeeds and the other is told it was already approved (and which option won).
+      const res = await fetchWithTimeout(WORKER + '/approve-bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: bidId, optionId: chosenOption ? chosenOption.id : undefined }),
+      }, 20000);
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* handled below */ }
+      if (!res.ok || !data || !data.ok) {
+        const e = new Error((data && data.error) || 'approval failed');
+        e.userMessage = data && data.error;
+        throw e;
+      }
+      const fresh = data.view;
+
+      // Notify the shop by email via Web3Forms — only for the request that actually made the approval,
+      // so a double-tap or a second device never sends a duplicate.
+      if (!data.alreadyApproved) {
+        try {
+          const total = chosenOption ? chosenOption.total : (fresh.total || 0);
+          const emailRes = await fetchWithTimeout('https://api.web3forms.com/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              access_key: WEB3FORMS_ACCESS_KEY,
+              subject: '✓ Bid Approved — ' + (fresh.customer || 'Unknown') + ' (' + fmt(total) + ')' + (chosenOption ? ' — ' + chosenOption.label : ''),
+              email: 'americanlegacyglass@gmail.com', // "from" shown in the notification, not the recipient
+              message: 'A customer just approved a bid through the online link.\n\n' +
+                'Customer: ' + (fresh.customer || 'Unknown') + '\n' +
+                'Job: ' + (fresh.jobDesc || '') + '\n' +
+                (chosenOption ? 'Option chosen: ' + chosenOption.label + '\n' : '') +
+                'Total: ' + fmt(total) + '\n' +
+                'Bid ID: ' + bidId + '\n\n' +
+                'Reach out to schedule the work.',
+            }),
+          });
+          const emailResult = await emailRes.json();
+          if (!emailResult.success) console.error('Web3Forms reported failure:', emailResult.message);
+        } catch (emailErr) {
+          // The approval itself already succeeded — this only means the notification email failed.
+          console.error('Email notification FAILED:', emailErr);
+        }
+      }
+
+      // Create the Xero invoice. Safe to ask for every time: the Worker never makes a second invoice for the
+      // same job, so if a lost connection hid the first attempt's result, this second try finishes the job.
+      // Wrapped separately — the customer's approval already succeeded; a bookkeeping hiccup is ALG's to handle
+      // (the Worker alerts ALG itself), not something to show them.
+      try {
+        await fetchWithTimeout(WORKER + '/create-xero-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: bidId }),
+        });
+      } catch (invErr) {
+        console.error('Xero invoice creation FAILED:', invErr);
+      }
+
+      showApproved(fresh, chosenOf(fresh) || chosenOption || null);
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.textContent = chosenOption ? ('✓ Approve ' + chosenOption.label + ' — ' + fmt(chosenOption.total || 0)) : '✓ Approve Bid Now';
+      alert(err.userMessage || 'Something went wrong approving this bid. Please try again or call us directly.');
+    }
+  }
+
+  loadBid();
+</script>
+</body>
+</html>
