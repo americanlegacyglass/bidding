@@ -449,6 +449,15 @@ onAuthStateChanged(auth, async user => {
   .hw-erow input, .hw-erow select, .hw-box input[type=number] { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:.35rem .45rem; font-family:'DM Sans',sans-serif; font-size:.8rem; min-width:0; }
   .hw-erow input[data-f=name] { flex:1; }
   .sh-card:disabled, .hw-box button:disabled { opacity:.4; cursor:default; }
+  .td-widgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.5rem; margin:.2rem 0 .8rem; }
+  .td-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); cursor:pointer; padding:.6rem .7rem; text-align:left; display:flex; flex-direction:column; gap:.15rem; font-family:'DM Sans',sans-serif; }
+  .td-card .td-n { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; line-height:1; color:var(--invoice-accent); }
+  .td-card .td-t { font-size:.74rem; color:var(--text); }
+  .td-card.zero .td-n { color:var(--muted); } .td-card.zero { opacity:.6; }
+  .td-card.on { border-color:var(--invoice-accent); box-shadow:0 0 0 1px var(--invoice-accent) inset; }
+  .td-card:hover { border-color:var(--accent2); }
+  #tdNote { font-size:.78rem; color:var(--muted); margin:-.3rem 0 .6rem; }
+  .td-actions { grid-column:1 / -1; flex-basis:100%; display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--border); }
 
   /* ── Sketch marker toolbar ── */
   .marker-type-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 0.4rem 0.7rem; transition: all 0.15s; }
@@ -1305,6 +1314,10 @@ onAuthStateChanged(auth, async user => {
       </div>
     </div>
 
+    <!-- To-do widgets -->
+    <div class="td-widgets" id="tdWidgets"></div>
+    <div id="tdNote"></div>
+
     <!-- Filters -->
     <div class="dash-filters">
       <button class="filter-btn active" onclick="setDashFilter('all', this)">All</button>
@@ -1501,6 +1514,7 @@ onAuthStateChanged(auth, async user => {
         </div>
         <div id="bidSaveActions">
           <button class="btn-print" onclick="saveBidPDF()">⬇ Save Bid as PDF</button>
+          <button class="btn-print" onclick="tdOrderSheetFromBid()" title="Glass sizes, glass type, edges, holes and hardware for your supplier. No prices.">📄 Glass Order Sheet</button>
           <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;margin-top:0.35rem;">⚠ Save the bid first — otherwise the PDF won't include the online approval link</div>
           <div class="save-bar" style="margin-top:0.75rem;margin-bottom:0;">
             <div class="save-bar-text" id="bidSaveStatus">💾 Save this bid to the dashboard</div>
@@ -1860,6 +1874,7 @@ onAuthStateChanged(auth, async user => {
             <li><b>Save Bid</b> stores the bid on the Dashboard. To change a saved bid, press <b>Open</b> on the Dashboard, make your changes, and press Save Bid again.</li>
             <li><b>🔗 Copy Approval Link</b> is greyed out until the bid is saved. Send the copied link to the customer.</li>
             <li><b>⬇ Save Bid as PDF</b> makes the customer document: descriptions and the total, with the approval link if the bid was saved first. With options, one PDF covers all of them.</li>
+            <li><b>📄 Glass Order Sheet</b> makes a PDF for your supplier from the bid: each piece's quantity, size, glass, edge, holes and notes, plus the hardware list. No prices. With options, it uses the option you're on.</li>
             <li><b>↺ NEW BID</b> (top right) clears the form to start over. It asks first.</li>
             <li>If you try to leave a bid that has unsaved changes, the app asks before you go.</li>
             <li>If you change the price of a bid that's <b>already approved</b>, the app warns you: the Xero invoice does not change, so you would have to fix it in Xero yourself.</li>
@@ -1876,6 +1891,8 @@ onAuthStateChanged(auth, async user => {
             <li><b>✓ Approve Manually</b> is for a customer who agreed in person or by phone. Don't use it for a bid the customer can still approve through the link. It asks you to confirm, asks which option if the bid has options, then creates the Xero invoice right away.</li>
             <li>A red <b>⚠ Stage may be stale</b> badge means an invoice was voided in Xero. Check the job, then click the badge to dismiss it.</li>
             <li><b>⬇ Backup</b> downloads every job and customer as a backup file.</li>
+            <li><b>To-do cards</b> at the top count what needs doing next: <b>⏳ Waiting on customer</b> (sent 3+ days, not approved — call them), <b>📦 Approved — order glass</b>, <b>📅 Ordered — schedule install</b>, <b>🔧 Install date passed</b>, and <b>🧾 Installed — finish invoice</b> (approve the Xero draft). Click a card to list just those jobs; click it again to show all.</li>
+            <li>On approved jobs, use <b>📦 Ordered</b>, <b>📅 Install date</b> and <b>🔧 Installed</b> to move a job along, and <b>📄 Order sheet</b> to download its glass order. Each has an ↺ to undo.</li>
           </ul>
           <h4>Who can do what</h4>
           <p>Everyone can create and edit bids and approve them. <b>Undo</b> (voids the Xero invoice and reopens the bid), the <b>✕</b> delete button and <b>Manage Staff</b> are for the owner login only.</p>
@@ -4514,6 +4531,8 @@ function renderDashboard() {
   else if (dashFilter === 'accepted') filtered = allJobs.filter(j => getPipelineStage(j) === 'accepted');
   else if (dashFilter === 'invoiced') filtered = allJobs.filter(j => getPipelineStage(j) === 'invoiced');
   else if (dashFilter === 'done') filtered = allJobs.filter(j => getPipelineStage(j) === 'done');
+  if (typeof tdRender === 'function') tdRender();
+  if (typeof tdFilter !== 'undefined' && tdFilter) { const tb = TD_BUCKETS.find(b => b.key === tdFilter); if (tb) filtered = filtered.filter(tb.test); }
 
   const q = (document.getElementById('dashSearch')?.value || '').toLowerCase().trim();
   if (q) {
@@ -4573,6 +4592,7 @@ function renderDashboard() {
         <div class="job-amount" style="color:${amountColor};">${amountText}</div>
         <span class="job-status-badge ${isAcceptedBid ? 'paid' : job.type==='bid'?'bid':escapeHtml(job.status||'draft')}">${escapeHtml(statusLabel)}</span>
         ${optionBadge}
+        ${typeof tdJobBadges === 'function' ? tdJobBadges(job) : ''}
         ${job.xeroInvoiceId ? `<span class="job-status-badge paid" title="Created in Xero">✓ Invoiced${job.xeroInvoiceNumber ? ' — '+escapeHtml(job.xeroInvoiceNumber) : ''}</span>` : ''}
         ${job.pipelineDrift ? `<span class="job-status-badge" style="background:rgba(224,96,96,0.15);border-color:rgba(224,96,96,0.4);color:#e06060;cursor:pointer;" title="${escapeHtml(job.pipelineDriftNote || 'This job pipeline stage may be stale')} — click to dismiss once reviewed" onclick="dismissPipelineDrift(event,'${job.id}')">⚠ Stage may be stale</span>` : ''}
       </div>
@@ -4581,7 +4601,9 @@ function renderDashboard() {
         ${isPendingBid ? `<button class="btn-job-open" style="color:#7ed4a0;border-color:rgba(126,212,160,0.35);" onclick="manuallyApproveBid('${job.id}')" title="Use only when the customer agreed in person or by phone — not through the online approval link">✓ Approve Manually</button>` : ''}
         ${isAcceptedBid && window._currentUserRole !== 'employee' ? `<button class="btn-job-open" style="color:#e0a060;border-color:rgba(224,160,96,0.35);" onclick="undoApproval('${job.id}')" title="Voids the Xero invoice (if any) and resets this bid to pending">Undo</button>` : ''}
         ${window._currentUserRole !== 'employee' ? `<button class="btn-job-del" onclick="deleteJob(event,'${job.id}')">✕</button>` : ''}
-      </div>`;
+      </div>
+      ${typeof tdJobActions === 'function' && tdJobActions(job) ? `<div class="td-actions">${tdJobActions(job)}</div>` : ''}`;
+    if (row.querySelector('.td-actions')) row.style.flexWrap = 'wrap';
     list.appendChild(row);
   });
 }
@@ -6393,6 +6415,151 @@ async function hwEdSave() {
 window.hwOpenPicker = hwOpenPicker; window.hwClose = hwClose; window.hwAddLine = hwAddLine; window.hwRenderPicker = hwRenderPicker;
 window.hwOpenEditor = hwOpenEditor; window.hwEdSync = hwEdSync; window.hwEdRemove = hwEdRemove; window.hwEdSave = hwEdSave; window.HW = HW;
 setTimeout(() => { if (window._db) hwLoad(); }, 1500);
+
+// ═════════════════════════════════════════════════
+// TO-DO WIDGETS (Dashboard) + GLASS ORDER SHEET
+// New job fields (only ever set with updateDoc, so saving a bid never erases them):
+//   glassOrderedAt (ISO), installDate ('YYYY-MM-DD'), installDoneAt (ISO)
+// ═════════════════════════════════════════════════
+const TD_WAIT_DAYS = 3;
+let tdFilter = null;
+function tdDaysSince(iso) { if (!iso) return null; const t = Date.parse(iso); return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000); }
+function tdToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function tdStage(job) { return typeof getPipelineStage === 'function' ? getPipelineStage(job) : ''; }
+// Each bucket: which jobs belong, and the one next step for them.
+const TD_BUCKETS = [
+  { key: 'wait', icon: '⏳', title: 'Waiting on customer', hint: `Sent ${TD_WAIT_DAYS}+ days ago, not approved — call them`,
+    test: j => j.type === 'bid' && tdStage(j) === 'bid' && (tdDaysSince(j.savedAt) ?? 0) >= TD_WAIT_DAYS },
+  { key: 'order', icon: '📦', title: 'Approved — order glass', hint: 'Approved and no glass order marked yet',
+    test: j => j.type === 'bid' && ['accepted', 'invoiced'].includes(tdStage(j)) && !j.glassOrderedAt && !j.installDoneAt },
+  { key: 'schedule', icon: '📅', title: 'Ordered — schedule install', hint: 'Glass ordered, no install date set',
+    test: j => j.type === 'bid' && j.glassOrderedAt && !j.installDate && !j.installDoneAt && tdStage(j) !== 'done' },
+  { key: 'install', icon: '🔧', title: 'Install date passed', hint: 'Mark it installed once the job is done',
+    test: j => j.type === 'bid' && j.installDate && j.installDate <= tdToday() && !j.installDoneAt && tdStage(j) !== 'done' },
+  { key: 'invoice', icon: '🧾', title: 'Installed — finish invoice', hint: 'Approve the Xero draft so the invoice goes out',
+    test: j => j.type === 'bid' && j.installDoneAt && tdStage(j) === 'accepted' },
+];
+function tdRender() {
+  const box = document.getElementById('tdWidgets'); if (!box || typeof allJobs === 'undefined') return;
+  box.innerHTML = TD_BUCKETS.map(b => {
+    const n = allJobs.filter(b.test).length;
+    return `<button type="button" class="td-card ${tdFilter === b.key ? 'on' : ''} ${n ? '' : 'zero'}" onclick="tdSetFilter('${b.key}')" title="${escapeHtml(b.hint)}"><span class="td-n">${n}</span><span class="td-t">${b.icon} ${escapeHtml(b.title)}</span></button>`;
+  }).join('');
+  const note = document.getElementById('tdNote');
+  if (note) {
+    const b = TD_BUCKETS.find(x => x.key === tdFilter);
+    note.innerHTML = b ? `Showing: <b>${b.icon} ${escapeHtml(b.title)}</b> — ${escapeHtml(b.hint)} <button class="btn-job-open" style="margin-left:.4rem" onclick="tdSetFilter(null)">Show all</button>` : '';
+  }
+}
+function tdSetFilter(k) { tdFilter = tdFilter === k ? null : k; renderDashboard(); }
+function tdJobBadges(job) {
+  if (job.type !== 'bid') return '';
+  const out = [];
+  if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)">⏳ ${d} days</span>`); }
+  if (job.glassOrderedAt) out.push(`<span class="job-status-badge" title="Glass ordered ${escapeHtml(new Date(job.glassOrderedAt).toLocaleDateString('en-US'))}">📦 Ordered</span>`);
+  if (job.installDate) out.push(`<span class="job-status-badge">📅 ${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`);
+  if (job.installDoneAt) out.push(`<span class="job-status-badge paid">🔧 Installed</span>`);
+  return out.join('');
+}
+function tdJobActions(job) {
+  if (job.type !== 'bid' || !['accepted', 'invoiced', 'done'].includes(tdStage(job))) return '';
+  const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
+  let h = b('📄 Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
+  h += job.glassOrderedAt ? b('↺ Ordered', `tdSet('${job.id}','glassOrderedAt',null)`, 'Un-mark the glass order') : b('📦 Ordered', `tdSet('${job.id}','glassOrderedAt','now')`, 'Mark the glass as ordered');
+  h += b(job.installDate ? '📅 Change date' : '📅 Install date', `tdPickDate('${job.id}')`, 'Set the install date');
+  if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b('🔧 Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
+  return h;
+}
+async function tdSet(id, field, val) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const v = val === 'now' ? new Date().toISOString() : val;
+  const prev = job[field];
+  job[field] = v; renderDashboard(); // show it straight away; the listener confirms
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), { [field]: v }); }
+  catch (e) { console.error('To-do update failed:', e); job[field] = prev; renderDashboard(); showToast('Could not save — try again', 'error'); }
+}
+function tdPickDate(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const v = prompt('Install date (YYYY-MM-DD). Leave blank to clear it.', job.installDate || tdToday());
+  if (v === null) return;
+  const s = v.trim();
+  if (s && !/^\d{4}-\d{2}-\d{2}$/.test(s)) { showToast('Use the format 2026-12-03', 'error'); return; }
+  if (s && isNaN(Date.parse(s + 'T00:00:00'))) { showToast('That date does not exist', 'error'); return; }
+  tdSet(id, 'installDate', s || null);
+}
+window.tdSetFilter = tdSetFilter; window.tdSet = tdSet; window.tdPickDate = tdPickDate;
+
+// ── Glass order sheet ──
+// Pieces/hardware for a saved job: the option the customer chose, otherwise the main bid.
+function tdJobParts(job) {
+  const ch = typeof jobChosenOption === 'function' ? jobChosenOption(job) : null;
+  if (ch && job.alternates) { const a = job.alternates.find(x => x.id === ch.id); if (a) return { pieces: a.pieces || [], hardware: a.hardware || [], label: ch.label }; }
+  return { pieces: job.pieces || [], hardware: job.hardware || [], label: ch ? ch.label : '' };
+}
+function tdOrderRows(ps) {
+  return (ps || []).filter(p => p && !p.flatPrice && getPieceW(p) && getPieceH(p)).map(p => ({
+    qty: parseInt(p.qty) || 1,
+    size: dimDisplay(p.wWhole, p.wFrac) + ' × ' + dimDisplay(p.hWhole, p.hFrac),
+    glass: [p.thickness, p.glassType || [p.glassTreatment, p.glassTypeName].filter(Boolean).join(' ')].filter(Boolean).join(' '),
+    edge: p.edgeName || '',
+    fab: Object.entries(p.fabrications || {}).map(([k, n]) => (n > 1 ? n + '× ' : '') + k).join(', '),
+    note: p.sketchNote || '',
+  }));
+}
+function tdSheetSvg(info) {
+  const W = 1100, H = 850, M = 40, rows = info.rows, hw = info.hw.filter(h => String(h.name || '').trim());
+  const t = (x, y, s, sz, ex = '') => `<text x="${x}" y="${y}" font-size="${sz}" font-family="Arial,Helvetica,sans-serif" ${ex}>${escapeHtml(s)}</text>`;
+  const clip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/>`;
+  s += t(M, M + 18, 'AMERICAN LEGACY GLASS', 20, 'font-weight="bold"') + t(M, M + 42, 'GLASS ORDER' + (info.option ? ' — ' + info.option : ''), 15);
+  [['Job', info.customer], ['Site', info.location], ['Date', new Date().toLocaleDateString('en-US')], ['Ref', info.ref]].filter(x => x[1]).forEach((x, i) => { s += t(W - M, M + 16 + i * 17, x[0] + ': ' + clip(x[1], 50), 12, 'text-anchor="end"'); });
+  let y = M + 92;
+  s += `<line x1="${M}" y1="${y - 22}" x2="${W - M}" y2="${y - 22}" stroke="#111"/>`;
+  const cols = [[M, '#'], [M + 30, 'Qty'], [M + 70, 'Size (W × H)'], [M + 250, 'Glass'], [M + 520, 'Edge'], [M + 660, 'Holes / cutouts / notes']];
+  cols.forEach(c => { s += t(c[0], y, c[1], 12, 'font-weight="bold"'); });
+  y += 6; s += `<line x1="${M}" y1="${y}" x2="${W - M}" y2="${y}" stroke="#999"/>`;
+  const maxRows = Math.max(1, Math.floor((H - 260 - Math.min(hw.length, 8) * 18) / 24));
+  rows.slice(0, maxRows).forEach((r, i) => {
+    y += 24;
+    if (i % 2) s += `<rect x="${M}" y="${y - 16}" width="${W - 2 * M}" height="22" fill="#f3f3f3"/>`;
+    s += t(cols[0][0], y, String(i + 1), 12) + t(cols[1][0], y, String(r.qty), 12, 'font-weight="bold"') + t(cols[2][0], y, r.size, 12, 'font-weight="bold"') +
+      t(cols[3][0], y, clip(r.glass, 38), 12) + t(cols[4][0], y, clip(r.edge, 18), 12) + t(cols[5][0], y, clip([r.fab, r.note].filter(Boolean).join(' — '), 52), 11);
+  });
+  if (rows.length > maxRows) { y += 22; s += t(M, y, `+${rows.length - maxRows} more pieces not shown — split this order`, 11, 'fill="#b00020"'); }
+  y += 14; s += `<line x1="${M}" y1="${y}" x2="${W - M}" y2="${y}" stroke="#999"/>`;
+  const totalPcs = rows.reduce((a, r) => a + r.qty, 0);
+  y += 20; s += t(M, y, `${totalPcs} piece${totalPcs === 1 ? '' : 's'} total`, 12, 'font-weight="bold"');
+  if (hw.length) {
+    y += 34; s += t(M, y, 'HARDWARE', 12, 'font-weight="bold"');
+    hw.slice(0, 8).forEach(h => { y += 18; s += t(M + 10, y, '• ' + clip(h.name, 90), 11.5); });
+    if (hw.length > 8) { y += 18; s += t(M + 10, y, `+${hw.length - 8} more`, 11, 'fill="#b00020"'); }
+  }
+  s += t(M, H - M, 'Sizes are finished glass sizes from the bid. Check against site measurements before ordering. No prices on this sheet.', 10, 'fill="#555"');
+  return s + '</svg>';
+}
+async function tdMakeSheet(info, base) {
+  if (!info.rows.length) { showToast('No sized glass pieces to order', 'error'); return; }
+  try {
+    const canvas = await drSvgToCanvas(tdSheetSvg(info), 1100, 850, 2);
+    if (window.jspdf) {
+      const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5); pdf.save(base + '.pdf');
+    } else canvas.toBlob(b => drDownloadBlob(b, base + '.png'), 'image/png');
+    showToast('✓ Order sheet downloaded');
+  } catch (e) { console.error('Order sheet failed:', e); showToast('Order sheet failed — try again', 'error'); }
+}
+function tdSafeName(s) { return (String(s || 'job').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'job'); }
+function tdOrderSheetForJob(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const parts = tdJobParts(job);
+  tdMakeSheet({ customer: job.customer, location: job.location, ref: job.id, option: parts.label, rows: tdOrderRows(parts.pieces), hw: parts.hardware }, 'ORDER-' + tdSafeName(job.customer));
+}
+function tdOrderSheetFromBid() {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  const opt = (typeof optionStates !== 'undefined' && Array.isArray(optionStates) && optionStates.length > 1) ? ((optionStates[activeOptionIdx] || {}).label || '') : '';
+  tdMakeSheet({ customer: v('customerName'), location: v('jobLocation'), ref: (typeof currentJobId !== 'undefined' && currentJobId) || 'not saved yet', option: opt, rows: tdOrderRows(pieces), hw: hardware }, 'ORDER-' + tdSafeName(v('customerName')));
+}
+window.tdOrderSheetForJob = tdOrderSheetForJob; window.tdOrderSheetFromBid = tdOrderSheetFromBid;
 
 </script>
 
