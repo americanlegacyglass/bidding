@@ -66,6 +66,7 @@ onAuthStateChanged(auth, async user => {
   } else {
     if (window._unsubscribeJobs) window._unsubscribeJobs();
     if (window._unsubscribeCustomers) window._unsubscribeCustomers();
+    if (window.drReset) window.drReset();
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appContainer').style.display = 'none';
   }
@@ -398,9 +399,39 @@ onAuthStateChanged(auth, async user => {
   .tut-table th, .tut-table td { text-align:left; padding:0.45rem 0.6rem; border-bottom:1px solid var(--border); vertical-align:top; }
   .tut-table th { font-family:'DM Mono',monospace; font-size:0.66rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:400; }
   @media (max-width: 560px) {
-    .tab-btn { font-size:0.95rem; letter-spacing:0.05em; padding:0.7rem 0.3rem; }
+    .tab-btn { font-size:0.85rem; letter-spacing:0.03em; padding:0.55rem 0.1rem; white-space:normal; line-height:1.15; }
   }
   .piece-info-icon { font-size: 0.85rem; color: var(--muted); cursor: help; }
+
+  /* ── Drawing tab ── */
+  #tab-drawing .dr-bar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.7rem; }
+  #tab-drawing .dr-btn { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); cursor:pointer; font-family:'DM Mono',monospace; font-size:.72rem; padding:.42rem .7rem; white-space:nowrap; }
+  #tab-drawing .dr-btn:hover:not(:disabled) { border-color:var(--accent2); }
+  #tab-drawing .dr-btn:disabled { opacity:.35; cursor:default; }
+  #tab-drawing .dr-btn.on { background:var(--accent); color:#111; border-color:var(--accent); }
+  #tab-drawing .dr-btn.danger { color:#e06a6a; border-color:#6a2d2d; }
+  #tab-drawing .dr-in { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:.82rem; padding:.38rem .5rem; min-width:0; width:100%; }
+  #tab-drawing .dr-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.5rem; margin-bottom:.7rem; }
+  #tab-drawing .dr-meta label { font-size:.68rem; color:var(--muted); font-family:'DM Mono',monospace; display:block; }
+  #tab-drawing .dr-meta input { margin-top:.2rem; }
+  #tab-drawing .dr-toolbar { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; padding:.5rem; background:var(--surface); border:1px solid var(--border); border-radius:8px 8px 0 0; }
+  #tab-drawing .dr-sep { width:1px; align-self:stretch; background:var(--border); margin:0 .25rem; }
+  #tab-drawing .dr-main { display:flex; border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; background:var(--surface); min-height:480px; }
+  #tab-drawing .dr-canvasbox { flex:1; min-width:0; height:560px; overflow:auto; background:#0f0f0f; }
+  #tab-drawing .dr-canvasbox svg { display:block; touch-action:none; user-select:none; }
+  #tab-drawing .dr-props { width:300px; flex:none; border-left:1px solid var(--border); padding:.8rem; overflow:auto; max-height:560px; }
+  #tab-drawing .dr-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem; font-size:.74rem; color:var(--muted); }
+  #tab-drawing .dr-row > span:first-child { width:84px; flex:none; font-family:'DM Mono',monospace; font-size:.68rem; }
+  #tab-drawing .dr-ptitle { font-family:'Bebas Neue',sans-serif; letter-spacing:.08em; font-size:1.15rem; margin-bottom:.5rem; }
+  #tab-drawing .dr-sub { font-family:'DM Mono',monospace; font-size:.66rem; color:var(--invoice-accent); text-transform:uppercase; letter-spacing:.08em; margin:.7rem 0 .35rem; }
+  #tab-drawing .dr-hint { font-size:.74rem; color:var(--muted); margin:.5rem 0; line-height:1.45; }
+  #tab-drawing .dr-x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer; padding:0 .4rem; }
+  #tab-drawing .dr-export { display:flex; flex-wrap:wrap; gap:.5rem 1.2rem; align-items:center; margin-top:.8rem; padding:.7rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+  #tab-drawing .dr-export b { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--invoice-accent); letter-spacing:.06em; }
+  #tab-drawing .dr-denied { display:none; background:#2a1c1c; border:1px solid #6a2d2d; color:#e8b4b4; border-radius:8px; padding:.6rem .8rem; font-size:.78rem; margin-bottom:.7rem; line-height:1.45; }
+  #tab-drawing #drImportBox { display:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.7rem; margin-bottom:.7rem; }
+  #tab-drawing textarea.dr-in { min-height:60px; resize:vertical; }
+  @media (max-width: 900px) { #tab-drawing .dr-main { flex-direction:column; } #tab-drawing .dr-props { width:auto; border-left:none; border-top:1px solid var(--border); max-height:none; } }
 
   /* ── Sketch marker toolbar ── */
   .marker-type-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 0.4rem 0.7rem; transition: all 0.15s; }
@@ -1233,6 +1264,8 @@ onAuthStateChanged(auth, async user => {
 
     <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')">👤 Customers</button>
 
+    <button class="tab-btn" data-tab="drawing" onclick="switchTab('drawing')">✏ Drawing</button>
+
     <button class="tab-btn" data-tab="tutorial" onclick="switchTab('tutorial')">📖 Tutorial</button>
   </div>
 
@@ -1520,6 +1553,87 @@ onAuthStateChanged(auth, async user => {
   </div>
 
 
+  <!-- DRAWING TAB -->
+  <div class="tab-panel" id="tab-drawing">
+    <div id="drDenied" class="dr-denied"><b>Drawings can't be saved yet.</b> The database rules haven't been updated to allow the new <code>drawings</code> collection. Until they are, you can still draw, export PNG/PDF/SVG, and use <b>⬇ Save file</b> / <b>⬆ Open file</b> to keep your work.</div>
+
+    <div class="dr-bar">
+      <select id="drListSel" class="dr-in" style="max-width:280px;" onchange="drOpen(this.value)"></select>
+      <button class="dr-btn" onclick="drNewDrawing()">＋ New</button>
+      <button class="dr-btn on" onclick="drSave()">💾 Save</button>
+      <button class="dr-btn" onclick="drDuplicate()">⧉ Copy</button>
+      <button class="dr-btn danger" onclick="drDelete()">✕ Delete</button>
+      <span class="dr-sep"></span>
+      <button class="dr-btn" onclick="drExportFile()" title="Download this drawing as a file you can keep or send to another computer">⬇ Save file</button>
+      <button class="dr-btn" onclick="document.getElementById('drFileIn').click()">⬆ Open file</button>
+      <input type="file" id="drFileIn" accept=".json,application/json" style="display:none" onchange="drImportFile(this)">
+      <button class="dr-btn" onclick="drToggleImport()" title="Copy the glass pieces from a bid into this drawing (sizes only, no prices)">📋 Copy from a bid</button>
+      <span id="drDirty" style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);"></span>
+    </div>
+    <div id="drImportBox"></div>
+
+    <div class="dr-meta">
+      <label>Drawing name<input class="dr-in" id="drName" oninput="drMeta('name',this)" placeholder="e.g. Smith master shower"></label>
+      <label>Customer<input class="dr-in" id="drCustomer" list="drCustList" oninput="drMeta('customer',this)" placeholder="optional"></label>
+      <label>Job / address<input class="dr-in" id="drJob" oninput="drMeta('job',this)" placeholder="optional"></label>
+    </div>
+    <datalist id="drCustList"></datalist>
+
+    <div class="dr-toolbar">
+      <select class="dr-in" style="width:auto;" onchange="drAddPanel(this.value);this.value=''" title="Add a piece of glass">
+        <option value="">＋ Add panel…</option><option value="rect">Rectangle</option><option value="ellipse">Circle / oval</option><option value="arch">Arch top</option><option value="poly">Polygon (any shape)</option>
+      </select>
+      <button class="dr-btn" data-tool="select" onclick="drSetTool('select')">↖ Select</button>
+      <span class="dr-sep"></span>
+      <button class="dr-btn" data-tool="marker" data-kind="hole" onclick="drSetTool('marker','hole')">⊙ Hole</button>
+      <button class="dr-btn" data-tool="marker" data-kind="hinge" onclick="drSetTool('marker','hinge')">▭ Hinge</button>
+      <button class="dr-btn" data-tool="marker" data-kind="handle" onclick="drSetTool('marker','handle')">| Handle</button>
+      <button class="dr-btn" data-tool="marker" data-kind="lock" onclick="drSetTool('marker','lock')">🔒 Lock</button>
+      <button class="dr-btn" data-tool="marker" data-kind="standoff" onclick="drSetTool('marker','standoff')">◎ Standoff</button>
+      <button class="dr-btn" data-tool="marker" data-kind="notch" onclick="drSetTool('marker','notch')">▢ Notch</button>
+      <span class="dr-sep"></span>
+      <button class="dr-btn" data-tool="dim" onclick="drSetTool('dim')">↔ Dimension</button>
+      <button class="dr-btn" data-tool="label" onclick="drSetTool('label')">T Text</button>
+      <span class="dr-sep"></span>
+      <button class="dr-btn" id="drUndoBtn" onclick="drUndo()" title="Undo (Ctrl+Z)">↶</button>
+      <button class="dr-btn" id="drRedoBtn" onclick="drRedo()" title="Redo (Ctrl+Y)">↷</button>
+      <button class="dr-btn" onclick="drZoom(1/1.25)">−</button><span id="drZoomLbl" style="font-family:'DM Mono',monospace;font-size:.7rem;min-width:2.6rem;text-align:center;">100%</span><button class="dr-btn" onclick="drZoom(1.25)">＋</button>
+      <button class="dr-btn" onclick="drFit()">Fit</button>
+      <span class="dr-sep"></span>
+      <label style="font-size:.7rem;color:var(--muted);display:flex;gap:.3rem;align-items:center;"><input type="checkbox" id="drSnapChk" onchange="DR.snap=this.checked;drRender()"> Snap</label>
+      <select class="dr-in" id="drSnapSel" style="width:auto;" onchange="DR.snapIn=parseFloat(this.value);DR.snap=true;drRender()"><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option><option value="6">6"</option></select>
+      <span class="dr-sep"></span>
+      <button class="dr-btn" data-view="edit" onclick="drSetView('edit')">✎ Edit</button>
+      <button class="dr-btn" data-view="customer" onclick="drSetView('customer')">👁 Customer preview</button>
+    </div>
+    <div class="dr-main">
+      <div class="dr-canvasbox"><div id="drCanvasWrap"></div></div>
+      <div class="dr-props" id="drProps"></div>
+    </div>
+    <div class="dr-hint" id="drHint"></div>
+
+    <div style="margin-top:.4rem;">
+      <label style="font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace;">Shop notes (printed on the shop sheet only)</label>
+      <textarea class="dr-in" id="drShopNotes" oninput="drMeta('shopNotes',this)" placeholder="Anything the shop needs to know: polish, template check, install notes…"></textarea>
+    </div>
+
+    <div class="dr-export">
+      <b>SHOP SHEET</b>
+      <span style="font-size:.7rem;color:var(--muted);">dimensions, hole numbers, schedule, notes</span>
+      <button class="dr-btn" onclick="drExport('shop','pdf')">⬇ PDF</button>
+      <button class="dr-btn" onclick="drExport('shop','png')">⬇ PNG</button>
+      <button class="dr-btn" onclick="drExport('shop','svg')">⬇ SVG</button>
+    </div>
+    <div class="dr-export">
+      <b>CUSTOMER VERSION</b>
+      <span style="font-size:.7rem;color:var(--muted);">clean picture — send it only if they ask</span>
+      <button class="dr-btn" onclick="drExport('customer','pdf')">⬇ PDF</button>
+      <button class="dr-btn" onclick="drExport('customer','png')">⬇ PNG</button>
+      <button class="dr-btn" onclick="drExport('customer','svg')">⬇ SVG</button>
+      <label style="font-size:.7rem;color:var(--muted);display:flex;gap:.3rem;align-items:center;"><input type="checkbox" id="drCustDims" onchange="DR.customerDims=this.checked;drRenderCanvas()"> Show overall sizes</label>
+    </div>
+  </div>
+
   <!-- TUTORIAL TAB -->
   <div class="tab-panel" id="tab-tutorial">
     <div class="tut">
@@ -1572,7 +1686,7 @@ onAuthStateChanged(auth, async user => {
           <p>Already started a line as a glass piece? Open the line (tap the arrow at its left) and use <b>PRICED BY</b> at the top to switch it. Going to flat price clears that line's glass, edge and fabrication choices, so the app asks first if the line already has work in it. You can switch back at any time.</p>
           <div class="tut-note"><b>Heads up:</b> Margin % and Surcharge % (the internal box in the Bid Summary) are added on top of a flat price, just like glass. If you want the customer to pay exactly the number you type, set both to 0, or type a lower price.</div>
           <p><b>What the customer sees:</b> your description and the final total. Customers never see the price of any individual line.</p>
-          <p>Dimensions on a flat-price line are optional. They're there for reference, and for the sketch if you want one.</p>
+          <p>Dimensions on a flat-price line are optional. They're there for reference only. For a to-scale picture of a piece, use the Drawing tab.</p>
         </div>
       </details>
 
@@ -1586,7 +1700,7 @@ onAuthStateChanged(auth, async user => {
             <li><b>EDGE:</b> pick an edge finish. The price per inch is editable.</li>
             <li><b>FABRICATION:</b> open the section and use + and &minus; on each item (holes, cutouts and so on). The price of each is shown.</li>
             <li>A <b>⚠</b> on a line means no glass price is set. Pick the glass, or type a $/ft&sup2; rate.</li>
-            <li>The <b>⋯</b> menu on each line has: Flat Price Item, Sketch, Duplicate and Remove.</li>
+            <li>The <b>⋯</b> menu on each line has: Flat Price Item, Duplicate and Remove.</li>
             <li><b>≈ Round ft&sup2;</b> (top right of the card) rounds each piece up to the next whole square foot.</li>
           </ul>
           <h4>Quick Add</h4>
@@ -1664,14 +1778,43 @@ onAuthStateChanged(auth, async user => {
       </details>
 
       <details class="tut-sec">
-        <summary>8 &middot; Sketches and Full Project View</summary>
+        <summary>8 &middot; The Drawing tab</summary>
         <div class="tut-body">
+          <p>The <b>✏ Drawing</b> tab makes shop drawings. It is separate from the bid: nothing in it has a price, and nothing in it is added to a bid, the PDF or the customer's approval page. The customer only sees a drawing if you send them the customer version.</p>
+          <h4>Start a drawing</h4>
           <ul>
-            <li>On a line, open the <b>⋯</b> menu and choose <b>✏ Sketch</b> for a to-scale drawing of that piece.</li>
-            <li>Under <b>Holes &amp; hardware</b>, pick Hole, Hinge, Handle, Lock, Standoff or Notch, then tap the drawing to place it. Tap a marker to drag it or edit its exact measurements.</li>
-            <li>Set the <b>Frame</b> (None, Metal, Wood, Glass) and <b>Muntins</b> (columns &times; rows), and add notes about the piece.</li>
-            <li><b>⬇ Download Sketch</b> saves the drawing as an image.</li>
-            <li><b>🖼 Full Project View</b> lays every piece out together. <b>✥ Move pieces</b> rearranges them. <b>⊙ Holes &amp; hardware</b> locks the pieces so you can place and edit markers on any of them.</li>
+            <li>Type a <b>Drawing name</b> (required to save), and a customer and job if you want them on the printout.</li>
+            <li><b>＋ Add panel</b> adds a piece of glass: Rectangle, Circle / oval, Arch top, or Polygon (any shape, with as many corners as you need).</li>
+            <li><b>📋 Copy from a bid</b> brings in the glass pieces you already entered (sizes only, plus any holes and notes from the old sketch). The bid is not changed.</li>
+          </ul>
+          <h4>Shape it</h4>
+          <ul>
+            <li>Click a panel to select it. Its exact numbers show on the right: width, height, arch rise, and each corner set to Square, Round or Cut with a size. Type sizes like <b>36</b>, <b>36.5</b> or <b>36 1/2</b>.</li>
+            <li>Drag a panel to move it. Drag the yellow square at its corner to resize it. On a polygon, drag the yellow squares to move each corner, or edit the points in the list.</li>
+            <li>Also set the <b>Frame</b> (none, metal, wood), the glass look, and <b>Muntins</b> (columns &times; rows).</li>
+          </ul>
+          <h4>Holes and hardware</h4>
+          <ul>
+            <li>Pick <b>Hole, Hinge, Handle, Lock, Standoff or Notch</b> in the toolbar, then click inside a panel to place it. Click one to drag it or type its exact size and position. Positions are measured from the panel's top-left corner.</li>
+            <li>Press <b>Esc</b> or <b>↖ Select</b> when you're done placing.</li>
+          </ul>
+          <h4>Dimensions and text</h4>
+          <ul>
+            <li>Every panel gets its overall width and height automatically on the shop version.</li>
+            <li><b>↔ Dimension</b> draws a measurement between any two points (it snaps to panel corners). <b>T Text</b> adds a label.</li>
+            <li>On each dimension, hole and text you choose <b>Shop + customer</b> or <b>Shop version only</b>. New dimensions start as shop only.</li>
+          </ul>
+          <h4>Two versions</h4>
+          <ul>
+            <li><b>Shop sheet</b>: dimensions, numbered holes, a panel list, a holes-and-hardware schedule and your shop notes. Download as PDF, PNG or SVG.</li>
+            <li><b>Customer version</b>: a clean picture. No hole numbers, no shop notes and no shop-only items. Overall sizes appear only if you tick <b>Show overall sizes</b>. Use <b>👁 Customer preview</b> to see it before you send it.</li>
+          </ul>
+          <h4>Saving</h4>
+          <ul>
+            <li><b>💾 Save</b> stores the drawing in the app so everyone can open it from the list at the top. The app warns before you open another drawing with unsaved changes.</li>
+            <li><b>⬇ Save file</b> / <b>⬆ Open file</b> keep a copy as a file. <b>⬇ Backup</b> on the Dashboard includes saved drawings.</li>
+            <li>Handy extras: <b>↶ ↷</b> undo and redo (or Ctrl+Z / Ctrl+Y), zoom and <b>Fit</b>, and <b>Snap</b> to a grid (1/8" to 6"). Delete removes the selected item and the arrow keys nudge it.</li>
+            <li>Only the owner login can delete a saved drawing.</li>
           </ul>
         </div>
       </details>
@@ -2028,8 +2171,8 @@ function bidSnapshotForCompare() {
 
 function switchTab(tab) {
   // Warn before leaving an in-progress bid with real, unsaved changes (to Dashboard/Customers).
-  // The Tutorial tab never asks: the bid stays exactly as it is while someone reads, and Dashboard/Customers still ask on the way out.
-  if (tab !== 'bid' && tab !== 'tutorial') {
+  // The Tutorial and Drawing tabs never ask: the bid stays exactly as it is while someone reads or draws, and Dashboard/Customers still ask on the way out.
+  if (tab !== 'bid' && tab !== 'tutorial' && tab !== 'drawing') {
     // A flat-price line counts as real content even with no dimensions (otherwise a bid made only of flat-price items would leave with no warning).
     const hasContent = pieces.some(p => (getPieceW(p) && getPieceH(p)) || (p.flatPrice && (String(p.flatPriceDesc || '').trim() || parseFloat(p.flatPriceValue))));
     if (hasContent) {
@@ -2053,6 +2196,7 @@ function switchTab(tab) {
     calculate();
     renderOptionsBar();
   }
+  if (tab === 'drawing' && window.drOnShow) drOnShow();
 }
 window.switchTab = switchTab;
 function tutToggleAll(open) {
@@ -2934,7 +3078,6 @@ function renderPieces() {
           <button class="piece-menu-btn" onclick="togglePieceMenu('${p.id}', event)">⋯</button>
           <div class="piece-menu-dropdown" id="pmenu_${p.id}">
             <div class="piece-menu-item" onclick="togglePieceFlatPrice('${p.id}')">${p.flatPrice ? '↩ Use Glass Formula' : '📋 Flat Price Item'}</div>
-            <div class="piece-menu-item" onclick="openSketch('${p.id}')">✏ Sketch</div>
             <div class="piece-menu-item" onclick="duplicatePiece('${p.id}')">⧉ Duplicate</div>
             <div class="piece-menu-item danger" onclick="removePiece('${p.id}')">✕ Remove</div>
           </div>
@@ -4286,17 +4429,21 @@ async function exportAllData() {
     showToast('Preparing backup…');
     const jobsSnap = await window._getDocs(window._collection(db, 'jobs'));
     const customersSnap = await window._getDocs(window._collection(db, 'customers'));
+    // Drawings live in their own collection. If the rules haven't been updated yet this read is refused; the backup still completes without them.
+    let drawingDocs = [];
+    try { const dSnap = await window._getDocs(window._collection(db, 'drawings')); drawingDocs = dSnap.docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) { console.warn('Drawings not included in backup:', e); }
     const backup = {
       exportedAt: new Date().toISOString(),
       jobs: jobsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       customers: customersSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      drawings: drawingDocs,
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
     link.download = 'alg-backup-' + new Date().toISOString().split('T')[0] + '.json';
     link.href = URL.createObjectURL(blob);
     link.click();
-    showToast('✓ Backup downloaded — ' + backup.jobs.length + ' jobs, ' + backup.customers.length + ' customers');
+    showToast('✓ Backup downloaded — ' + backup.jobs.length + ' jobs, ' + backup.customers.length + ' customers, ' + backup.drawings.length + ' drawings');
   } catch (err) {
     console.error('Backup failed:', err);
     showToast('Backup failed — try again', 'error');
@@ -4893,1564 +5040,843 @@ const _origAddExtra = addExtra;
 addExtra = function() { expandSection('extras'); _origAddExtra.apply(this, arguments); };
 
 </script>
-  <!-- SKETCH MODAL -->
-  <div id="sketchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-        <div class="card-label" style="margin:0;">Piece Sketch</div>
-        <button onclick="closeSketch()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:0.2rem 0.5rem;">✕</button>
-      </div>
-      <div id="sketchCanvas" style="background:#fff;border-radius:10px;padding:1rem;margin-bottom:0.6rem;display:flex;align-items:center;justify-content:center;min-height:280px;touch-action:none;"></div>
-      <div id="sketchClickHint" style="text-align:center;font-size:0.7rem;color:var(--muted);margin-bottom:0.85rem;">Pick a marker type to place it, or tap a marker on the glass to move or edit it</div>
-
-      <div id="markerActionBar" class="mk-actionbar"></div>
-
-      <!-- Marker placement toolbar -->
-      <div style="margin-bottom:0.85rem;">
-        <label style="margin-bottom:0.4rem;">Holes &amp; hardware</label>
-        <div id="markerTypeRow" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem;">
-          <button class="marker-type-btn" data-mtype="hole" onclick="selectMarkerType('hole')">⊙ Hole</button>
-          <button class="marker-type-btn" data-mtype="hinge" onclick="selectMarkerType('hinge')">▭ Hinge</button>
-          <button class="marker-type-btn" data-mtype="handle" onclick="selectMarkerType('handle')">| Handle</button>
-          <button class="marker-type-btn" data-mtype="lock" onclick="selectMarkerType('lock')">🔒 Lock</button>
-          <button class="marker-type-btn" data-mtype="standoff" onclick="selectMarkerType('standoff')">◎ Standoff</button>
-          <button class="marker-type-btn" data-mtype="notch" onclick="selectMarkerType('notch')">✕ Notch</button>
-        </div>
-        <div id="markerSizeRow" style="display:none;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;margin-bottom:0.5rem;">
-          <span id="markerDiaWrap" style="display:none;align-items:center;gap:0.5rem;">
-            <span style="font-size:0.78rem;color:var(--muted);">Diameter</span>
-            <input type="number" id="markerSizeInput" min="0.125" step="0.125" value="0.5" style="max-width:70px;padding:0.25rem 0.4rem;font-size:0.78rem;">
-            <span style="font-size:0.78rem;color:var(--muted);">in</span>
-          </span>
-          <button onclick="cancelMarkerPlacement()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:0.72rem;padding:0.3rem 0.6rem;">Done</button>
-        </div>
-        <div id="markerInspectorWrap"></div>
-        <div id="markerListWrap"></div>
-      </div>
-
-      <div style="display:flex;gap:0.6rem;margin-bottom:0.85rem;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.7rem;flex:1 1 auto;">
-          <span style="font-size:0.78rem;color:var(--muted);white-space:nowrap;">Frame</span>
-          <select id="sketchFrameMaterial" onchange="renderSketch()" style="flex:1;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.2rem;outline:none;">
-            <option value="">None</option>
-            <option value="metal">Metal</option>
-            <option value="wood">Wood</option>
-            <option value="glass">Glass (frameless)</option>
-          </select>
-        </div>
-        <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.7rem;flex:1 1 auto;">
-          <span style="font-size:0.78rem;color:var(--muted);white-space:nowrap;">Muntins</span>
-          <input type="number" id="sketchMuntinCols" placeholder="Cols" min="0" max="10" oninput="renderSketch()" style="max-width:60px;padding:0.25rem 0.4rem;font-size:0.78rem;">
-          <span style="color:var(--muted);font-size:0.75rem;">×</span>
-          <input type="number" id="sketchMuntinRows" placeholder="Rows" min="0" max="10" oninput="renderSketch()" style="max-width:60px;padding:0.25rem 0.4rem;font-size:0.78rem;">
-        </div>
-      </div>
-
-      <label>Description / Notes on this piece</label>
-      <textarea id="sketchDesc" placeholder="e.g. notch top-left corner, cutout for hinge, beveled edge on top..." 
-        oninput="renderSketch()"
-        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;padding:0.6rem 0.8rem;outline:none;resize:vertical;min-height:70px;margin-bottom:1rem;"></textarea>
-      <div style="display:flex;gap:0.6rem;">
-        <button class="btn-print" onclick="downloadSketch()" style="flex:1;">⬇ Download Sketch</button>
-        <button class="btn-print" onclick="openFullProjectView()" style="flex:1;background:var(--invoice-accent);">🖼 Full Project View</button>
-      </div>
-    </div>
-  </div>
-
-<script>
-// ─────────────────────────────────────────────────
-// PIECE SKETCH — generates a scaled diagram from dimensions + description
-// ─────────────────────────────────────────────────
-let _sketchPieceId = null;
-
-function openSketch(id) {
-  _sketchPieceId = id;
-  _selectedMarkerType = null;
-  mkSelect('sk', null, null);
-  const p = pieces.find(pc => pc.id === id);
-  if (!p) return;
-  document.getElementById('sketchDesc').value = p.sketchNote || '';
-  document.getElementById('sketchFrameMaterial').value = p.sketchFrameMaterial || '';
-  document.getElementById('sketchMuntinCols').value = p.sketchMuntinCols || '';
-  document.getElementById('sketchMuntinRows').value = p.sketchMuntinRows || '';
-  document.getElementById('sketchModal').style.display = 'flex';
-  renderSketch();
-}
-
-function closeSketch() {
-  document.getElementById('sketchModal').style.display = 'none';
-  _sketchPieceId = null;
-  mkSelect('sk', null, null);
-  cancelMarkerPlacement();
-}
-
-// ─────────────────────────────────────────────────
-// PRECISE HARDWARE/HOLE MARKERS — click-to-place, exact position + dimensions
-// ─────────────────────────────────────────────────
-let _sketchGeom = null; // {x0, y0, rectW, rectH, realW, realH} for the currently rendered single-piece sketch
-let _selectedMarkerType = null; // placement tool for the single-piece sketch — stays active until "Done" is pressed
-
-const MARKER_LABELS = { hole: 'Hole', hinge: 'Hinge', handle: 'Handle', lock: 'Lock', standoff: 'Standoff', notch: 'Notch' };
-const MARKER_ICONS  = { hole: '⊙', hinge: '▭', handle: '|', lock: '🔒', standoff: '◎', notch: '✕' };
-
-// Which marker is selected on each surface: 'sk' = the single-piece sketch, 'pj' = Full Project View.
-const MK = { sk: { pieceId: null, markerId: null }, pj: { pieceId: null, markerId: null } };
-let _mkDragging = false; // true while a marker is being dragged — layout must not change mid-drag
-const MK_SNAP = 1/8; // dragging snaps to 1/8" — type an exact value in the box for anything finer
-
-// ── Small helpers ──────────────────────────────────────────────
-function mkRound(v) { return Math.round(v * 10000) / 10000; }
-function mkSnap(v)  { return Math.round(v / MK_SNAP) * MK_SNAP; }
-
-// Inches -> shop-style text: 4 1/4" when the value is a clean 1/16", otherwise 4.27"
-function fmtIn(v, noMark) {
-  const mark = noMark ? '' : '"';
-  const sixteenths = Math.round(v * 16);
-  if (Math.abs(v - sixteenths / 16) < 0.005) {
-    const whole = Math.floor(sixteenths / 16), f = sixteenths % 16;
-    if (f === 0) return whole + mark;
-    const fr = FRACTIONS.find(x => Math.abs(x.val - f / 16) < 0.001);
-    return (whole ? whole + ' ' : '') + fr.label + mark;
-  }
-  return (Math.round(v * 100) / 100) + mark;
-}
-
-// Accepts 4.25, 4 1/4, 1/2, or 4 1/4"  — returns NaN if it can't be read
-function parseInches(s) {
-  s = String(s == null ? '' : s).trim().replace(/"/g, '');
-  if (!s) return NaN;
-  let m = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-  if (m) return +m[3] ? (+m[1]) + (+m[2]) / (+m[3]) : NaN;
-  m = s.match(/^(\d+)\/(\d+)$/);
-  if (m) return +m[2] ? (+m[1]) / (+m[2]) : NaN;
-  if (!/^\d*\.?\d+$/.test(s)) return NaN;
-  return parseFloat(s);
-}
-
-// ── Geometry ───────────────────────────────────────────────────
-// Marker positions are stored in inches from the top-left of the piece in its NATURAL
-// orientation. When a piece is rotated 90° clockwise in the project layout, we convert
-// to/from the "view" frame so markers rotate with the glass instead of distorting.
-function mkViewDims(p, rotated) {
-  const W = getPieceW(p), H = getPieceH(p);
-  return rotated ? { vw: H, vh: W } : { vw: W, vh: H };
-}
-function markerToView(m, W, H, rotated) {
-  return rotated ? { vx: H - m.yIn, vy: m.xIn } : { vx: m.xIn, vy: m.yIn };
-}
-function viewToMarker(vx, vy, W, H, rotated) {
-  return rotated ? { xIn: vy, yIn: H - vx } : { xIn: vx, yIn: vy };
-}
-// Keeps a marker on the glass; a hole is kept fully inside so it can't hang over the edge.
-function mkClampView(m, vx, vy, vw, vh) {
-  const r = (m.type === 'hole' && m.size) ? m.size / 2 : 0;
-  return {
-    vx: Math.min(Math.max(vx, r), Math.max(r, vw - r)),
-    vy: Math.min(Math.max(vy, r), Math.max(r, vh - r)),
-  };
-}
-
-// A "surface" describes one drawn piece: s = { scope, p, rotated, x0, y0, rectW, rectH,
-// sizeInputId, getHost(), getSvg(), rerender(), liveUpdate() }
-function mkPointerToSvg(svgEl, e) {
-  const ctm = svgEl.getScreenCTM();
-  if (!ctm) return null;
-  const pt = svgEl.createSVGPoint();
-  pt.x = e.clientX; pt.y = e.clientY;
-  const q = pt.matrixTransform(ctm.inverse());
-  return { x: q.x, y: q.y };
-}
-function mkSurfaceToView(s, sx, sy) {
-  const { vw, vh } = mkViewDims(s.p, s.rotated);
-  return { vx: (sx - s.x0) / s.rectW * vw, vy: (sy - s.y0) / s.rectH * vh, vw, vh };
-}
-// Finds the marker under the pointer. Reach is ~20 screen px so it's easy to grab with a finger.
-function mkHitTest(s, sx, sy) {
-  const W = getPieceW(s.p), H = getPieceH(s.p);
-  const { vw } = mkViewDims(s.p, s.rotated);
-  const ppi = s.rectW / vw;
-  const svg = s.getSvg();
-  const ctm = svg && svg.getScreenCTM();
-  const k = ctm && ctm.a ? ctm.a : 1;
-  let best = null, bestD = Infinity;
-  (s.p.sketchMarkers || []).forEach(m => {
-    const v = markerToView(m, W, H, s.rotated);
-    const px = s.x0 + v.vx * ppi, py = s.y0 + v.vy * ppi;
-    const holeR = (m.type === 'hole' && m.size) ? m.size / 2 * ppi : 0;
-    const reach = Math.max(20 / k, holeR + 4 / k);
-    const d = Math.hypot(sx - px, sy - py);
-    if (d <= reach && d <= bestD) { best = m; bestD = d; } // later markers are drawn on top, so they win ties
-  });
-  return best;
-}
-
-function mkSelect(scope, pieceId, markerId) { MK[scope] = { pieceId, markerId }; }
-
-// Shared pointer-down for both surfaces: grab a marker, or place a new one if a tool is active.
-function mkPointerDown(e, s, tool) {
-  if (e.button !== undefined && e.button > 0) return;
-  const svg = s.getSvg(); if (!svg) return;
-  const pt = mkPointerToSvg(svg, e); if (!pt) return;
-
-  const hit = mkHitTest(s, pt.x, pt.y);
-  if (hit) {
-    e.preventDefault();
-    // Keep the pointer stream on a stable element — the drawing is re-rendered while dragging,
-    // and touch events stop reaching the window if their original target is removed.
-    const host = s.getHost && s.getHost();
-    if (host && host.setPointerCapture && e.pointerId !== undefined) { try { host.setPointerCapture(e.pointerId); } catch (_) {} }
-    mkSelect(s.scope, s.p.id, hit.id);
-    _mkDragging = true; // the inspector/hint stay untouched until release, so the glass never shifts under the finger
-    mkBeginDrag(e, s, hit, pt);
-    s.rerender();
-    return;
-  }
-
-  const v = mkSurfaceToView(s, pt.x, pt.y);
-  const inside = v.vx >= 0 && v.vx <= v.vw && v.vy >= 0 && v.vy <= v.vh;
-  if (tool) {
-    if (!inside) return;
-    e.preventDefault();
-    const sizeEl = s.sizeInputId && document.getElementById(s.sizeInputId);
-    const size = tool === 'hole' ? (parseFloat(sizeEl && sizeEl.value) || 0.5) : null;
-    const W = getPieceW(s.p), H = getPieceH(s.p);
-    const c = mkClampView({ type: tool, size }, mkSnap(v.vx), mkSnap(v.vy), v.vw, v.vh);
-    const nat = viewToMarker(c.vx, c.vy, W, H, s.rotated);
-    if (!s.p.sketchMarkers) s.p.sketchMarkers = [];
-    const m = { id: uid(), type: tool, size, xIn: mkRound(nat.xIn), yIn: mkRound(nat.yIn) };
-    s.p.sketchMarkers.push(m);
-    mkSelect(s.scope, s.p.id, m.id);
-    s.rerender();
-    return;
-  }
-  if (MK[s.scope].markerId) { mkSelect(s.scope, null, null); s.rerender(); } // tapped empty glass: deselect
-}
-
-// Drag a marker. It keeps the same grab offset (so it doesn't jump to the pointer),
-// snaps to 1/8", and stays on the glass.
-function mkBeginDrag(e, s, m, startPt) {
-  const W = getPieceW(s.p), H = getPieceH(s.p);
-  const startV = mkSurfaceToView(s, startPt.x, startPt.y);
-  const mv = markerToView(m, W, H, s.rotated);
-  const offX = mv.vx - startV.vx, offY = mv.vy - startV.vy;
-  const sx = e.clientX, sy = e.clientY;
-  let moved = false;
-  const onMove = (ev) => {
-    if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return; // a tap just selects
-    moved = true;
-    const svg = s.getSvg(); if (!svg) return;
-    const pt = mkPointerToSvg(svg, ev); if (!pt) return;
-    const v = mkSurfaceToView(s, pt.x, pt.y);
-    const c = mkClampView(m, mkSnap(v.vx + offX), mkSnap(v.vy + offY), v.vw, v.vh);
-    const nat = viewToMarker(c.vx, c.vy, W, H, s.rotated);
-    m.xIn = mkRound(nat.xIn); m.yIn = mkRound(nat.yIn);
-    s.liveUpdate();
-  };
-  const end = () => {
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', end);
-    window.removeEventListener('pointercancel', end);
-    _mkDragging = false;
-    s.rerender(); // now it's safe to bring up the inspector
-  };
-  window.addEventListener('pointermove', onMove);
-  window.addEventListener('pointerup', end);
-  window.addEventListener('pointercancel', end);
-}
-
-// ── Inspector: exact numbers for the selected marker ───────────
-function mkGet(scope) {
-  const sel = MK[scope];
-  if (!sel || !sel.markerId) return null;
-  const p = pieces.find(pc => pc.id === sel.pieceId);
-  if (!p) return null;
-  const m = (p.sketchMarkers || []).find(x => x.id === sel.markerId);
-  if (!m) return null;
-  return { p, m, rotated: scope === 'pj' && !!p.sketchRotated };
-}
-
-function buildMarkerInspectorHtml(scope) {
-  const g = mkGet(scope);
-  if (!g) return '';
-  const { p, m, rotated } = g;
-  const W = getPieceW(p), H = getPieceH(p);
-  const { vw, vh } = mkViewDims(p, rotated);
-  const v = markerToView(m, W, H, rotated);
-  const qty = parseInt(p.qty) || 1;
-  const fld = (id, label, val) => `<div class="mk-insp-field"><label>${label}</label><input type="text" inputmode="decimal" id="mkf-${scope}-${id}" value="${escapeHtml(fmtIn(val, true))}" onchange="mkInspectorApply('${scope}')"></div>`;
-  return `<div class="mk-inspector" data-scope="${scope}" data-mid="${m.id}">
-    <div class="mk-insp-head"><b>${MARKER_LABELS[m.type] || m.type}${m.size ? ' ⌀' + fmtIn(m.size) : ''}</b>
-      <span class="sub">${escapeHtml(getPieceDisplay(p))}</span>
-      <button class="mk-insp-x" onclick="mkDeselect('${scope}')" title="Close">✕</button></div>
-    <div class="mk-insp-grid">
-      ${m.type === 'hole' ? fld('d', 'Diameter (in)', m.size || 0.5) : ''}
-      ${fld('x', 'From left (in)', v.vx)}
-      ${fld('y', 'From top (in)', v.vy)}
-    </div>
-    <div class="mk-insp-read mk-insp-edges">Right edge ${fmtIn(vw - v.vx)} · Bottom edge ${fmtIn(vh - v.vy)}${rotated ? ' · measured as drawn (piece is rotated)' : ''}</div>
-    ${qty > 1 ? `<div class="mk-insp-read">Applies to all ${qty} copies of this piece</div>` : ''}
-  </div>`;
-}
-
-// While dragging, update the numbers in the open inspector in place (no layout change).
-function mkLiveFields(scope) {
-  const g = mkGet(scope); if (!g) return;
-  const root = document.querySelector(`.mk-inspector[data-scope="${scope}"][data-mid="${g.m.id}"]`);
-  if (!root) return;
-  const { p, m, rotated } = g;
-  const { vw, vh } = mkViewDims(p, rotated);
-  const v = markerToView(m, getPieceW(p), getPieceH(p), rotated);
-  const set = (id, val) => { const el = root.querySelector('#mkf-' + scope + '-' + id); if (el) el.value = fmtIn(val, true); };
-  set('x', v.vx); set('y', v.vy);
-  const ed = root.querySelector('.mk-insp-edges');
-  if (ed) ed.textContent = 'Right edge ' + fmtIn(vw - v.vx) + ' · Bottom edge ' + fmtIn(vh - v.vy) + (rotated ? ' · measured as drawn (piece is rotated)' : '');
-}
-
-// Always-visible action bar. It lives in a fixed-height slot NEXT TO the drawing (never below
-// the fold), so Delete is one tap away the moment a marker is selected — and because the slot
-// never changes height, showing it can't push the glass out from under a finger.
-function buildMarkerActionBarHtml(scope) {
-  const g = mkGet(scope);
-  if (!g) return '<span class="mk-bar-empty">Nothing selected — tap a marker on the glass to move, copy or delete it</span>';
-  const { m } = g;
-  return `<span class="mk-bar-name">${MARKER_LABELS[m.type] || m.type}${m.size ? ' ⌀' + fmtIn(m.size) : ''}</span>
-    <button onclick="mkDuplicate('${scope}')">Duplicate</button>
-    <button class="danger" onclick="mkDeleteSelected('${scope}')">Delete</button>
-    <button onclick="mkDeselect('${scope}')">Done</button>`;
-}
-
-// Desktop: Delete / Backspace removes the selected marker (ignored while typing in a field).
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-  const t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-  const skOpen = document.getElementById('sketchModal') && document.getElementById('sketchModal').style.display === 'flex';
-  const pjOpen = !!document.getElementById('fullProjectModal');
-  const scope = (pjOpen && MK.pj.markerId) ? 'pj' : (skOpen && MK.sk.markerId) ? 'sk' : null;
-  if (!scope) return;
-  e.preventDefault();
-  mkDeleteSelected(scope);
-});
-
-function mkInspectorApply(scope) {
-  const g = mkGet(scope); if (!g) return;
-  const { p, m, rotated } = g;
-  const W = getPieceW(p), H = getPieceH(p);
-  const { vw, vh } = mkViewDims(p, rotated);
-  const cur = markerToView(m, W, H, rotated);
-  const read = (id, fallback) => {
-    const el = document.getElementById(`mkf-${scope}-${id}`);
-    const n = el ? parseInches(el.value) : NaN;
-    return isNaN(n) ? fallback : n;
-  };
-  if (m.type === 'hole') {
-    const d = read('d', m.size || 0.5);
-    if (d > 0) m.size = mkRound(d);
-  }
-  const c = mkClampView(m, read('x', cur.vx), read('y', cur.vy), vw, vh);
-  const nat = viewToMarker(c.vx, c.vy, W, H, rotated);
-  m.xIn = mkRound(nat.xIn); m.yIn = mkRound(nat.yIn);
-  mkRefresh(scope);
-}
-
-function mkDuplicate(scope) {
-  const g = mkGet(scope); if (!g) return;
-  const { p, m, rotated } = g;
-  const W = getPieceW(p), H = getPieceH(p);
-  const { vw, vh } = mkViewDims(p, rotated);
-  const v = markerToView(m, W, H, rotated);
-  let c = mkClampView(m, v.vx + 1, v.vy, vw, vh);
-  if (c.vx - v.vx < 0.01) c = mkClampView(m, v.vx - 1, v.vy, vw, vh); // no room on the right: step left instead
-  const nat = viewToMarker(c.vx, c.vy, W, H, rotated);
-  const copy = Object.assign({}, m, { id: uid(), xIn: mkRound(nat.xIn), yIn: mkRound(nat.yIn) });
-  p.sketchMarkers.push(copy);
-  mkSelect(scope, p.id, copy.id);
-  mkRefresh(scope);
-}
-
-function mkDeleteSelected(scope) {
-  const g = mkGet(scope); if (!g) return;
-  g.p.sketchMarkers = g.p.sketchMarkers.filter(x => x.id !== g.m.id);
-  mkSelect(scope, null, null);
-  mkRefresh(scope);
-}
-function mkDeselect(scope) { mkSelect(scope, null, null); mkRefresh(scope); }
-
-function mkRefresh(scope) {
-  if (scope === 'sk') { renderSketch(); return; }
-  document.querySelectorAll('#fullProjectCanvas .project-unit').forEach(b => { if (b._mkRebuild) b._mkRebuild(); });
-  renderProjMarkerPanel();
-}
-
-// ── Single-piece sketch: toolbar + pointer handling ────────────
-function skSurface(p) {
-  const g = _sketchGeom;
-  return {
-    scope: 'sk', p, rotated: false,
-    x0: g.x0, y0: g.y0, rectW: g.rectW, rectH: g.rectH,
-    sizeInputId: 'markerSizeInput',
-    getHost: () => document.getElementById('sketchCanvas'),
-    getSvg: () => document.querySelector('#sketchCanvas svg'),
-    rerender: renderSketch, liveUpdate: renderSketch,
-  };
-}
-
-function sketchPointerDown(e) {
-  const p = pieces.find(pc => pc.id === _sketchPieceId);
-  if (!p || !_sketchGeom) return;
-  mkPointerDown(e, skSurface(p), _selectedMarkerType);
-}
-
-function selectMarkerType(type) {
-  _selectedMarkerType = (_selectedMarkerType === type) ? null : type; // tap the active tool again to turn it off
-  mkSelect('sk', null, null);
-  renderSketch();
-}
-
-function cancelMarkerPlacement() {
-  _selectedMarkerType = null;
-  mkUpdateSkUi();
-}
-
-function mkUpdateSkUi() {
-  if (_mkDragging) return;
-  const hint = document.getElementById('sketchClickHint');
-  if (!hint) return;
-  document.querySelectorAll('.marker-type-btn[data-mtype]').forEach(b => b.classList.toggle('active', b.dataset.mtype === _selectedMarkerType));
-  const row = document.getElementById('markerSizeRow');
-  if (row) row.style.display = _selectedMarkerType ? 'flex' : 'none';
-  const dia = document.getElementById('markerDiaWrap');
-  if (dia) dia.style.display = _selectedMarkerType === 'hole' ? 'flex' : 'none';
-  const canvas = document.getElementById('sketchCanvas');
-  if (canvas) canvas.style.cursor = _selectedMarkerType ? 'crosshair' : 'default';
-  const bar = document.getElementById('markerActionBar');
-  if (bar) bar.innerHTML = buildMarkerActionBarHtml('sk');
-  if (_selectedMarkerType) hint.textContent = 'Tap the glass to place a ' + MARKER_LABELS[_selectedMarkerType] + ' — tap again to add more, Done when finished';
-  else if (MK.sk.markerId) hint.textContent = 'Drag the marker to move it, or type exact distances below';
-  else hint.textContent = 'Pick a marker type to place it, or tap a marker on the glass to move or edit it';
-}
-
-function removeMarker(id) {
-  const p = pieces.find(pc => pc.id === _sketchPieceId);
-  if (!p || !p.sketchMarkers) return;
-  p.sketchMarkers = p.sketchMarkers.filter(m => m.id !== id);
-  if (MK.sk.markerId === id) mkSelect('sk', null, null);
-  renderSketch();
-}
-function mkListSelect(id) { mkSelect('sk', _sketchPieceId, id); renderSketch(); }
-
-function renderMarkerList() {
-  const p = pieces.find(pc => pc.id === _sketchPieceId);
-  const wrap = document.getElementById('markerListWrap');
-  if (!wrap) return;
-  if (!p || !p.sketchMarkers || !p.sketchMarkers.length) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML = p.sketchMarkers.map(m => `
-    <div class="marker-list-item${MK.sk.markerId === m.id ? ' selected' : ''}" onclick="mkListSelect('${m.id}')" style="cursor:pointer;">
-      <span>${MARKER_LABELS[m.type]||m.type}${m.size?' ⌀'+fmtIn(m.size):''}</span>
-      <span style="color:var(--muted);">${fmtIn(m.xIn)} from left · ${fmtIn(m.yIn)} from top</span>
-      <button class="marker-del" onclick="event.stopPropagation();removeMarker('${m.id}')" title="Remove marker">✕</button>
-    </div>`).join('');
-}
-
-// ── Full Project View: edit mode ───────────────────────────────
-const _pjEdit = { on: false, tool: null };
-let _pjHoleSize = 0.5;
-
-function pjSetMode(on) {
-  _pjEdit.on = !!on;
-  _pjEdit.tool = null;
-  mkSelect('pj', null, null);
-  const mv = document.getElementById('pjModeMove'), ed = document.getElementById('pjModeEdit');
-  if (mv) mv.classList.toggle('active', !on);
-  if (ed) ed.classList.toggle('active', !!on);
-  renderProjectCanvas(); // redraw so units pick up the right cursor, drag behavior and selection halo
-}
-
-function pjSelectTool(t) {
-  _pjEdit.tool = (t && _pjEdit.tool !== t) ? t : null; // tapping the active tool again turns it off
-  mkSelect('pj', null, null);
-  document.querySelectorAll('#fullProjectCanvas .project-unit').forEach(b => {
-    b.style.cursor = _pjEdit.tool ? 'crosshair' : 'default';
-    if (b._mkRebuild) b._mkRebuild();
-  });
-  renderProjMarkerPanel();
-}
-
-function renderProjMarkerPanel() {
-  if (_mkDragging) { mkLiveFields('pj'); return; }
-  const el = document.getElementById('pjMarkerPanel');
-  if (!el) return;
-  const insp = document.getElementById('pjInspectorWrap');
-  if (insp) insp.innerHTML = _pjEdit.on ? buildMarkerInspectorHtml('pj') : '';
-  const bar = document.getElementById('pjActionBar');
-  if (bar) { bar.style.display = _pjEdit.on ? 'flex' : 'none'; bar.innerHTML = _pjEdit.on ? buildMarkerActionBarHtml('pj') : ''; }
-  el.style.display = _pjEdit.on ? 'block' : 'none';
-  const hint = document.getElementById('pjHint');
-  if (hint) {
-    hint.textContent = !_pjEdit.on
-      ? 'Drag any piece to rearrange the layout — every quantity is shown as its own separate piece, just like the finished project.'
-      : (_pjEdit.tool
-          ? 'Tap a piece to place a ' + MARKER_LABELS[_pjEdit.tool] + '. Tap again to add more, Done when finished.'
-          : 'Pick a marker type to place it, or tap a marker to move or edit it. Pieces are locked in this mode.');
-  }
-  if (!_pjEdit.on) return;
-  el.innerHTML = `
-    <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem;">
-      ${Object.keys(MARKER_LABELS).map(t => `<button class="marker-type-btn${_pjEdit.tool === t ? ' active' : ''}" onclick="pjSelectTool('${t}')">${MARKER_ICONS[t]} ${MARKER_LABELS[t]}</button>`).join('')}
-    </div>
-    ${_pjEdit.tool ? `<div style="display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;margin-bottom:0.5rem;">
-      ${_pjEdit.tool === 'hole' ? `<span style="font-size:0.78rem;color:var(--muted);">Diameter</span>
-      <input type="number" id="pjMarkerSize" min="0.125" step="0.125" value="${_pjHoleSize}" oninput="_pjHoleSize=parseFloat(this.value)||0.5" style="max-width:70px;padding:0.25rem 0.4rem;font-size:0.78rem;">
-      <span style="font-size:0.78rem;color:var(--muted);">in</span>` : ''}
-      <button onclick="pjSelectTool(null)" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:0.72rem;padding:0.3rem 0.6rem;">Done</button>
-    </div>` : ''}`;
-}
-
-// Pointer-down on a unit while in edit mode (set up per unit inside renderProjectCanvas)
-function pjUnitPointerDown(e, box) {
-  if (e.target.closest && e.target.closest('.unit-rotate-btn')) return;
-  const s = box._mkSurface;
-  if (!s) return;
-  const host = box;
-  if (host.setPointerCapture && e.pointerId !== undefined) { try { host.setPointerCapture(e.pointerId); } catch (_) {} }
-  mkPointerDown(e, s, _pjEdit.tool);
-}
-
-// Draws the actual icon shape + dimension lines/labels for a precisely placed marker.
-// Called from buildPieceSvgGroup so this renders identically in the sketch modal,
-// Full Project View, and downloaded images — anywhere the piece is drawn.
-// viewW/viewH are the real-world size of the drawing AS DRAWN (swapped when the piece is rotated).
-function buildPreciseMarkerSvg(marker, x0, y0, rectW, rectH, viewW, viewH, opts) {
-  opts = opts || {};
-  const v = markerToView(marker, opts.natW, opts.natH, !!opts.rotated);
-  const ppi = rectW / viewW; // drawing pixels per real inch
-  const px = x0 + v.vx * ppi, py = y0 + v.vy * ppi;
-  const c = marker.type === 'hole' || marker.type === 'notch' ? '#e05050' : '#2a6fc9';
-  let icon = '', reach = 11;
-
-  switch (marker.type) {
-    case 'hole': {
-      // Drawn to scale so a 4" hole looks four times the size of a 1" hole (floor of 2.5px so tiny holes stay visible)
-      const holeR = Math.max(2.5, (marker.size || 0.5) * ppi / 2);
-      reach = holeR;
-      icon = `<circle cx="${px}" cy="${py}" r="${holeR}" fill="none" stroke="${c}" stroke-width="1.8"/>`;
-      if (holeR >= 5) icon += `<line x1="${px-3}" y1="${py}" x2="${px+3}" y2="${py}" stroke="${c}" stroke-width="1"/><line x1="${px}" y1="${py-3}" x2="${px}" y2="${py+3}" stroke="${c}" stroke-width="1"/>`;
-      break;
-    }
-    case 'hinge':
-      icon = `<rect x="${px-6}" y="${py-9}" width="12" height="18" rx="2" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="${px}" cy="${py-9}" r="1.8" fill="${c}"/><circle cx="${px}" cy="${py+9}" r="1.8" fill="${c}"/>`;
-      reach = 11;
-      break;
-    case 'handle':
-      icon = `<line x1="${px}" y1="${py-9}" x2="${px}" y2="${py+9}" stroke="${c}" stroke-width="3"/><circle cx="${px}" cy="${py-9}" r="1.8" fill="${c}"/><circle cx="${px}" cy="${py+9}" r="1.8" fill="${c}"/>`;
-      reach = 11;
-      break;
-    case 'lock':
-      icon = `<rect x="${px-6}" y="${py-2}" width="12" height="9" rx="1.5" fill="none" stroke="${c}" stroke-width="1.8"/><path d="M${px-4},${py-2} v-3 a4,4 0 0 1 8,0 v3" fill="none" stroke="${c}" stroke-width="1.8"/>`;
-      reach = 9;
-      break;
-    case 'standoff':
-      icon = `<circle cx="${px}" cy="${py}" r="6" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="${px}" cy="${py}" r="2" fill="${c}"/>`;
-      reach = 7;
-      break;
-    case 'notch':
-    default:
-      icon = `<circle cx="${px}" cy="${py}" r="6" fill="none" stroke="${c}" stroke-width="1.4"/><line x1="${px+4}" y1="${py-4}" x2="${px-4}" y2="${py+4}" stroke="${c}" stroke-width="1.4"/><line x1="${px-4}" y1="${py-4}" x2="${px+4}" y2="${py+4}" stroke="${c}" stroke-width="1.4"/>`;
-      reach = 7;
-  }
-
-  // Selection halo (stripped from downloads — it only exists while editing)
-  const halo = opts.selected
-    ? `<circle class="mk-halo" cx="${px}" cy="${py}" r="${Math.max(reach, 8) + 7}" fill="rgba(42,111,201,0.13)" stroke="#2a6fc9" stroke-width="1.2" stroke-dasharray="3,2"/>`
-    : '';
-
-  // Dimension lines run to the NEAREST edge in each direction — that's the measurement the
-  // shop actually drills from — with the real-world distance labeled in shop fractions.
-  const dimColor = '#999';
-  const useLeft = v.vx <= viewW - v.vx, useTop = v.vy <= viewH - v.vy;
-  const ex = useLeft ? x0 : x0 + rectW, ey = useTop ? y0 : y0 + rectH;
-  const dxIn = useLeft ? v.vx : viewW - v.vx, dyIn = useTop ? v.vy : viewH - v.vy;
-  const dims = `
-    <line x1="${ex}" y1="${py}" x2="${px}" y2="${py}" stroke="${dimColor}" stroke-width="0.75" stroke-dasharray="2,2"/>
-    <text x="${(ex + px) / 2}" y="${py - 4}" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${dimColor}">${fmtIn(dxIn)}</text>
-    <line x1="${px}" y1="${ey}" x2="${px}" y2="${py}" stroke="${dimColor}" stroke-width="0.75" stroke-dasharray="2,2"/>
-    <text x="${px + 5}" y="${(ey + py) / 2}" text-anchor="start" font-family="DM Mono, monospace" font-size="8" fill="${dimColor}">${fmtIn(dyIn)}</text>`;
-
-  const sizeLabel = marker.size ? ` ⌀${fmtIn(marker.size)}` : '';
-  const nameLabel = `<text x="${px}" y="${py + Math.max(18, reach + 12) + (opts.selected ? 8 : 0)}" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="8.5" fill="${c}" font-weight="600">${MARKER_LABELS[marker.type] || marker.type}${sizeLabel}</text>`;
-
-  return halo + dims + icon + nameLabel;
-}
-
-const SKETCH_KEYWORDS = [
-  // Cutting / drilling
-  { match: /notch/i,                  label: 'Notch' },
-  { match: /cutout|cut.?out/i,        label: 'Cutout' },
-  { match: /hole|drill/i,             label: 'Hole' },
-  { match: /finger.?pull/i,           label: 'Finger Pull' },
-  { match: /thumb.?notch/i,           label: 'Thumb Notch' },
-  // Edge treatments
-  { match: /bevel/i,                  label: 'Beveled Edge' },
-  { match: /polish/i,                 label: 'Polished Edge' },
-  { match: /seam/i,                   label: 'Seamed Edge' },
-  { match: /flat.?polish/i,           label: 'Flat Polished Edge' },
-  { match: /pencil.?edge/i,           label: 'Pencil Edge' },
-  { match: /mitered?.?corner/i,       label: 'Mitered Corner' },
-  { match: /radius|round.?corner/i,   label: 'Radius Corner' },
-  // Hardware / fittings — these get a distinct icon shape instead of the generic X marker
-  { match: /hinge/i,                  label: 'Hinge Cutout',       icon: 'hinge' },
-  { match: /pivot/i,                  label: 'Pivot Cutout',       icon: 'hinge' },
-  { match: /handle/i,                 label: 'Handle Location',    icon: 'handle' },
-  { match: /lock|strike/i,            label: 'Lock/Strike Cutout', icon: 'lock' },
-  { match: /clip|clamp/i,             label: 'Clip/Clamp Location',icon: 'clip' },
-  { match: /standoff/i,               label: 'Standoff Hole',      icon: 'standoff' },
-  // Shapes / openings
-  { match: /arch|half.?round|radius.?top/i, label: 'Arched Top' },
-  { match: /angle.?cut|angled?.?corner/i,   label: 'Angled Corner' },
-  { match: /step|offset/i,            label: 'Step/Offset' },
-  // Surface treatments
-  { match: /sandblast/i,              label: 'Sandblasted Area' },
-  { match: /etch/i,                   label: 'Etched Area' },
-  { match: /silk.?screen/i,           label: 'Silk Screen' },
-  { match: /film|safety.?film/i,      label: 'Safety Film' },
-  { match: /decal|logo/i,             label: 'Decal/Logo' },
-  // Damage / repair notes
-  { match: /crack|chip|damage/i,      label: '⚠ Damage Noted' },
-];
-
-// Detects a glass tint/finish word and returns a fill color for the sketch,
-// so the drawing visually reflects the actual glass being used.
-const GLASS_COLOR_MAP = [
-  { match: /bronze/i,   fill: '#d9c39a' },
-  { match: /grey|gray/i,fill: '#cfd3d6' },
-  { match: /black/i,    fill: '#4a4a4a' },
-  { match: /mirror/i,   fill: '#c7ccd1' },
-  { match: /low.?e|low.?iron|starphire/i, fill: '#eaf5f0' },
-  { match: /obscure|rain|niagara|textured|frosted/i, fill: '#e2edf0' },
-  { match: /green/i,    fill: '#d7e8d9' },
-  { match: /blue/i,     fill: '#d6e6f0' },
-  { match: /clear/i,    fill: '#eef4f7' },
-];
-
-function detectGlassFill(p) {
-  const text = (p.glassTypeName || '') + ' ' + (p.sketchNote || '');
-  for (const c of GLASS_COLOR_MAP) {
-    if (c.match.test(text)) return c.fill;
-  }
-  return '#eef4f7'; // default clear-ish
-}
-
-function detectPosition(text) {
-  const t = text.toLowerCase();
-  const vert = t.includes('top') ? 'top' : t.includes('bottom') ? 'bottom' : 'mid';
-  const horiz = t.includes('left') ? 'left' : t.includes('right') ? 'right' : 'mid';
-  return { vert, horiz };
-}
-
-// Draws the piece rectangle + optional frame + optional muntins + dimension lines + annotation
-// Returns the inner SVG markup (without outer <svg> tag) so it can be reused for the full project view
-// Frame material rendering styles
-// inset = width/2 so the frame stroke straddles the glass edge exactly —
-// this makes the frame visually touch/hug the glass with no floating gap
-const FRAME_MATERIALS = {
-  metal: { stroke: '#8a9199', width: 5, inset: 2.5, hatch: false },
-  wood:  { stroke: '#8a5a34', width: 7, inset: 3.5, hatch: true },
-  glass: { stroke: '#b8ccd6', width: 2, inset: 1,   hatch: false }, // frameless glass fin
+  <script>
+// ═════════════════════════════════════════════════
+// DRAWING TAB — shop drawings, independent of the bid (no prices, never attached to a bid or PDF)
+// Units are inches everywhere. Coordinates: x right, y down, origin top-left of the canvas.
+// ═════════════════════════════════════════════════
+const DR = {
+  list: [], cur: null, dirty: false, sel: null,
+  tool: 'select', kind: 'hole', scale: 6, snap: true, snapIn: 0.25,
+  view: 'edit', // 'edit' | 'customer' (read-only preview of the customer version)
+  undo: [], redo: [], listening: false, denied: false, tmp: null, drag: null,
+  customerDims: false,
 };
+const DR_KINDS = {
+  hole:     { label: 'Hole',     code: '',  size: 0.5 },
+  hinge:    { label: 'Hinge',    code: 'H', size: 4 },
+  handle:   { label: 'Handle',   code: 'HD', size: 1 },
+  lock:     { label: 'Lock',     code: 'L', size: 1 },
+  standoff: { label: 'Standoff', code: 'S', size: 0.75 },
+  notch:    { label: 'Notch',    code: 'N', size: 2 },
+};
+const DR_SHAPES = { rect: 'Rectangle', ellipse: 'Circle / oval', arch: 'Arch top', poly: 'Polygon' };
+const DR_CORNER = { sq: 'Square', rad: 'Round', chamfer: 'Cut' };
 
-// Isometric "exploded" view for insulated glass units — shows the two panes
-// and the airspace between them, drawn as an axonometric (angled) projection.
-// This is standard technical-drawing practice for IG units, achievable reliably
-// in flat SVG without needing a full 3D engine.
-function buildInsulatedGlassSvg(p, x0, y0, rectW, rectH, opts) {
-  const fillColor = detectGlassFill(p);
-  const offset = Math.min(rectW, rectH) * 0.22; // diagonal offset representing depth
-  const bx = x0 + offset, by = y0 - offset; // back pane position (up-right)
+// ── inch parsing / formatting ──
+function drParseIn(str) {
+  if (typeof str === 'number') return str;
+  let s = String(str == null ? '' : str).trim().replace(/["”″]/g, '').replace(/-/g, ' ');
+  if (!s) return NaN;
+  let total = 0, any = false;
+  for (const part of s.split(/\s+/)) {
+    let m;
+    if ((m = part.match(/^(\d+)\/(\d+)$/))) { if (+m[2] === 0) return NaN; total += +m[1] / +m[2]; any = true; }
+    else if (/^\d*\.?\d+$/.test(part)) { total += parseFloat(part); any = true; }
+    else return NaN;
+  }
+  return any ? total : NaN;
+}
+function drFmt(v) {
+  v = Number(v) || 0;
+  const neg = v < 0; v = Math.abs(v);
+  let whole = Math.floor(v), sixteenths = Math.round((v - whole) * 16);
+  if (sixteenths === 16) { whole += 1; sixteenths = 0; }
+  let frac = '';
+  if (sixteenths) { let n = sixteenths, d = 16; while (n % 2 === 0) { n /= 2; d /= 2; } frac = n + '/' + d; }
+  const out = whole ? (frac ? whole + ' ' + frac : String(whole)) : (frac || '0');
+  return (neg ? '-' : '') + out + '"';
+}
+function drFmtPlain(v) { return drFmt(v).replace(/"/g, ''); }
+const drEsc = s => escapeHtml(s);
+const drNum = (v, d = 0) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+function drClone(o) { return JSON.parse(JSON.stringify(o)); }
+function drNew() { return { id: null, name: '', customer: '', job: '', shopNotes: '', objects: [] }; }
+function drObj(id) { return DR.cur && DR.cur.objects.find(o => o.id === id); }
+function drPanels() { return DR.cur.objects.filter(o => o.type === 'panel'); }
 
-  let svg = '';
+// ── geometry ──
+function drNewPanel(shape, x, y) {
+  const p = { id: uid(), type: 'panel', label: '', shape, x, y, w: 36, h: 48, corners: ['sq', 'sq', 'sq', 'sq'], cr: [2, 2, 2, 2],
+              rise: 12, frame: 'none', cols: 0, rows: 0, glass: 'clear', spec: '', shopNote: '' };
+  if (shape === 'ellipse') { p.w = 36; p.h = 36; }
+  if (shape === 'arch') { p.w = 36; p.h = 60; p.rise = 18; }
+  if (shape === 'poly') { p.w = 36; p.h = 36; p.pts = [{ x: 0, y: 36 }, { x: 0, y: 12 }, { x: 18, y: 0 }, { x: 36, y: 12 }, { x: 36, y: 36 }]; }
+  return p;
+}
+function drPolyBounds(p) {
+  const xs = p.pts.map(q => q.x), ys = p.pts.map(q => q.y);
+  return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+}
+// Keeps a polygon's points starting at 0,0 (shifts the panel and its markers to compensate) and w/h = its true size.
+function drNormPoly(p) {
+  if (p.shape !== 'poly' || !p.pts || !p.pts.length) return;
+  const b = drPolyBounds(p);
+  if (b.x0 || b.y0) {
+    p.pts.forEach(q => { q.x -= b.x0; q.y -= b.y0; });
+    p.x += b.x0; p.y += b.y0;
+    DR.cur.objects.forEach(o => { if (o.type === 'marker' && o.panelId === p.id) { o.xIn -= b.x0; o.yIn -= b.y0; } });
+  }
+  const nb = drPolyBounds(p);
+  p.w = nb.x1; p.h = nb.y1;
+}
+function drPanelPath(p) {
+  const w = p.w, h = p.h, f = n => +n.toFixed(3);
+  if (p.shape === 'ellipse') {
+    const rx = w / 2, ry = h / 2;
+    return `M0,${f(ry)} A${f(rx)},${f(ry)} 0 1 1 ${f(w)},${f(ry)} A${f(rx)},${f(ry)} 0 1 1 0,${f(ry)} Z`;
+  }
+  if (p.shape === 'arch') {
+    const rise = Math.min(Math.max(p.rise || 0, 0.5), h);
+    return `M0,${f(h)} L0,${f(rise)} A${f(w / 2)},${f(rise)} 0 0 1 ${f(w)},${f(rise)} L${f(w)},${f(h)} Z`;
+  }
+  if (p.shape === 'poly') return 'M' + p.pts.map(q => f(q.x) + ',' + f(q.y)).join(' L') + ' Z';
+  // rectangle with per-corner treatment: order TL, TR, BR, BL
+  const lim = Math.min(w, h) / 2;
+  const r = (i) => p.corners[i] === 'sq' ? 0 : Math.min(Math.max(drNum(p.cr[i]), 0), lim);
+  const c = [0, 1, 2, 3].map(r);
+  let d = `M${f(c[0])},0 L${f(w - c[1])},0`;
+  if (c[1]) d += p.corners[1] === 'rad' ? ` A${f(c[1])},${f(c[1])} 0 0 1 ${f(w)},${f(c[1])}` : ` L${f(w)},${f(c[1])}`;
+  d += ` L${f(w)},${f(h - c[2])}`;
+  if (c[2]) d += p.corners[2] === 'rad' ? ` A${f(c[2])},${f(c[2])} 0 0 1 ${f(w - c[2])},${f(h)}` : ` L${f(w - c[2])},${f(h)}`;
+  d += ` L${f(c[3])},${f(h)}`;
+  if (c[3]) d += p.corners[3] === 'rad' ? ` A${f(c[3])},${f(c[3])} 0 0 1 0,${f(h - c[3])}` : ` L0,${f(h - c[3])}`;
+  d += ` L0,${f(c[0])}`;
+  if (c[0]) d += p.corners[0] === 'rad' ? ` A${f(c[0])},${f(c[0])} 0 0 1 ${f(c[0])},0` : ` L${f(c[0])},0`;
+  return d + ' Z';
+}
+function drSnapV(v) { return DR.snap ? Math.round(v / DR.snapIn) * DR.snapIn : Math.round(v * 16) / 16; }
 
-  // Back pane (further away, drawn first, slightly transparent)
-  svg += `<rect x="${bx}" y="${by}" width="${rectW}" height="${rectH}" fill="${fillColor}" fill-opacity="0.55" stroke="#555" stroke-width="1.5"/>`;
+// ── visibility rules: what the customer version leaves out ──
+function drShown(o, mode) { return mode === 'shop' || o.vis !== 'shop'; }
 
-  // Connecting edge lines (the spacer / airspace) at all 4 corners
-  const corners = [[x0,y0],[x0+rectW,y0],[x0,y0+rectH],[x0+rectW,y0+rectH]];
-  corners.forEach(([cx,cy]) => {
-    svg += `<line x1="${cx}" y1="${cy}" x2="${cx+offset}" y2="${cy-offset}" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/>`;
+// Numbered markers for the hole schedule (same order on drawing and schedule)
+function drMarkerRows(d) {
+  const rows = []; let n = 0;
+  d.objects.filter(o => o.type === 'panel').forEach(p => {
+    d.objects.filter(o => o.type === 'marker' && o.panelId === p.id).forEach(m => { n++; rows.push({ n, m, p }); });
   });
-
-  // Front pane (closer, drawn on top, full opacity)
-  svg += `<rect x="${x0}" y="${y0}" width="${rectW}" height="${rectH}" fill="${fillColor}" stroke="#333" stroke-width="2"/>`;
-
-  // Airspace label
-  svg += `<text x="${x0+rectW/2+offset/2}" y="${y0-offset/2-6}" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="8.5" fill="#777">Airspace</text>`;
-
-  return svg;
+  return rows;
+}
+function drPanelName(d, p) {
+  if (p.label) return p.label;
+  const i = d.objects.filter(o => o.type === 'panel').indexOf(p);
+  return 'Panel ' + (i + 1);
 }
 
-let _svgIdCounter = 0;
+// ── SVG rendering ──
+// opt: { mode:'shop'|'customer', px:pixels-per-inch (sizes strokes/text), edit:bool, sel:id, customerDims:bool, dark:bool }
+function drBounds(d, mode, customerDims) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  d.objects.forEach(o => {
+    if (o.type === 'panel') {
+      add(o.x, o.y); add(o.x + o.w, o.y + o.h);
+      if (mode === 'shop' || customerDims) { add(o.x - 7, o.y + o.h + 7); add(o.x + o.w, o.y + o.h + 7); }
+    } else if (o.type === 'dim' && drShown(o, mode)) {
+      add(o.x1, o.y1); add(o.x2, o.y2);
+    } else if (o.type === 'label' && drShown(o, mode)) {
+      add(o.x, o.y - o.size); add(o.x + Math.max(4, String(o.text || '').length * o.size * 0.6), o.y + 1);
+    }
+  });
+  if (x0 === Infinity) return { x0: 0, y0: 0, x1: 100, y1: 70 };
+  return { x0, y0, x1, y1 };
+}
 
-function buildPieceSvgGroup(p, x0, y0, rectW, rectH, opts) {
-  opts = opts || {};
-  const frameMaterial = opts.frameMaterial !== undefined ? opts.frameMaterial : (p.sketchFrameMaterial || '');
-  const muntinCols = opts.muntinCols !== undefined ? opts.muntinCols : (parseInt(p.sketchMuntinCols) || 0);
-  const muntinRows = opts.muntinRows !== undefined ? opts.muntinRows : (parseInt(p.sketchMuntinRows) || 0);
-  const desc = opts.desc !== undefined ? opts.desc : (p.sketchNote || '');
-  const fillColor = detectGlassFill(p);
-  const isArched = /arch|half.?round|radius.?top/i.test(desc);
-  const isInsulated = p.glassCategory === 'insulated';
-  const uid = 'g' + (_svgIdCounter++); // unique suffix so gradient ids never collide between pieces on the same canvas
+function drDimLine(x1, y1, x2, y2, text, px, ink, opts = {}) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const sw = 1.1 / px, tk = 5 / px, fs = 11 / px;
+  let a = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (a > 90 || a < -90) a += 180; // keep text upright
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const arrow = (x, y, s) => `<path d="M${x},${y} L${x + s * ux * tk * 1.6 + nx * tk * 0.5},${y + s * uy * tk * 1.6 + ny * tk * 0.5} L${x + s * ux * tk * 1.6 - nx * tk * 0.5},${y + s * uy * tk * 1.6 - ny * tk * 0.5} Z" fill="${ink}"/>`;
+  return `<g class="dimline" ${opts.attrs || ''}>` +
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${ink}" stroke-width="${sw}"/>` +
+    arrow(x1, y1, 1) + arrow(x2, y2, -1) +
+    `<text x="${mx}" y="${my - 3.5 / px}" font-size="${fs}" font-family="Arial,Helvetica,sans-serif" fill="${ink}" text-anchor="middle" transform="rotate(${a} ${mx} ${my})" style="paint-order:stroke;stroke:${opts.halo || 'transparent'};stroke-width:${3 / px}px">${drEsc(text)}</text></g>`;
+}
 
-  let shapePath = '';
-  if (isArched) {
-    // Rectangle with a curved (arched) top edge
-    const archHeight = Math.min(rectW * 0.35, rectH * 0.4);
-    shapePath = `M${x0},${y0+archHeight} Q${x0},${y0} ${x0+rectW/2},${y0} Q${x0+rectW},${y0} ${x0+rectW},${y0+archHeight} L${x0+rectW},${y0+rectH} L${x0},${y0+rectH} Z`;
-  }
-
-  // Gradient + reflection defs for a more realistic glass look — subtle top-light-to-
-  // bottom-dark sheen plus a soft diagonal highlight streak, like light catching a real pane.
-  let defs = `<defs>
-    <linearGradient id="glassFill-${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${fillColor}" stop-opacity="0.55"/>
-      <stop offset="55%" stop-color="${fillColor}" stop-opacity="0.82"/>
-      <stop offset="100%" stop-color="${fillColor}" stop-opacity="0.95"/>
-    </linearGradient>
-    <linearGradient id="metalFill-${uid}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#c4cbd2"/><stop offset="45%" stop-color="#8a9199"/><stop offset="100%" stop-color="#5c636b"/>
-    </linearGradient>
-    <linearGradient id="woodFill-${uid}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#a97a4e"/><stop offset="50%" stop-color="#8a5a34"/><stop offset="100%" stop-color="#6b4326"/>
-    </linearGradient>
-  </defs>`;
-
-  let svg = defs;
-  if (isInsulated && !isArched) {
-    // IG units get the isometric exploded view instead of a flat rectangle
-    svg += buildInsulatedGlassSvg(p, x0, y0, rectW, rectH, opts);
-  } else if (isArched) {
-    svg += `<path d="${shapePath}" fill="url(#glassFill-${uid})" stroke="#2a2a2a" stroke-width="2"/>`;
+function drMarkerSvg(m, p, num, opt, ink) {
+  const px = opt.px, cx = p.x + m.xIn, cy = p.y + m.yIn, k = DR_KINDS[m.kind] || DR_KINDS.hole;
+  const sw = 1.3 / px, sel = opt.sel === m.id, col = sel ? '#e8c27a' : ink, attrs = opt.edit ? `data-id="${m.id}" style="cursor:move"` : '';
+  const r = 7 / px, fs = 9 / px;
+  let g = '';
+  if (m.kind === 'hole') {
+    const rr = Math.max((m.size || 0.5) / 2, 2.5 / px);
+    g = `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="${opt.dark ? '#0f0f0f' : '#fff'}" stroke="${col}" stroke-width="${sw}"/>` +
+        `<line x1="${cx - rr * 1.5}" y1="${cy}" x2="${cx + rr * 1.5}" y2="${cy}" stroke="${col}" stroke-width="${sw * 0.6}"/>` +
+        `<line x1="${cx}" y1="${cy - rr * 1.5}" x2="${cx}" y2="${cy + rr * 1.5}" stroke="${col}" stroke-width="${sw * 0.6}"/>`;
+  } else if (m.kind === 'notch') {
+    const s = Math.max(m.size || 2, 4 / px);
+    g = `<rect x="${cx - s / 2}" y="${cy - s / 2}" width="${s}" height="${s}" fill="${opt.dark ? '#0f0f0f' : '#fff'}" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${3 / px} ${2 / px}"/>` +
+        `<text x="${cx}" y="${cy + fs * 0.35}" font-size="${fs}" text-anchor="middle" font-family="Arial,sans-serif" fill="${col}">N</text>`;
   } else {
-    svg += `<rect x="${x0}" y="${y0}" width="${rectW}" height="${rectH}" fill="url(#glassFill-${uid})" stroke="#2a2a2a" stroke-width="2"/>`;
-    // Soft diagonal highlight streak — reads as light catching real glass
-    const streakW = rectW * 0.22;
-    svg += `<polygon points="${x0+rectW*0.12},${y0} ${x0+rectW*0.12+streakW},${y0} ${x0+streakW*0.3},${y0+rectH} ${x0},${y0+rectH}" fill="#ffffff" opacity="0.10"/>`;
-    svg += `<polygon points="${x0+rectW*0.55},${y0} ${x0+rectW*0.55+streakW*0.6},${y0} ${x0+rectW*0.3},${y0+rectH} ${x0+rectW*0.15},${y0+rectH}" fill="#ffffff" opacity="0.06"/>`;
+    g = `<rect x="${cx - r}" y="${cy - r * (m.kind === 'hinge' ? 0.7 : 1)}" width="${r * 2}" height="${r * 2 * (m.kind === 'hinge' ? 0.7 : 1)}" rx="${m.kind === 'handle' ? r : r * 0.2}" fill="${opt.dark ? '#242424' : '#f4f4f4'}" stroke="${col}" stroke-width="${sw}"/>` +
+        `<text x="${cx}" y="${cy + fs * 0.35}" font-size="${fs}" text-anchor="middle" font-family="Arial,sans-serif" fill="${col}">${k.code}</text>`;
   }
-
-  // Frame — drawn with a gradient for a subtle beveled, 3D look instead of a flat color
-  if (frameMaterial && FRAME_MATERIALS[frameMaterial]) {
-    const fm = FRAME_MATERIALS[frameMaterial];
-    const gradFill = frameMaterial === 'metal' ? `url(#metalFill-${uid})` : frameMaterial === 'wood' ? `url(#woodFill-${uid})` : fm.stroke;
-    svg += `<rect x="${x0-fm.inset}" y="${y0-fm.inset}" width="${rectW+fm.inset*2}" height="${rectH+fm.inset*2}" fill="none" stroke="${gradFill}" stroke-width="${fm.width}" rx="${isArched?10:1}"/>`;
-    if (fm.hatch) {
-      // Simple wood-grain hint — diagonal ticks along the frame
-      const hatchCount = 10;
-      for (let i = 0; i < hatchCount; i++) {
-        const hx = x0 - fm.inset + (rectW + fm.inset*2) * (i / hatchCount);
-        svg += `<line x1="${hx}" y1="${y0-fm.inset}" x2="${hx+4}" y2="${y0-fm.inset-fm.width}" stroke="#5a3a1e" stroke-width="1" opacity="0.7"/>`;
-      }
-    }
+  let tag = '';
+  if (opt.mode === 'shop' && num) {
+    const tr = m.kind === 'hole' ? Math.max(r, (m.size || 0) / 2) : r;
+    tag = `<text x="${cx + tr + 2 / px}" y="${cy - tr}" font-size="${10 / px}" font-weight="bold" font-family="Arial,sans-serif" fill="${opt.dark ? '#e8c27a' : '#b00020'}">${num}</text>`;
   }
-
-  // Muntin bars — evenly spaced grid lines inside the glass, with a subtle bevel highlight
-  if (muntinCols > 0) {
-    for (let c = 1; c <= muntinCols; c++) {
-      const mx = x0 + (rectW / (muntinCols + 1)) * c;
-      svg += `<line x1="${mx}" y1="${y0}" x2="${mx}" y2="${y0+rectH}" stroke="#6e6e6e" stroke-width="3.5"/>`;
-      svg += `<line x1="${mx-1}" y1="${y0}" x2="${mx-1}" y2="${y0+rectH}" stroke="#bdbdbd" stroke-width="0.8" opacity="0.6"/>`;
-    }
-  }
-  if (muntinRows > 0) {
-    for (let r = 1; r <= muntinRows; r++) {
-      const my = y0 + (rectH / (muntinRows + 1)) * r;
-      svg += `<line x1="${x0}" y1="${my}" x2="${x0+rectW}" y2="${my}" stroke="#6e6e6e" stroke-width="3.5"/>`;
-      svg += `<line x1="${x0}" y1="${my-1}" x2="${x0+rectW}" y2="${my-1}" stroke="#bdbdbd" stroke-width="0.8" opacity="0.6"/>`;
-    }
-  }
-
-  // Annotation markers — one per matched keyword, spread around the piece so multiple
-  // features (e.g. "notch top-left, hinge cutout right side") each get their own marker
-  // A keyword in the notes (e.g. "hinge") used to draw a generic marker at a guessed corner.
-  // Once a real, measured marker of that kind has been placed, the guess is dropped so the
-  // drawing never shows a made-up location next to the real one.
-  const GUESS_SUPERSEDED_BY = { 'Hole': 'hole', 'Hinge Cutout': 'hinge', 'Pivot Cutout': 'hinge', 'Handle Location': 'handle', 'Lock/Strike Cutout': 'lock', 'Standoff Hole': 'standoff', 'Notch': 'notch' };
-  const placedTypes = new Set((p.sketchMarkers || []).map(m => m.type));
-  const foundTags = SKETCH_KEYWORDS.filter(k => k.match.test(desc) && !(GUESS_SUPERSEDED_BY[k.label] && placedTypes.has(GUESS_SUPERSEDED_BY[k.label])));
-  if (foundTags.length > 0) {
-    const positions = [
-      { x: x0+18, y: y0+18 }, { x: x0+rectW-18, y: y0+18 },
-      { x: x0+18, y: y0+rectH-18 }, { x: x0+rectW-18, y: y0+rectH-18 },
-      { x: x0+rectW/2, y: y0+rectH/2 },
-    ];
-    const pos = detectPosition(desc);
-    let primaryX = x0 + rectW/2, primaryY = y0 + rectH/2;
-    if (pos.vert === 'top') primaryY = y0 + 18;
-    if (pos.vert === 'bottom') primaryY = y0 + rectH - 18;
-    if (pos.horiz === 'left') primaryX = x0 + 18;
-    if (pos.horiz === 'right') primaryX = x0 + rectW - 18;
-
-    foundTags.forEach((tag, idx) => {
-      const mp = idx === 0 ? {x:primaryX,y:primaryY} : positions[idx % positions.length];
-      const c = '#2a6fc9'; // hardware icons use blue to visually separate from red cut/damage markers
-      let iconSvg;
-      switch (tag.icon) {
-        case 'hinge':
-          // Small rectangle with a pin dot — reads as a hinge plate
-          iconSvg = `<rect x="${mp.x-6}" y="${mp.y-9}" width="12" height="18" rx="2" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="${mp.x}" cy="${mp.y-9}" r="1.8" fill="${c}"/><circle cx="${mp.x}" cy="${mp.y+9}" r="1.8" fill="${c}"/>`;
-          break;
-        case 'handle':
-          // A short bar standing off the surface — reads as a pull handle
-          iconSvg = `<line x1="${mp.x}" y1="${mp.y-9}" x2="${mp.x}" y2="${mp.y+9}" stroke="${c}" stroke-width="3"/><circle cx="${mp.x}" cy="${mp.y-9}" r="1.8" fill="${c}"/><circle cx="${mp.x}" cy="${mp.y+9}" r="1.8" fill="${c}"/>`;
-          break;
-        case 'lock':
-          // A simple padlock shape
-          iconSvg = `<rect x="${mp.x-6}" y="${mp.y-2}" width="12" height="9" rx="1.5" fill="none" stroke="${c}" stroke-width="1.8"/><path d="M${mp.x-4},${mp.y-2} v-3 a4,4 0 0 1 8,0 v3" fill="none" stroke="${c}" stroke-width="1.8"/>`;
-          break;
-        case 'clip':
-          // A small bracket shape
-          iconSvg = `<path d="M${mp.x-6},${mp.y-7} h5 v14 h-5" fill="none" stroke="${c}" stroke-width="1.8"/><line x1="${mp.x-1}" y1="${mp.y}" x2="${mp.x+6}" y2="${mp.y}" stroke="${c}" stroke-width="1.8"/>`;
-          break;
-        case 'standoff':
-          // A hollow circle representing a drilled standoff hole
-          iconSvg = `<circle cx="${mp.x}" cy="${mp.y}" r="6" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="${mp.x}" cy="${mp.y}" r="2" fill="${c}"/>`;
-          break;
-        default:
-          // Generic X marker for non-hardware annotations (cuts, damage, surface treatments)
-          iconSvg = `<circle cx="${mp.x}" cy="${mp.y}" r="7" fill="none" stroke="#e05050" stroke-width="2"/><line x1="${mp.x+5}" y1="${mp.y-5}" x2="${mp.x-5}" y2="${mp.y+5}" stroke="#e05050" stroke-width="1.5"/><line x1="${mp.x-5}" y1="${mp.y-5}" x2="${mp.x+5}" y2="${mp.y+5}" stroke="#e05050" stroke-width="1.5"/>`;
-      }
-      const labelColor = tag.icon ? c : '#e05050';
-      svg += `${iconSvg}<text x="${mp.x}" y="${mp.y - 14}" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="9.5" fill="${labelColor}" font-weight="600">${tag.label}</text>`;
-    });
-  }
-
-  // Precise, click-placed hardware/hole markers — exact position with real dimension
-  // callouts, drawn on top of everything else so they're always clearly visible.
-  if (p.sketchMarkers && p.sketchMarkers.length) {
-    const realW = getPieceW(p), realH = getPieceH(p);
-    if (realW && realH) {
-      const rotated = !!opts.rotated;
-      const viewW = rotated ? realH : realW, viewH = rotated ? realW : realH;
-      const selScope = opts.selectScope;
-      p.sketchMarkers.forEach(marker => {
-        const selected = !!selScope && MK[selScope].pieceId === p.id && MK[selScope].markerId === marker.id;
-        svg += buildPreciseMarkerSvg(marker, x0, y0, rectW, rectH, viewW, viewH, { rotated, natW: realW, natH: realH, selected });
-      });
-    }
-  }
-
-  return svg;
+  return `<g ${attrs}>${g}<circle cx="${cx}" cy="${cy}" r="${Math.max(r, 8 / px)}" fill="transparent" stroke="none"/></g>${tag}`;
 }
 
-function renderSketch() {
-  const p = pieces.find(pc => pc.id === _sketchPieceId);
-  if (!p) return;
-  mkUpdateSkUi();
-  const desc = document.getElementById('sketchDesc').value;
-  p.sketchNote = desc;
-  p.sketchFrameMaterial = document.getElementById('sketchFrameMaterial').value;
-  p.sketchMuntinCols = document.getElementById('sketchMuntinCols').value;
-  p.sketchMuntinRows = document.getElementById('sketchMuntinRows').value;
+function drContent(d, opt) {
+  const px = opt.px, mode = opt.mode, dark = !!opt.dark, edit = !!opt.edit;
+  const ink = dark ? '#e8e8e8' : '#111';
+  const rows = drMarkerRows(d), numOf = {};
+  rows.forEach(r => numOf[r.m.id] = r.n);
+  let out = '', defs = '';
+  const showDims = mode === 'shop' || opt.customerDims;
+  d.objects.filter(o => o.type === 'panel').forEach(p => {
+    const sel = opt.sel === p.id;
+    const path = drPanelPath(p);
+    defs += `<clipPath id="clp_${p.id}"><path d="${path}"/></clipPath>`;
+    const fill = p.glass === 'tint' ? (dark ? 'rgba(120,120,120,0.45)' : '#c9d3d6') : p.glass === 'frost' ? (dark ? 'rgba(220,220,220,0.28)' : '#eeeeee') : (dark ? 'rgba(90,190,210,0.22)' : '#e3f3f8');
+    const ft = p.frame === 'metal' ? 1.0 : p.frame === 'wood' ? 1.5 : 0;
+    const fcol = p.frame === 'wood' ? '#a9794a' : '#8a8f94';
+    let g = `<g transform="translate(${p.x},${p.y})">`;
+    g += `<path d="${path}" fill="${fill}" stroke="none" ${edit ? `data-id="${p.id}" style="cursor:move"` : ''}/>`;
+    if (ft) g += `<path d="${path}" fill="none" stroke="${fcol}" stroke-width="${ft * 2}" clip-path="url(#clp_${p.id})" pointer-events="none"/>`;
+    if (p.cols > 1 || p.rows > 1) {
+      let ml = '';
+      for (let i = 1; i < (p.cols || 1); i++) ml += `<line x1="${p.w * i / p.cols}" y1="0" x2="${p.w * i / p.cols}" y2="${p.h}"/>`;
+      for (let i = 1; i < (p.rows || 1); i++) ml += `<line x1="0" y1="${p.h * i / p.rows}" x2="${p.w}" y2="${p.h * i / p.rows}"/>`;
+      g += `<g stroke="${p.frame === 'wood' ? fcol : (dark ? '#9aa0a5' : '#666')}" stroke-width="0.75" clip-path="url(#clp_${p.id})" pointer-events="none">${ml}</g>`;
+    }
+    g += `<path d="${path}" fill="none" stroke="${sel ? '#e8c27a' : ink}" stroke-width="${(sel ? 2.2 : 1.6) / px}" pointer-events="none"/>`;
+    const fs = Math.min(Math.max(Math.min(p.w, p.h) / 7, 12 / px), 28 / px);
+    const nm = p.label || '';
+    if (nm) g += `<text x="${p.w / 2}" y="${p.h / 2 + fs * 0.35}" font-size="${fs}" font-family="Arial,sans-serif" text-anchor="middle" fill="${ink}" opacity="0.85" pointer-events="none">${drEsc(nm)}</text>`;
+    g += '</g>';
+    out += g;
+    // auto overall dimensions
+    if (showDims) {
+      const off = 4, bx = p.x, by = p.y, bw = p.w, bh = p.h;
+      const ext = (xa, ya, xb, yb) => `<line x1="${xa}" y1="${ya}" x2="${xb}" y2="${yb}" stroke="${ink}" stroke-width="${0.7 / px}" stroke-dasharray="${2 / px} ${2 / px}"/>`;
+      out += ext(bx, by + bh, bx, by + bh + off + 1) + ext(bx + bw, by + bh, bx + bw, by + bh + off + 1) + ext(bx, by, bx - off - 1, by) + ext(bx, by + bh, bx - off - 1, by + bh);
+      out += drDimLine(bx, by + bh + off, bx + bw, by + bh + off, drFmt(bw), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
+      out += drDimLine(bx - off, by + bh, bx - off, by, drFmt(bh), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
+      if (p.shape === 'arch') out += `<text x="${bx + bw / 2}" y="${by - 2 / px}" font-size="${10 / px}" font-family="Arial,sans-serif" text-anchor="middle" fill="${ink}">rise ${drFmt(p.rise)}</text>`;
+    }
+  });
+  // markers (after panels so they sit on top)
+  rows.forEach(r => {
+    if (!drShown(r.m, mode)) return;
+    out += drMarkerSvg(r.m, r.p, numOf[r.m.id], opt, ink);
+  });
+  // manual dimensions & labels
+  d.objects.forEach(o => {
+    if (o.type === 'dim' && drShown(o, mode)) {
+      const len = Math.hypot(o.x2 - o.x1, o.y2 - o.y1);
+      const txt = o.text ? o.text : drFmt(len);
+      const sel = opt.sel === o.id;
+      const col = sel ? '#e8c27a' : ink;
+      out += drDimLine(o.x1, o.y1, o.x2, o.y2, txt, px, col, { halo: dark ? '#0f0f0f' : '#fff', attrs: edit ? `data-id="${o.id}" style="cursor:move"` : '' });
+      if (edit) out += `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="transparent" stroke-width="${10 / px}" data-id="${o.id}" style="cursor:move"/>`;
+    } else if (o.type === 'label' && drShown(o, mode)) {
+      const sel = opt.sel === o.id;
+      out += `<text x="${o.x}" y="${o.y}" font-size="${o.size}" font-family="Arial,sans-serif" fill="${sel ? '#e8c27a' : ink}" ${edit ? `data-id="${o.id}" style="cursor:move"` : ''}>${drEsc(o.text || 'Text')}</text>`;
+    }
+  });
+  // edit handles
+  if (edit && opt.sel) {
+    const o = drObj(opt.sel), hs = 9 / px;
+    const handle = (x, y, tag) => `<rect x="${x - hs / 2}" y="${y - hs / 2}" width="${hs}" height="${hs}" fill="#e8c27a" stroke="#111" stroke-width="${1 / px}" data-id="${o.id}" data-h="${tag}" style="cursor:crosshair"/>`;
+    if (o && o.type === 'panel') {
+      if (o.shape === 'poly') o.pts.forEach((q, i) => { out += handle(o.x + q.x, o.y + q.y, 'v' + i); });
+      else out += handle(o.x + o.w, o.y + o.h, 'size');
+    } else if (o && o.type === 'dim') {
+      out += handle(o.x1, o.y1, 'p1') + handle(o.x2, o.y2, 'p2');
+    }
+  }
+  return { defs, body: out };
+}
 
-  const w = getPieceW(p), h = getPieceH(p);
-  const canvas = document.getElementById('sketchCanvas');
-  if (!w || !h) {
-    canvas.innerHTML = '<div style="color:#999;font-family:DM Sans,sans-serif;font-size:0.85rem;">Enter width and height on this piece first</div>';
+function drSvgDoc(d, mode, o = {}) {
+  const px = o.px || DR.scale, b = drBounds(d, mode, o.customerDims), pad = o.pad == null ? 8 : o.pad;
+  let x0 = o.edit ? 0 : b.x0 - pad, y0 = o.edit ? 0 : b.y0 - pad;
+  let x1 = o.edit ? Math.max(b.x1 + 40, 120) : b.x1 + pad, y1 = o.edit ? Math.max(b.y1 + 30, 80) : b.y1 + pad;
+  const w = x1 - x0, h = y1 - y0;
+  const c = drContent(d, Object.assign({ mode, px }, o));
+  let grid = '';
+  if (o.edit && o.grid) {
+    grid = `<defs><pattern id="drgrid" width="${12}" height="${12}" patternUnits="userSpaceOnUse"><path d="M12,0 L0,0 L0,12" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="${1 / px}"/></pattern></defs><rect x="0" y="0" width="${w}" height="${h}" fill="url(#drgrid)" pointer-events="none"/>`;
+  }
+  const bg = o.bg ? `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${o.bg}"/>` : '';
+  return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${w} ${h}" width="${w * px}" height="${h * px}" id="${o.id || ''}">${bg}${grid}<defs>${c.defs}</defs>${c.body}</svg>`, w, h, px };
+}
+
+// ── The printable sheet (letter, landscape; 100 units per inch) ──
+function drSheetSvg(d, mode, customerDims) {
+  const W = 1100, H = 850, M = 30, shop = mode === 'shop';
+  const rows = shop ? drMarkerRows(d) : [];
+  const panels = d.objects.filter(o => o.type === 'panel');
+  const nRows = Math.max(panels.length, rows.length);
+  const fsT = nRows > 14 ? 8.5 : 10, lh = fsT + 5;
+  const maxRows = Math.floor((330 - 40) / lh);
+  const tableH = shop && nRows ? Math.min(nRows, maxRows) * lh + 40 : 0;
+  const headH = 78;
+  const notes = (shop ? d.shopNotes : '') || '';
+  const noteLines = notes ? notes.split(/\n/).slice(0, 4) : [];
+  const noteH = noteLines.length ? noteLines.length * 14 + 26 : 0;
+  const areaY = M + headH + 6, areaH = H - M - areaY - tableH - noteH - 6, areaW = W - 2 * M;
+  const b = drBounds(d, mode, customerDims), pad = 6;
+  const bw = (b.x1 - b.x0) + pad * 2, bh = (b.y1 - b.y0) + pad * 2;
+  const px = Math.min(areaW / bw, areaH / bh);
+  const ox = M + (areaW - bw * px) / 2, oy = areaY + (areaH - bh * px) / 2;
+  const c = drContent(d, { mode, px, customerDims, dark: false });
+  const t = (x, y, s, size, extra = '') => `<text x="${x}" y="${y}" font-size="${size}" font-family="Arial,Helvetica,sans-serif" ${extra}>${drEsc(s)}</text>`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/>`;
+  s += `<rect x="${M - 10}" y="${M - 10}" width="${W - 2 * M + 20}" height="${H - 2 * M + 20}" fill="none" stroke="#111" stroke-width="1.5"/>`;
+  s += t(M, M + 22, 'AMERICAN LEGACY GLASS', 20, 'font-weight="bold" fill="#111"');
+  s += t(M, M + 44, (shop ? 'SHOP DRAWING' : 'DRAWING') + (d.name ? ' — ' + d.name : ''), 14, 'fill="#111"');
+  const meta = [d.customer ? 'Customer: ' + d.customer : '', d.job ? 'Job: ' + d.job : '', 'Date: ' + new Date().toLocaleDateString('en-US')].filter(Boolean);
+  meta.forEach((m, i) => { s += t(W - M, M + 20 + i * 16, m, 11, 'text-anchor="end" fill="#111"'); });
+  s += `<line x1="${M - 10}" y1="${M + headH - 8}" x2="${W - M + 10}" y2="${M + headH - 8}" stroke="#111" stroke-width="1"/>`;
+  s += `<svg x="${ox}" y="${oy}" width="${bw * px}" height="${bh * px}" viewBox="${b.x0 - pad} ${b.y0 - pad} ${bw} ${bh}"><defs>${c.defs}</defs>${c.body}</svg>`;
+  s += t(W - M, areaY + areaH - 6, 'Drawn to scale: 1 in on paper = ' + (100 / px).toFixed(1).replace(/\.0$/, '') + ' in', 9, 'text-anchor="end" fill="#555"');
+  if (shop && nRows) {
+    const ty = H - M - noteH - tableH + 10, half = (W - 2 * M) / 2;
+    s += `<line x1="${M - 10}" y1="${ty - 14}" x2="${W - M + 10}" y2="${ty - 14}" stroke="#111"/>`;
+    s += t(M, ty, 'PANELS', 10, 'font-weight="bold"') + t(M + half, ty, 'HOLES & HARDWARE (position measured from the panel\'s top-left corner)', 10, 'font-weight="bold"');
+    const hdr = ty + lh;
+    s += t(M, hdr, 'Panel', fsT, 'font-weight="bold"') + t(M + 120, hdr, 'Size (W × H)', fsT, 'font-weight="bold"') + t(M + 250, hdr, 'Glass / spec', fsT, 'font-weight="bold"');
+    const hx = M + half;
+    ['#', 'Type', 'Size', 'From left', 'From top', 'Panel / note'].forEach((h, i) => { s += t(hx + [0, 22, 90, 140, 205, 270][i], hdr, h, fsT, 'font-weight="bold"'); });
+    panels.slice(0, maxRows).forEach((p, i) => {
+      const y = hdr + (i + 1) * lh;
+      s += t(M, y, drPanelName(d, p).slice(0, 18), fsT) + t(M + 120, y, drFmt(p.w) + ' × ' + drFmt(p.h) + (p.shape !== 'rect' ? ' (' + DR_SHAPES[p.shape].toLowerCase() + ')' : ''), fsT) + t(M + 250, y, (p.spec || '').slice(0, 26), fsT);
+    });
+    rows.slice(0, maxRows).forEach((r, i) => {
+      const y = hdr + (i + 1) * lh, k = DR_KINDS[r.m.kind] || DR_KINDS.hole;
+      s += t(hx, y, String(r.n), fsT) + t(hx + 22, y, k.label, fsT) + t(hx + 90, y, drFmtPlain(r.m.size || 0) + '"', fsT) + t(hx + 140, y, drFmt(r.m.xIn), fsT) + t(hx + 205, y, drFmt(r.m.yIn), fsT) + t(hx + 270, y, (drPanelName(d, r.p) + (r.m.note ? ' — ' + r.m.note : '')).slice(0, 34), fsT);
+    });
+    const hidden = Math.max(panels.length - maxRows, rows.length - maxRows);
+    if (hidden > 0) s += t(M, H - M - noteH - 4, '+' + hidden + ' more rows not shown on this sheet — see the saved drawing', 9, 'fill="#b00020"');
+  }
+  if (noteLines.length) {
+    const ny = H - M - noteH + 14;
+    s += t(M, ny, 'SHOP NOTES', 10, 'font-weight="bold"');
+    noteLines.forEach((l, i) => { s += t(M, ny + 15 + i * 14, l.slice(0, 150), 10.5); });
+  }
+  return s + '</svg>';
+}
+
+// ── export helpers ──
+function drDownloadBlob(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function drFileBase(mode) {
+  const n = (DR.cur.name || 'drawing').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'drawing';
+  return n + (mode === 'shop' ? '-SHOP' : '-CUSTOMER');
+}
+function drSvgToCanvas(svgStr, w, h, mult) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { const c = document.createElement('canvas'); c.width = w * mult; c.height = h * mult; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height); resolve(c); };
+    img.onerror = () => reject(new Error('Could not render drawing'));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+  });
+}
+function drCheckExportable() {
+  if (!DR.cur || !drPanels().length) { showToast('Add at least one panel first', 'error'); return false; }
+  return true;
+}
+async function drExport(mode, fmt) {
+  if (!drCheckExportable()) return;
+  try {
+    const cd = document.getElementById('drCustDims') && document.getElementById('drCustDims').checked;
+    const sheet = drSheetSvg(DR.cur, mode, cd);
+    const base = drFileBase(mode);
+    if (fmt === 'svg') { drDownloadBlob(new Blob([sheet], { type: 'image/svg+xml' }), base + '.svg'); showToast('✓ SVG downloaded'); return; }
+    const canvas = await drSvgToCanvas(sheet, 1100, 850, 2);
+    if (fmt === 'png') {
+      canvas.toBlob(b => { drDownloadBlob(b, base + '.png'); showToast('✓ PNG downloaded'); }, 'image/png');
+      return;
+    }
+    if (!window.jspdf) { showToast('PDF library did not load — use PNG instead', 'error'); return; }
+    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
+    pdf.save(base + '.pdf');
+    showToast('✓ PDF downloaded');
+  } catch (e) { console.error('Drawing export failed:', e); showToast('Export failed — try PNG', 'error'); }
+}
+window.drExport = drExport;
+
+// ── history ──
+function drCommit() {
+  DR.undo.push(DR._snap); if (DR.undo.length > 60) DR.undo.shift();
+  DR.redo = []; DR._snap = JSON.stringify(DR.cur.objects); DR.dirty = true; drUpdateButtons();
+}
+function drBeginEdit() { /* snapshot is already kept in DR._snap */ }
+function drUndo() { if (!DR.undo.length) return; DR.redo.push(DR._snap); DR._snap = DR.undo.pop(); DR.cur.objects = JSON.parse(DR._snap); DR.dirty = true; if (DR.sel && !drObj(DR.sel)) DR.sel = null; drRender(); }
+function drRedo() { if (!DR.redo.length) return; DR.undo.push(DR._snap); DR._snap = DR.redo.pop(); DR.cur.objects = JSON.parse(DR._snap); DR.dirty = true; if (DR.sel && !drObj(DR.sel)) DR.sel = null; drRender(); }
+function drUpdateButtons() {
+  const q = id => document.getElementById(id);
+  if (q('drUndoBtn')) { q('drUndoBtn').disabled = !DR.undo.length; q('drRedoBtn').disabled = !DR.redo.length; }
+  if (q('drDirty')) q('drDirty').textContent = DR.dirty ? '● unsaved changes' : (DR.cur && DR.cur.id ? '✓ saved' : '');
+}
+
+// ── load / list / save ──
+function drInit() {
+  if (!DR.cur) drLoad(drNew());
+  if (DR.listening || !window._db) { drRender(); return; }
+  DR.listening = true;
+  try {
+    window._unsubscribeDrawings = window._onSnapshot(window._collection(window._db, 'drawings'), snap => {
+      DR.denied = false;
+      DR.list = snap.docs.filter(x => isSafeId(x.id)).map(x => ({ id: x.id, ...x.data() }))
+        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+      drRenderList();
+    }, err => {
+      console.error('Drawings listener error:', err);
+      DR.denied = true; DR.listening = false; drRenderList();
+    });
+  } catch (e) { DR.denied = true; DR.listening = false; drRenderList(); }
+  drRender();
+}
+function drReset() { if (window._unsubscribeDrawings) { try { window._unsubscribeDrawings(); } catch (e) {} } DR.listening = false; DR.list = []; DR.cur = null; DR.sel = null; DR.dirty = false; }
+window.drReset = drReset;
+
+function drLoad(d) {
+  DR.cur = d; DR.sel = null; DR.tool = 'select'; DR.tmp = null; DR.undo = []; DR.redo = []; DR.dirty = false;
+  DR._snap = JSON.stringify(d.objects);
+  // repair anything odd that came from the database
+  d.objects = (Array.isArray(d.objects) ? d.objects : []).filter(o => o && typeof o === 'object' && ['panel', 'marker', 'dim', 'label'].includes(o.type));
+  d.objects.forEach(o => { if (!isSafeId(o.id)) o.id = uid(); });
+  d.objects.forEach(o => {
+    if (o.type === 'panel') {
+      o.w = Math.max(drNum(o.w, 36), 1); o.h = Math.max(drNum(o.h, 48), 1); o.x = drNum(o.x); o.y = drNum(o.y);
+      o.corners = Array.isArray(o.corners) && o.corners.length === 4 ? o.corners : ['sq', 'sq', 'sq', 'sq'];
+      o.cr = Array.isArray(o.cr) && o.cr.length === 4 ? o.cr : [2, 2, 2, 2];
+      if (!DR_SHAPES[o.shape]) o.shape = 'rect';
+      if (o.shape === 'poly' && (!Array.isArray(o.pts) || o.pts.length < 3)) o.shape = 'rect';
+    }
+  });
+  DR._snap = JSON.stringify(d.objects);
+  drRender(); drRenderList();
+}
+function drConfirmDiscard() { return !DR.dirty || confirm('This drawing has unsaved changes. Discard them?'); }
+function drNewDrawing() { if (!drConfirmDiscard()) return; drLoad(drNew()); }
+function drOpen(id) {
+  const x = DR.list.find(d => d.id === id); if (!x) return;
+  if (!drConfirmDiscard()) { drRenderList(); return; }
+  drLoad(drClone(x));
+}
+window.drNewDrawing = drNewDrawing; window.drOpen = drOpen;
+
+async function drSave() {
+  if (!DR.cur) return;
+  if (!window._db) { showToast('Not connected — use Export file instead', 'error'); return; }
+  const d = DR.cur;
+  if (!String(d.name || '').trim()) { showToast('Give the drawing a name first', 'error'); const n = document.getElementById('drName'); if (n) n.focus(); return; }
+  const data = drClone({ name: d.name.trim(), customer: d.customer || '', job: d.job || '', shopNotes: d.shopNotes || '', objects: d.objects, version: 1 });
+  data.updatedAt = new Date().toISOString();
+  try {
+    if (d.id) {
+      await window._updateDoc(window._doc(window._db, 'drawings', d.id), data);
+    } else {
+      data.createdAt = data.updatedAt;
+      const ref = await window._addDoc(window._collection(window._db, 'drawings'), data);
+      d.id = ref.id;
+    }
+    DR.dirty = false; DR._snap = JSON.stringify(d.objects); drUpdateButtons(); drRenderList();
+    showToast('✓ Drawing saved');
+  } catch (e) {
+    console.error('Drawing save failed:', e);
+    const denied = e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+    showToast(denied ? 'Saving is blocked — the new Firestore rules must be published (see notes). Use Export file meanwhile.' : 'Save failed — try again', 'error');
+  }
+}
+async function drDelete() {
+  const d = DR.cur;
+  if (!d || !d.id) { showToast('This drawing has not been saved yet', 'error'); return; }
+  if (window._currentUserRole === 'employee') { showToast('Only the owner login can delete drawings', 'error'); return; }
+  if (!confirm('Delete "' + (d.name || 'this drawing') + '" permanently? This cannot be undone.')) return;
+  try { await window._deleteDoc(window._doc(window._db, 'drawings', d.id)); DR.dirty = false; drLoad(drNew()); showToast('Drawing deleted'); }
+  catch (e) { console.error(e); showToast('Delete failed', 'error'); }
+}
+function drDuplicate() {
+  if (!DR.cur) return;
+  const c = drClone(DR.cur); c.id = null; c.name = (c.name || 'Drawing') + ' copy';
+  const map = {};
+  c.objects.forEach(o => { map[o.id] = uid(); });
+  c.objects.forEach(o => { const old = o.id; o.id = map[old]; if (o.panelId) o.panelId = map[o.panelId] || o.panelId; });
+  drLoad(c); DR.dirty = true; drUpdateButtons(); showToast('Copy made — press Save to keep it');
+}
+function drExportFile() {
+  if (!DR.cur) return;
+  const blob = new Blob([JSON.stringify({ alg_drawing: 1, drawing: drClone(DR.cur) }, null, 2)], { type: 'application/json' });
+  drDownloadBlob(blob, drFileBase('shop').replace('-SHOP', '') + '.alg-drawing.json'); showToast('✓ Drawing file downloaded');
+}
+function drImportFile(inp) {
+  const f = inp.files && inp.files[0]; inp.value = '';
+  if (!f) return;
+  if (!drConfirmDiscard()) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const j = JSON.parse(r.result); const d = j && j.alg_drawing ? j.drawing : null;
+      if (!d || !Array.isArray(d.objects)) throw new Error('not a drawing file');
+      d.id = null; d.name = d.name || 'Imported drawing';
+      drLoad(d); DR.dirty = true; drUpdateButtons(); showToast('✓ Drawing loaded — press Save to keep it');
+    } catch (e) { showToast('That file is not an ALG drawing file', 'error'); }
+  };
+  r.readAsText(f);
+}
+window.drDelete = drDelete; window.drDuplicate = drDuplicate; window.drExportFile = drExportFile; window.drImportFile = drImportFile; window.drSave = drSave;
+
+// ── importing pieces from a bid (one-time copy of sizes, markers and notes — no prices) ──
+function drImportSources() {
+  const out = [];
+  if (typeof pieces !== 'undefined' && pieces.some(p => getPieceW(p) && getPieceH(p))) out.push({ key: '__live', label: 'The bid open on the Bid tab', pieces: pieces });
+  (typeof allJobs !== 'undefined' ? allJobs : []).forEach(j => {
+    if (Array.isArray(j.pieces) && j.pieces.some(p => (parseFloat(p.wWhole) || 0) && (parseFloat(p.hWhole) || 0))) out.push({ key: j.id, label: (j.customerName || 'Unnamed') + (j.jobLocation ? ' — ' + j.jobLocation : ''), pieces: j.pieces });
+  });
+  return out;
+}
+function drToggleImport() {
+  const box = document.getElementById('drImportBox'); if (!box) return;
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  const src = drImportSources();
+  box.innerHTML = src.length
+    ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;"><select id="drImpSel" class="dr-in" style="min-width:240px;">${src.map(s => `<option value="${drEsc(s.key)}">${drEsc(s.label)}</option>`).join('')}</select><button class="dr-btn" onclick="drDoImport()">Copy pieces in</button></div><div class="dr-hint">Copies each glass piece's size, its old sketch holes/hardware and notes. Prices are never copied, and the bid is not changed.</div>`
+    : `<div class="dr-hint">No bid with sized glass pieces to copy from. Open a bid on the Bid tab or save one first.</div>`;
+  box.style.display = 'block';
+}
+function drDoImport() {
+  const key = document.getElementById('drImpSel').value;
+  const s = drImportSources().find(x => x.key === key); if (!s) return;
+  let x = 0, y = 0, rowH = 0, count = 0;
+  const existing = drPanels(); if (existing.length) { y = Math.max(...existing.map(p => p.y + p.h)) + 14; }
+  s.pieces.forEach((p, i) => {
+    const w = drNum(p.wWhole) + drNum(p.wFrac), h = drNum(p.hWhole) + drNum(p.hFrac);
+    if (!w || !h) return;
+    const qty = Math.max(1, Math.min(parseInt(p.qty) || 1, 1));
+    const np = drNewPanel('rect', x, y); np.w = w; np.h = h;
+    np.label = p.sketchGroupLabel || ('Piece ' + (i + 1)); np.spec = [p.thickness, p.glassTypeName].filter(Boolean).join(' ');
+    np.frame = (p.sketchFrameMaterial === 'metal' || p.sketchFrameMaterial === 'wood') ? p.sketchFrameMaterial : 'none';
+    np.cols = parseInt(p.sketchMuntinCols) || 0; np.rows = parseInt(p.sketchMuntinRows) || 0;
+    np.shopNote = p.sketchNote || '';
+    DR.cur.objects.push(np);
+    (p.sketchMarkers || []).forEach(m => {
+      if (!m || !DR_KINDS[m.type]) return;
+      DR.cur.objects.push({ id: uid(), type: 'marker', panelId: np.id, kind: m.type, xIn: drNum(m.xIn), yIn: drNum(m.yIn), size: drNum(m.size, DR_KINDS[m.type].size), note: '', vis: 'both' });
+    });
+    x += w + 14; rowH = Math.max(rowH, h); count++;
+    if (x > 200) { x = 0; y += rowH + 14; rowH = 0; }
+  });
+  document.getElementById('drImportBox').style.display = 'none';
+  drCommit(); drRender(); drFit();
+  showToast(count ? '✓ ' + count + ' piece' + (count === 1 ? '' : 's') + ' copied — arrange and add dimensions' : 'Nothing to copy', count ? 'success' : 'error');
+}
+window.drToggleImport = drToggleImport; window.drDoImport = drDoImport;
+
+// ── rendering the tab ──
+function drRenderList() {
+  const el = document.getElementById('drListSel'); if (!el) return;
+  const note = document.getElementById('drDenied');
+  if (note) note.style.display = DR.denied ? 'block' : 'none';
+  const cur = DR.cur && DR.cur.id;
+  el.innerHTML = '<option value="">— unsaved / new drawing —</option>' + DR.list.map(d => `<option value="${drEsc(d.id)}" ${d.id === cur ? 'selected' : ''}>${drEsc(d.name || 'Untitled')}${d.customer ? ' · ' + drEsc(d.customer) : ''}</option>`).join('');
+  if (!cur) el.value = '';
+  const cl = document.getElementById('drCustList');
+  if (cl && typeof allCustomers !== 'undefined') cl.innerHTML = allCustomers.map(c => `<option value="${drEsc(c.name || '')}">`).join('');
+  drUpdateButtons();
+}
+function drRender() {
+  if (!document.getElementById('drCanvasWrap')) return;
+  const d = DR.cur; if (!d) return;
+  const set = (id, v) => { const e = document.getElementById(id); if (e && document.activeElement !== e) e.value = v; };
+  set('drName', d.name || ''); set('drCustomer', d.customer || ''); set('drJob', d.job || ''); set('drShopNotes', d.shopNotes || '');
+  drRenderCanvas(); drRenderProps(); drRenderTools(); drUpdateButtons();
+}
+function drRenderCanvas() {
+  const wrap = document.getElementById('drCanvasWrap'); if (!wrap) return;
+  const customer = DR.view === 'customer';
+  const r = drSvgDoc(DR.cur, customer ? 'customer' : 'shop', { px: DR.scale, edit: !customer, sel: customer ? null : DR.sel, grid: !customer, dark: !customer, bg: customer ? '#ffffff' : null, id: 'drSvg', customerDims: customer && DR.customerDims, pad: customer ? 8 : 0 });
+  wrap.innerHTML = r.svg;
+  const hint = document.getElementById('drHint');
+  if (hint) {
+    const t = DR.tool;
+    hint.textContent = customer ? 'Customer preview — this is what the customer version looks like (no dimensions unless you tick the box, no shop notes, no hole numbers).'
+      : t === 'select' ? 'Click a shape to select it, drag to move. Delete removes it. Ctrl+Z undoes.'
+      : t === 'marker' ? 'Click on a panel to place a ' + DR_KINDS[DR.kind].label.toLowerCase() + '. Press Esc or choose Select when finished.'
+      : t === 'dim' ? (DR.tmp ? 'Click the second point.' : 'Click the first point (it snaps to panel corners).')
+      : t === 'label' ? 'Click where the text should go.' : '';
+  }
+}
+function drRenderTools() {
+  document.querySelectorAll('#tab-drawing [data-tool]').forEach(b => {
+    const on = b.dataset.tool === DR.tool && (b.dataset.tool !== 'marker' || b.dataset.kind === DR.kind);
+    b.classList.toggle('on', on);
+  });
+  document.querySelectorAll('#tab-drawing [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === DR.view));
+  const z = document.getElementById('drZoomLbl'); if (z) z.textContent = Math.round(DR.scale / 6 * 100) + '%';
+  const sn = document.getElementById('drSnapChk'); if (sn) sn.checked = DR.snap;
+  const ss = document.getElementById('drSnapSel'); if (ss) ss.value = String(DR.snapIn);
+  const cd = document.getElementById('drCustDims'); if (cd) cd.checked = DR.customerDims;
+  const wrap = document.getElementById('drCanvasWrap'); if (wrap) wrap.style.cursor = DR.tool === 'select' ? 'default' : 'crosshair';
+}
+function drSetTool(t, kind) { DR.tool = t; if (kind) DR.kind = kind; DR.tmp = null; if (DR.view === 'customer') DR.view = 'edit'; drRender(); }
+function drSetView(v) { DR.view = v; DR.tmp = null; drRender(); }
+function drAddPanel(shape) {
+  if (!shape) return;
+  const ps = drPanels();
+  const x = ps.length ? Math.max(...ps.map(p => p.x + p.w)) + 12 : 12, y = 12;
+  const p = drNewPanel(shape, x, y);
+  p.label = ''; DR.cur.objects.push(p); DR.sel = p.id; DR.tool = 'select'; DR.view = 'edit';
+  drCommit(); drRender(); drFit();
+}
+function drZoom(f) { DR.scale = Math.min(Math.max(DR.scale * f, 1.5), 30); drRender(); }
+function drFit() {
+  const wrap = document.getElementById('drCanvasWrap'); if (!wrap) return;
+  const box = wrap.parentElement, b = drBounds(DR.cur, 'shop', false);
+  const bw = Math.max(b.x1 + 14, 60), bh = Math.max(b.y1 + 14, 40);
+  const aw = Math.max(box.clientWidth - 20, 200), ah = Math.max(box.clientHeight - 20, 200);
+  DR.scale = Math.min(Math.max(Math.min(aw / bw, ah / bh), 1.5), 30);
+  drRender();
+}
+window.drSetTool = drSetTool; window.drSetView = drSetView; window.drAddPanel = drAddPanel; window.drZoom = drZoom; window.drFit = drFit; window.drUndo = drUndo; window.drRedo = drRedo;
+
+// ── properties panel ──
+function drRow(label, html) { return `<label class="dr-row"><span>${label}</span>${html}</label>`; }
+function drInIn(id, field, val, extra = '') { return `<input class="dr-in" data-f="${field}" data-isin="1" value="${drEsc(drFmtPlain(val))}" ${extra} onchange="drProp('${id}',this)">`; }
+function drTxt(id, field, val, ph = '') { return `<input class="dr-in" data-f="${field}" value="${drEsc(val || '')}" placeholder="${drEsc(ph)}" onchange="drProp('${id}',this)">`; }
+function drSel(id, field, val, opts) { return `<select class="dr-in" data-f="${field}" onchange="drProp('${id}',this)">${Object.entries(opts).map(([k, v]) => `<option value="${k}" ${String(val) === k ? 'selected' : ''}>${drEsc(v)}</option>`).join('')}</select>`; }
+function drRenderProps() {
+  const el = document.getElementById('drProps'); if (!el) return;
+  const o = DR.sel && drObj(DR.sel);
+  if (!o) {
+    const ps = drPanels();
+    el.innerHTML = `<div class="dr-hint" style="margin:0;">Nothing selected.<br><br>${ps.length ? 'Click a panel, hole, dimension or text to edit its exact numbers here.' : 'Start with <b>＋ Add panel</b> in the toolbar, or <b>Copy from a bid</b> to bring in the pieces you already entered.'}</div>`;
     return;
   }
-
-  const maxW = 420, maxH = 320, pad = 55;
-  const scale = Math.min(maxW / w, maxH / h);
-  const rectW = w * scale, rectH = h * scale;
-  const svgW = rectW + pad * 2, svgH = rectH + pad * 2 + 20;
-  const x0 = pad, y0 = pad;
-
-  // Save the exact geometry used for this render so click placement can convert
-  // screen coordinates back into real-world inches accurately.
-  _sketchGeom = { x0, y0, rectW, rectH, realW: w, realH: h };
-
-  const wLabel = dimDisplay(p.wWhole, p.wFrac);
-  const hLabel = dimDisplay(p.hWhole, p.hFrac);
-
-  const groupSvg = buildPieceSvgGroup(p, x0, y0, rectW, rectH, { desc, selectScope: 'sk' });
-
-  const svg = `
-    <svg width="${svgW}" height="${svgH+30}" viewBox="0 0 ${svgW} ${svgH+30}" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;height:auto;touch-action:none;" onpointerdown="sketchPointerDown(event)">
-      ${groupSvg}
-      <line x1="${x0}" y1="${y0-14}" x2="${x0+rectW}" y2="${y0-14}" stroke="#666" stroke-width="1"/>
-      <line x1="${x0}" y1="${y0-18}" x2="${x0}" y2="${y0-10}" stroke="#666" stroke-width="1"/>
-      <line x1="${x0+rectW}" y1="${y0-18}" x2="${x0+rectW}" y2="${y0-10}" stroke="#666" stroke-width="1"/>
-      <text x="${x0+rectW/2}" y="${y0-20}" text-anchor="middle" font-family="DM Mono, monospace" font-size="13" fill="#222" font-weight="600">${wLabel}</text>
-      <line x1="${x0-14}" y1="${y0}" x2="${x0-14}" y2="${y0+rectH}" stroke="#666" stroke-width="1"/>
-      <line x1="${x0-18}" y1="${y0}" x2="${x0-10}" y2="${y0}" stroke="#666" stroke-width="1"/>
-      <line x1="${x0-18}" y1="${y0+rectH}" x2="${x0-10}" y2="${y0+rectH}" stroke="#666" stroke-width="1"/>
-      <text x="${x0-24}" y="${y0+rectH/2}" text-anchor="middle" font-family="DM Mono, monospace" font-size="13" fill="#222" font-weight="600" transform="rotate(-90 ${x0-24} ${y0+rectH/2})">${hLabel}</text>
-      <text x="${svgW/2}" y="${svgH+18}" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="11" fill="#555">${[p.thickness, p.glassTypeName].filter(Boolean).join(' · ') || 'Glass type not set'}${(parseFloat(p.qty)||1)>1 ? '  ·  Qty '+p.qty : ''}</text>
-    </svg>`;
-
-  canvas.innerHTML = svg;
-  if (_mkDragging) { mkLiveFields('sk'); return; } // never touch the layout mid-drag
-  renderMarkerList();
-  const insp = document.getElementById('markerInspectorWrap');
-  if (insp) insp.innerHTML = buildMarkerInspectorHtml('sk');
-}
-
-function svgToPngDownload(svgEl, filename) {
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const canvas = document.createElement('canvas');
-  const scaleFactor = 2;
-  const svgW = parseFloat(svgEl.getAttribute('width'));
-  const svgH = parseFloat(svgEl.getAttribute('height'));
-  canvas.width = svgW * scaleFactor;
-  canvas.height = svgH * scaleFactor;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(scaleFactor, scaleFactor);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, svgW, svgH);
-
-  const img = new Image();
-  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-  img.onload = function() {
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-    canvas.toBlob(function(blob) {
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = URL.createObjectURL(blob);
-      link.click();
-      showToast('✓ Downloaded');
-    });
-  };
-  img.src = url;
-}
-
-function downloadSketch() {
-  const liveSvg = document.querySelector('#sketchCanvas svg');
-  if (!liveSvg) { showToast('Nothing to download', 'error'); return; }
-  const svgEl = liveSvg.cloneNode(true);
-  svgEl.querySelectorAll('.mk-halo').forEach(n => n.remove()); // selection highlight is for editing only
-  const p = pieces.find(pc => pc.id === _sketchPieceId);
-  svgToPngDownload(svgEl, 'piece-sketch-' + (p ? getPieceDisplay(p).replace(/[^a-z0-9]/gi,'_') : 'glass') + '.png');
-}
-
-// ─────────────────────────────────────────────────
-// FULL PROJECT VIEW — combines every piece into one customer-facing elevation
-// ─────────────────────────────────────────────────
-// ─────────────────────────────────────────────────
-// FULL PROJECT VIEW — CAD-style draggable layout
-// Every unit of quantity becomes its own separate, movable piece.
-// Positions are remembered per session on the piece object (p.layoutUnits).
-// ─────────────────────────────────────────────────
-let _dragUnit = null, _dragOffsetX = 0, _dragOffsetY = 0;
-
-function buildProjectUnits() {
-  // Expand each piece into N individual units based on quantity
-  const validPieces = pieces.filter(p => getPieceW(p) && getPieceH(p));
-  const units = [];
-  const maxUnitW = 190, maxUnitH = 220;
-
-  validPieces.forEach(p => {
-    const qty = Math.max(1, parseInt(p.qty) || 1);
-    // A rotated piece swaps its effective width/height for layout purposes —
-    // e.g. a transom that needs to sit sideways in the assembly.
-    const rotated = !!p.sketchRotated;
-    const rawW = getPieceW(p), rawH = getPieceH(p);
-    const w = rotated ? rawH : rawW, h = rotated ? rawW : rawH;
-    const scale = Math.min(maxUnitW / w, maxUnitH / h);
-    const uw = w * scale, uh = h * scale;
-
-    // Restore saved positions if this piece was laid out before, otherwise auto-flow
-    if (!p.layoutUnits || p.layoutUnits.length !== qty) {
-      p.layoutUnits = Array.from({length: qty}, () => ({ x: null, y: null }));
+  const id = o.id; let h = '';
+  const visSel = drRow('Shown on', drSel(id, 'vis', o.vis || 'both', { both: 'Shop + customer', shop: 'Shop version only' }));
+  if (o.type === 'panel') {
+    h += `<div class="dr-ptitle">Panel</div>` + drRow('Name', drTxt(id, 'label', o.label, 'e.g. Left shower panel')) + drRow('Shape', drSel(id, 'shape', o.shape, DR_SHAPES));
+    if (o.shape !== 'poly') h += drRow('Width', drInIn(id, 'w', o.w)) + drRow('Height', drInIn(id, 'h', o.h));
+    if (o.shape === 'arch') h += drRow('Arch rise', drInIn(id, 'rise', o.rise));
+    if (o.shape === 'rect') {
+      const names = ['Top-left', 'Top-right', 'Bottom-right', 'Bottom-left'];
+      h += '<div class="dr-sub">Corners</div>';
+      for (let i = 0; i < 4; i++) h += `<div class="dr-row"><span>${names[i]}</span><span style="display:flex;gap:.3rem;flex:1;"><select class="dr-in" data-f="corner${i}" onchange="drProp('${id}',this)">${Object.entries(DR_CORNER).map(([k, v]) => `<option value="${k}" ${o.corners[i] === k ? 'selected' : ''}>${v}</option>`).join('')}</select>${o.corners[i] !== 'sq' ? `<input class="dr-in" style="max-width:70px" data-f="cr${i}" data-isin="1" value="${drEsc(drFmtPlain(o.cr[i]))}" onchange="drProp('${id}',this)" title="size">` : ''}</span></div>`;
     }
-    for (let i = 0; i < qty; i++) {
-      units.push({ pieceId: p.id, unitIndex: i, p, w, h, uw, uh, rotated, pos: p.layoutUnits[i] });
+    if (o.shape === 'poly') {
+      h += '<div class="dr-sub">Points (inches from the panel\'s top-left)</div>';
+      o.pts.forEach((q, i) => { h += `<div class="dr-row"><span>${i + 1}</span><span style="display:flex;gap:.3rem;flex:1;"><input class="dr-in" data-f="px${i}" data-isin="1" value="${drEsc(drFmtPlain(q.x))}" onchange="drProp('${id}',this)"><input class="dr-in" data-f="py${i}" data-isin="1" value="${drEsc(drFmtPlain(q.y))}" onchange="drProp('${id}',this)"><button class="dr-x" title="Remove point" onclick="drPolyRemove('${id}',${i})">✕</button></span></div>`; });
+      h += `<button class="dr-btn" style="margin:.3rem 0 .6rem" onclick="drPolyAdd('${id}')">＋ Add point</button>`;
     }
-  });
-  return units;
-}
-
-function autoLayoutUnits(units) {
-  // Top padding needs to be large enough to reserve room for both the isometric
-  // offset on insulated glass pieces (which extends up and to the right beyond
-  // the piece's own bounds) and the overall dimension bracket drawn above any
-  // touching cluster — otherwise either can render above y=0 and get clipped.
-  const pad = 70, gap = 24;
-  let x = pad, rowH = 0, y = pad;
-  const maxRowW = 780;
-  units.forEach(u => {
-    if (x + u.uw > maxRowW && x > pad) { x = pad; y += rowH + 40; rowH = 0; }
-    if (u.pos.x === null) { u.pos.x = x; u.pos.y = y; }
-    rowH = Math.max(rowH, u.uh);
-    x += u.uw + gap;
-  });
-}
-
-// Detects clusters of units whose edges are touching (within a small tolerance)
-// so we can show a combined "Overall" dimension for mulled/ganged assemblies.
-function findTouchingClusters(units) {
-  const TOUCH_TOL = 10; // px tolerance to consider two edges "touching" — generous enough to catch near-perfect drags, not just pixel-exact snaps
-  const parent = units.map((_, i) => i);
-  function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
-  function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
-
-  for (let i = 0; i < units.length; i++) {
-    for (let j = i + 1; j < units.length; j++) {
-      const a = units[i], b = units[j];
-      const aLeft = a.pos.x, aRight = a.pos.x + a.uw, aTop = a.pos.y, aBottom = a.pos.y + a.uh;
-      const bLeft = b.pos.x, bRight = b.pos.x + b.uw, bTop = b.pos.y, bBottom = b.pos.y + b.uh;
-      // Touching horizontally (side by side) — right/left edges match and vertical ranges overlap
-      const vertOverlap = Math.min(aBottom, bBottom) - Math.max(aTop, bTop) > 4;
-      const horizOverlap = Math.min(aRight, bRight) - Math.max(aLeft, bLeft) > 4;
-      const touchingH = (Math.abs(aRight - bLeft) < TOUCH_TOL || Math.abs(bRight - aLeft) < TOUCH_TOL) && vertOverlap;
-      const touchingV = (Math.abs(aBottom - bTop) < TOUCH_TOL || Math.abs(bBottom - aTop) < TOUCH_TOL) && horizOverlap;
-      if (touchingH || touchingV) union(i, j);
-    }
+    h += '<div class="dr-sub">Look</div>' + drRow('Frame', drSel(id, 'frame', o.frame, { none: 'None / frameless', metal: 'Metal', wood: 'Wood' })) +
+      drRow('Glass', drSel(id, 'glass', o.glass, { clear: 'Clear', tint: 'Tinted', frost: 'Frosted' })) +
+      drRow('Muntins', `<span style="display:flex;gap:.3rem;flex:1;align-items:center;"><input class="dr-in" style="max-width:60px" type="number" min="0" max="12" data-f="cols" value="${o.cols || ''}" placeholder="cols" onchange="drProp('${id}',this)">×<input class="dr-in" style="max-width:60px" type="number" min="0" max="12" data-f="rows" value="${o.rows || ''}" placeholder="rows" onchange="drProp('${id}',this)"></span>`) +
+      '<div class="dr-sub">Shop only</div>' + drRow('Glass / spec', drTxt(id, 'spec', o.spec, '1/2" tempered clear')) + drRow('Note', drTxt(id, 'shopNote', o.shopNote, 'polish edges, etc.')) +
+      '<div class="dr-sub">Position</div>' + drRow('From left', drInIn(id, 'x', o.x)) + drRow('From top', drInIn(id, 'y', o.y));
+    h += `<div style="display:flex;gap:.4rem;margin-top:.7rem;flex-wrap:wrap;"><button class="dr-btn" onclick="drDupSel()">⧉ Duplicate</button><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
+  } else if (o.type === 'marker') {
+    const p = drObj(o.panelId);
+    h += `<div class="dr-ptitle">${(DR_KINDS[o.kind] || {}).label || 'Marker'}</div>` + drRow('Type', drSel(id, 'kind', o.kind, Object.fromEntries(Object.entries(DR_KINDS).map(([k, v]) => [k, v.label])))) +
+      drRow(o.kind === 'hole' ? 'Diameter' : 'Size', drInIn(id, 'size', o.size)) + drRow('From left', drInIn(id, 'xIn', o.xIn)) + drRow('From top', drInIn(id, 'yIn', o.yIn)) +
+      drRow('Note', drTxt(id, 'note', o.note, 'e.g. 3/8" hinge cutout')) + visSel +
+      `<div class="dr-hint">Measured from the top-left corner of ${p ? drEsc(drPanelName(DR.cur, p)) : 'its panel'}.</div>` +
+      `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
+  } else if (o.type === 'dim') {
+    h += `<div class="dr-ptitle">Dimension line</div>` + drRow('Start X', drInIn(id, 'x1', o.x1)) + drRow('Start Y', drInIn(id, 'y1', o.y1)) + drRow('End X', drInIn(id, 'x2', o.x2)) + drRow('End Y', drInIn(id, 'y2', o.y2)) +
+      drRow('Text', drTxt(id, 'text', o.text, 'blank = measured: ' + drFmt(Math.hypot(o.x2 - o.x1, o.y2 - o.y1)))) + visSel +
+      `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
+  } else if (o.type === 'label') {
+    h += `<div class="dr-ptitle">Text</div>` + drRow('Text', drTxt(id, 'text', o.text)) + drRow('Size', drSel(id, 'size', String(o.size), { '2': 'Small', '3': 'Medium', '4.5': 'Large', '7': 'Extra large' })) + drRow('X', drInIn(id, 'x', o.x)) + drRow('Y', drInIn(id, 'y', o.y)) + visSel +
+      `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
   }
-
-  const groups = {};
-  units.forEach((u, i) => { const r = find(i); (groups[r] = groups[r] || []).push(u); });
-  return Object.values(groups).filter(g => g.length > 1); // only clusters of 2+
+  el.innerHTML = h;
 }
 
-function renderProjectCanvas() {
-  const canvas = document.getElementById('fullProjectCanvas');
-  if (!canvas) return;
-  const units = buildProjectUnits();
-  if (!units.length) { canvas.innerHTML = '<div style="color:#999;padding:2rem;text-align:center;">Add piece dimensions first</div>'; return; }
-  autoLayoutUnits(units);
-
-  // Compute clusters BEFORE drawing so we know which pieces are grouped, and can
-  // account for the dimension bracket space each cluster needs above it.
-  const clustersForFrame = findTouchingClusters(units);
-  const unitInCluster = new Set();
-  clustersForFrame.forEach(group => group.forEach(u => unitInCluster.add(u)));
-
-  // Guarantee nothing ever renders above the canvas's own top edge (y=0) — this can
-  // otherwise happen for insulated-glass pieces (whose isometric offset extends
-  // upward) or for the "Overall" dimension bracket drawn above a touching cluster,
-  // especially with positions saved from before this safeguard existed, or after
-  // manually dragging a piece close to the top. Compute the true minimum required
-  // top across everything, and shift the whole layout down if it would go negative.
-  const igMarginTop = (u) => u.p.glassCategory === 'insulated' ? Math.min(u.uw, u.uh) * 0.22 + 14 : 0;
-  let minEffectiveTop = 0;
-  units.forEach(u => { minEffectiveTop = Math.min(minEffectiveTop, u.pos.y - igMarginTop(u)); });
-  clustersForFrame.forEach(group => {
-    const clusterTop = Math.min(...group.map(u => u.pos.y));
-    minEffectiveTop = Math.min(minEffectiveTop, clusterTop - 26);
-  });
-  const topOffset = minEffectiveTop < 0 ? -minEffectiveTop : 0;
-
-  let maxX = 0, maxY = 0;
-  units.forEach(u => { maxX = Math.max(maxX, u.pos.x + u.uw); maxY = Math.max(maxY, u.pos.y + u.uh + 45); });
-
-  canvas.style.position = 'relative';
-  canvas.style.width = Math.max(maxX + 30, 400) + 'px';
-  const canvasH = Math.max(maxY + 80 + topOffset, 320); // extra room for labels + top safety offset + ground line
-  canvas.style.height = canvasH + 'px';
-  canvas.innerHTML = '';
-
-  // ── Ground/floor reference line — gives the whole layout a sense of real-world
-  // scale and orientation, like a true elevation drawing sitting on a floor line ──
-  const groundY = canvasH - 22;
-  const groundLine = document.createElement('div');
-  groundLine.id = 'groundLine';
-  groundLine.dataset.groundY = groundY;
-  groundLine.dataset.width = Math.max(maxX + 30, 400);
-  groundLine.dataset.hatchCount = Math.floor(Math.max(maxX + 30, 400) / 14);
-  groundLine.style.cssText = `position:absolute;left:0;top:${groundY}px;width:${Math.max(maxX + 30, 400)}px;pointer-events:none;`;
-  const hatchCount = Math.floor(Math.max(maxX + 30, 400) / 14);
-  let hatchTicks = '';
-  for (let i = 0; i < hatchCount; i++) {
-    hatchTicks += `<div style="position:absolute;left:${i*14}px;top:2px;width:8px;height:1px;background:#aaa;transform:rotate(45deg);transform-origin:left top;"></div>`;
+// Applies one edited field. Numeric inch fields reject junk and keep the old value.
+function drProp(id, input) {
+  const o = drObj(id); if (!o) return;
+  const f = input.dataset.f; let v = input.value;
+  const isIn = input.dataset.isin === '1';
+  if (isIn) {
+    const n = drParseIn(v);
+    if (isNaN(n) || n < 0 || n > 600) { showToast('Enter a size like 36, 36.5 or 36 1/2', 'error'); drRenderProps(); return; }
+    v = n;
   }
-  groundLine.innerHTML = `<div style="border-top:1.5px solid #999;position:relative;"></div><div style="position:relative;">${hatchTicks}</div>`;
-  canvas.appendChild(groundLine);
+  let m;
+  if (o.type === 'panel') {
+    if ((f === 'w' || f === 'h') && v < 1) { showToast('Panels must be at least 1" wide and tall', 'error'); drRenderProps(); return; }
+    if ((m = f.match(/^corner(\d)$/))) o.corners[+m[1]] = v;
+    else if ((m = f.match(/^cr(\d)$/))) o.cr[+m[1]] = v;
+    else if ((m = f.match(/^p([xy])(\d+)$/))) { o.pts[+m[2]][m[1]] = v; drNormPoly(o); }
+    else if (f === 'shape') drChangeShape(o, v);
+    else if (f === 'cols' || f === 'rows') o[f] = Math.max(0, Math.min(12, parseInt(v) || 0));
+    else o[f] = v;
+  } else if (o.type === 'label' && f === 'size') o.size = parseFloat(v) || 3;
+  else if (o.type === 'marker' && f === 'kind') { o.kind = v; o.size = DR_KINDS[v].size; }
+  else o[f] = v;
+  drCommit(); drRender();
+}
+function drChangeShape(p, shape) {
+  const old = p.shape;
+  if (old === 'poly' && shape !== 'poly') { p.w = p.w || 36; p.h = p.h || 36; }
+  p.shape = shape;
+  if (shape === 'arch' && (!p.rise || p.rise > p.h)) p.rise = Math.min(p.w / 2, p.h);
+  if (shape === 'poly') { p.pts = [{ x: 0, y: 0 }, { x: p.w, y: 0 }, { x: p.w, y: p.h }, { x: 0, y: p.h }]; }
+  if (shape === 'ellipse' && old === 'rect') { /* keep size */ }
+}
+function drPolyAdd(id) {
+  const p = drObj(id); if (!p) return;
+  const a = p.pts[p.pts.length - 1], b = p.pts[0];
+  p.pts.push({ x: (a.x + b.x) / 2 + 0, y: (a.y + b.y) / 2 }); drNormPoly(p); drCommit(); drRender();
+}
+function drPolyRemove(id, i) {
+  const p = drObj(id); if (!p) return;
+  if (p.pts.length <= 3) { showToast('A polygon needs at least 3 points', 'error'); return; }
+  p.pts.splice(i, 1); drNormPoly(p); drCommit(); drRender();
+}
+function drDelSel() {
+  const o = DR.sel && drObj(DR.sel); if (!o) return;
+  if (o.type === 'panel' && DR.cur.objects.some(x => x.type === 'marker' && x.panelId === o.id) && !confirm('Delete this panel and its holes/hardware?')) return;
+  DR.cur.objects = DR.cur.objects.filter(x => x.id !== o.id && x.panelId !== o.id); DR.sel = null; drCommit(); drRender();
+}
+function drDupSel() {
+  const o = DR.sel && drObj(DR.sel); if (!o || o.type !== 'panel') return;
+  const c = drClone(o); c.id = uid(); c.x += 6; c.y += 6; DR.cur.objects.push(c);
+  DR.cur.objects.filter(x => x.type === 'marker' && x.panelId === o.id).forEach(m => { const mm = drClone(m); mm.id = uid(); mm.panelId = c.id; DR.cur.objects.push(mm); });
+  DR.sel = c.id; drCommit(); drRender();
+}
+function drMeta(field, el) { DR.cur[field] = el.value; DR.dirty = true; drUpdateButtons(); }
+window.drProp = drProp; window.drPolyAdd = drPolyAdd; window.drPolyRemove = drPolyRemove; window.drDelSel = drDelSel; window.drDupSel = drDupSel; window.drMeta = drMeta;
 
-  units.forEach((u, idx) => {
-    const box = document.createElement('div');
-    box.className = 'project-unit';
-    box.dataset.pieceId = u.pieceId;
-    box.dataset.unitIndex = u.unitIndex;
-    // IG pieces need extra room top-right for the isometric offset — reserve margin so it never clips
-    const isIG = u.p.glassCategory === 'insulated';
-    const marginTop = igMarginTop(u);
-    const marginRight = marginTop;
-    const svgW = u.uw + marginRight, svgH = u.uh + marginTop;
-    box.style.cssText = `position:absolute;left:${u.pos.x}px;top:${u.pos.y - marginTop + topOffset}px;width:${svgW}px;cursor:grab;user-select:none;touch-action:none;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.18));`;
-    box.style.position = 'absolute'; // ensure the rotate button's absolute positioning is relative to this box
-
-    // If this piece is part of a touching cluster, skip its own frame — the cluster
-    // gets one shared outer frame drawn as a separate overlay after all units render.
-    // Grouped units skip their own frame AND muntins — the whole assembly gets one
-    // unified muntin grid (including automatic bars at each seam) drawn as a single
-    // overlay after all units render, instead of each piece drawing its own separate grid.
-    const drawOpts = unitInCluster.has(u) ? { frameMaterial: '', muntinCols: 0, muntinRows: 0 } : {};
-    const unitDrawOpts = () => Object.assign({}, drawOpts, { rotated: u.rotated, selectScope: _pjEdit.on ? 'pj' : null });
-    const svgInner = buildPieceSvgGroup(u.p, 0, marginTop, u.uw, u.uh, unitDrawOpts());
-    // Dimension label always shows the true physical W × H regardless of rotation —
-    // rotation only affects how the piece is oriented in the layout, not its real size.
-    const wLabel = dimDisplay(u.p.wWhole, u.p.wFrac), hLabel = dimDisplay(u.p.hWhole, u.p.hFrac);
-    const qtyTag = (parseInt(u.p.qty)||1) > 1 ? ` #${u.unitIndex+1}` : '';
-
-    box.innerHTML = `
-      <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;overflow:visible;">
-        ${svgInner}
-      </svg>
-      <div style="text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:#333;margin-top:4px;pointer-events:none;">${wLabel} × ${hLabel}${u.rotated?' ↻':''}${qtyTag}${isIG?' · IG':''}</div>
-      <div style="text-align:center;font-family:'DM Sans',sans-serif;font-size:9px;color:#777;pointer-events:none;">${[u.p.thickness,u.p.glassTypeName].filter(Boolean).join(' · ')||''}</div>
-      <button class="unit-rotate-btn" data-piece-id="${u.pieceId}" title="Rotate 90°" style="position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(255,255,255,0.9);border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;line-height:1;pointer-events:auto;z-index:10;">↻</button>`;
-
-    // Move mode: drag the whole piece (unchanged). Edit mode: place / drag / edit markers instead.
-    box._mkRebuild = () => { const sv = box.querySelector('svg'); if (sv) sv.innerHTML = buildPieceSvgGroup(u.p, 0, marginTop, u.uw, u.uh, unitDrawOpts()); };
-    box._mkSurface = {
-      scope: 'pj', p: u.p, rotated: u.rotated,
-      x0: 0, y0: marginTop, rectW: u.uw, rectH: u.uh,
-      sizeInputId: 'pjMarkerSize',
-      getHost: () => box,
-      getSvg: () => box.querySelector('svg'),
-      rerender: () => mkRefresh('pj'), liveUpdate: () => { box._mkRebuild(); renderProjMarkerPanel(); },
-    };
-    if (_pjEdit.on) box.style.cursor = _pjEdit.tool ? 'crosshair' : 'default';
-    box.addEventListener('pointerdown', (e) => {
-      if (_pjEdit.on) pjUnitPointerDown(e, box);
-      else startDragUnit(e, u, box, units, topOffset);
+// ── mouse interaction ──
+function drPt(e) {
+  const svg = document.getElementById('drSvg'); const r = svg.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / DR.scale, y: (e.clientY - r.top) / DR.scale };
+}
+function drPanelAt(pt) {
+  const ps = drPanels();
+  for (let i = ps.length - 1; i >= 0; i--) { const p = ps[i]; if (pt.x >= p.x && pt.x <= p.x + p.w && pt.y >= p.y && pt.y <= p.y + p.h) return p; }
+  return null;
+}
+function drSnapPt(pt, toCorners) {
+  let x = drSnapV(pt.x), y = drSnapV(pt.y);
+  if (toCorners) {
+    let best = null, bd = 3;
+    drPanels().forEach(p => {
+      const cs = p.shape === 'poly' ? p.pts.map(q => [p.x + q.x, p.y + q.y]) : [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]];
+      cs.forEach(c => { const dd = Math.hypot(c[0] - pt.x, c[1] - pt.y); if (dd < bd) { bd = dd; best = c; } });
     });
-    if (_pjEdit.on) box.querySelector('.unit-rotate-btn').style.display = 'none';
-    box.querySelector('.unit-rotate-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      u.p.sketchRotated = !u.p.sketchRotated;
-      renderProjectCanvas();
-    });
-    box.addEventListener('click', (e) => {
-      if (_pjEdit.on) return; // edit mode: taps place/select markers, they don't open the piece editor
-      if (_dragMoved) { _dragMoved = false; return; } // don't open editor after a drag
-      // If this piece is connected to others, editing it edits the whole connected group
-      const group = clustersForFrame.find(g => g.includes(u));
-      const groupPieces = group ? [...new Set(group.map(gu => gu.p))] : [u.p];
-      openUnitEditor(u.p, groupPieces);
-    });
-    canvas.appendChild(box);
-  });
-
-  // Draw "Overall" combined dimension brackets for any pieces that are touching —
-  // e.g. two panels mulled together show one total width/height across both.
-  const clusters = findTouchingClusters(units);
-  clusters.forEach(group => {
-    const left = Math.min(...group.map(u => u.pos.x));
-    const right = Math.max(...group.map(u => u.pos.x + u.uw));
-    const top = Math.min(...group.map(u => u.pos.y));
-    const bottom = Math.max(...group.map(u => u.pos.y + u.uh));
-    // Compute overall real-world size using each unit's own scale (uw/w gives px-per-inch)
-    const scale = group[0].uw / group[0].w; // assume uniform scale across the layout
-    const overallWReal = (right - left) / scale;
-    const overallHReal = (bottom - top) / scale;
-
-    // Assembly label (e.g. "Front Entry") is shown right alongside the overall size,
-    // on the same line, so the download/export logic (which reads one label div) still
-    // captures everything without needing structural changes.
-    const groupLabel = group.find(u => u.p.sketchGroupLabel)?.p.sketchGroupLabel || '';
-    const labelPrefix = groupLabel ? `${groupLabel} — ` : '';
-
-    const bracket = document.createElement('div');
-    bracket.style.cssText = `position:absolute;left:${left}px;top:${top - 26 + topOffset}px;width:${right-left}px;pointer-events:none;`;
-    bracket.innerHTML = `
-      <div style="border-bottom:1.5px solid #4a9eff;position:relative;height:8px;">
-        <div style="position:absolute;left:0;bottom:0;width:1px;height:8px;background:#4a9eff;"></div>
-        <div style="position:absolute;right:0;bottom:0;width:1px;height:8px;background:#4a9eff;"></div>
-      </div>
-      <div style="text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:#2a6fc9;font-weight:600;margin-top:2px;">${labelPrefix}Overall: ${overallWReal.toFixed(1)}" × ${overallHReal.toFixed(1)}"</div>`;
-    canvas.appendChild(bracket);
-
-    // ── One continuous frame around the whole assembly (if a material is set) ──
-    // matches a real storefront/partition shop drawing instead of separate frames per pane.
-    const anyMaterial = group.find(u => u.p.sketchFrameMaterial)?.p.sketchFrameMaterial;
-    if (anyMaterial && FRAME_MATERIALS[anyMaterial]) {
-      const fm = FRAME_MATERIALS[anyMaterial];
-      const frameSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      frameSvg.setAttribute('width', right - left + fm.width*2);
-      frameSvg.setAttribute('height', bottom - top + fm.width*2);
-      frameSvg.setAttribute('viewBox', `0 0 ${right-left+fm.width*2} ${bottom-top+fm.width*2}`);
-      frameSvg.style.cssText = `position:absolute;left:${left-fm.width}px;top:${top-fm.width+topOffset}px;pointer-events:none;`;
-      // Only the outer perimeter is drawn — no line at internal seams, so connected
-      // pieces read as one continuous glass surface with a single frame (butt-glazed).
-      frameSvg.innerHTML = `<rect x="${fm.width/2}" y="${fm.width/2}" width="${right-left+fm.width}" height="${bottom-top+fm.width}" fill="none" stroke="${fm.stroke}" stroke-width="${fm.width}"/>`;
-      canvas.appendChild(frameSvg);
-    }
-
-    // ── Mask over each piece's own glass border at every seam (runs regardless of
-    // frame material) so no thin black line remains between connected pieces ──
-    const seamsV = new Set(), seamsH = new Set();
-    group.forEach(a => group.forEach(b => {
-      if (a === b) return;
-      if (Math.abs((a.pos.x + a.uw) - b.pos.x) < 10) seamsV.add(Math.round(b.pos.x - left));
-      if (Math.abs((a.pos.y + a.uh) - b.pos.y) < 10) seamsH.add(Math.round(b.pos.y - top));
-    }));
-
-    if (seamsV.size || seamsH.size) {
-      const seamFill = detectGlassFill(group[0].p);
-      const maskSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      maskSvg.setAttribute('width', right - left);
-      maskSvg.setAttribute('height', bottom - top);
-      maskSvg.setAttribute('viewBox', `0 0 ${right-left} ${bottom-top}`);
-      maskSvg.style.cssText = `position:absolute;left:${left}px;top:${top+topOffset}px;pointer-events:none;`;
-      let maskInner = '';
-      seamsV.forEach(sx => { maskInner += `<rect x="${sx-2}" y="0" width="4" height="${bottom-top}" fill="${seamFill}"/>`; });
-      seamsH.forEach(sy => { maskInner += `<rect x="0" y="${sy-2}" width="${right-left}" height="4" fill="${seamFill}"/>`; });
-      maskSvg.innerHTML = maskInner;
-      canvas.appendChild(maskSvg);
-    }
-
-    // ── Unified muntin grid for the whole assembly (runs regardless of frame) ──
-    // A muntin bar is placed automatically at every seam where two pieces butt up
-    // (so the joint itself reads as a proper mullion), plus any additional evenly
-    // spaced muntins from the piece's Cols/Rows setting distributed across the
-    // FULL assembly width/height — not duplicated per individual piece.
-    const muntinCols = parseInt(group.find(u => u.p.sketchMuntinCols)?.p.sketchMuntinCols) || 0;
-    const muntinRows = parseInt(group.find(u => u.p.sketchMuntinRows)?.p.sketchMuntinRows) || 0;
-    if (seamsV.size || seamsH.size || muntinCols > 0 || muntinRows > 0) {
-      const muntinSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      muntinSvg.setAttribute('width', right - left);
-      muntinSvg.setAttribute('height', bottom - top);
-      muntinSvg.setAttribute('viewBox', `0 0 ${right-left} ${bottom-top}`);
-      muntinSvg.style.cssText = `position:absolute;left:${left}px;top:${top+topOffset}px;pointer-events:none;`;
-      let muntinInner = '';
-
-      // Bars exactly at each seam — this is what makes the joint itself a mullion
-      seamsV.forEach(sx => { muntinInner += `<line x1="${sx}" y1="0" x2="${sx}" y2="${bottom-top}" stroke="#8a8a8a" stroke-width="3"/>`; });
-      seamsH.forEach(sy => { muntinInner += `<line x1="0" y1="${sy}" x2="${right-left}" y2="${sy}" stroke="#8a8a8a" stroke-width="3"/>`; });
-
-      // Any additional muntins evenly spaced across the whole assembly (not per piece)
-      for (let c = 1; c <= muntinCols; c++) {
-        const mx = (right - left) / (muntinCols + 1) * c;
-        muntinInner += `<line x1="${mx}" y1="0" x2="${mx}" y2="${bottom-top}" stroke="#8a8a8a" stroke-width="3"/>`;
-      }
-      for (let r = 1; r <= muntinRows; r++) {
-        const my = (bottom - top) / (muntinRows + 1) * r;
-        muntinInner += `<line x1="0" y1="${my}" x2="${right-left}" y2="${my}" stroke="#8a8a8a" stroke-width="3"/>`;
-      }
-
-      muntinSvg.innerHTML = muntinInner;
-      canvas.appendChild(muntinSvg);
-    }
-  });
-  renderProjMarkerPanel();
+    if (best) { x = best[0]; y = best[1]; }
+  }
+  return { x, y };
 }
-
-let _dragMoved = false;
-
-// ── Quick per-piece editor popover, shown from within the project view ──
-let _unitEditorGroupIds = [];
-
-function openUnitEditor(p, groupPieces) {
-  const existing = document.getElementById('unitEditorPopover');
-  if (existing) existing.remove();
-
-  const group = groupPieces && groupPieces.length > 1 ? groupPieces : [p];
-  _unitEditorGroupIds = group.map(gp => gp.id);
-  const isGrouped = group.length > 1;
-
-  const popover = document.createElement('div');
-  popover.id = 'unitEditorPopover';
-  popover.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:700;display:flex;align-items:center;justify-content:center;padding:1.25rem;';
-  popover.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem;">
-        <div class="card-label" style="margin:0;">${isGrouped ? `Connected Assembly (${group.length} pieces)` : getPieceDisplay(p)}</div>
-        <button onclick="document.getElementById('unitEditorPopover').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;line-height:1;">✕</button>
-      </div>
-      ${isGrouped ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.85rem;">These pieces are touching — frame and muntins will apply to the whole connected assembly.</div>` : ''}
-      ${isGrouped ? `<div style="margin-bottom:0.75rem;">
-        <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Assembly Label</div>
-        <input type="text" id="unitGroupLabel" placeholder="e.g. Front Entry, Shower Wall..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;padding:0.45rem 0.6rem;outline:none;">
-      </div>` : ''}
-      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
-        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.6rem;">
-          <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Frame${isGrouped?' (whole assembly)':''}</div>
-          <select id="unitFrameMaterial" style="width:100%;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;outline:none;">
-            <option value="">None</option>
-            <option value="metal">Metal</option>
-            <option value="wood">Wood</option>
-            <option value="glass">Glass (frameless)</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
-        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.6rem;">
-          <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Muntin Cols${isGrouped?' (each pane)':''}</div>
-          <input type="number" id="unitMuntinCols" min="0" max="10" style="width:100%;background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:0.8rem;outline:none;">
-        </div>
-        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.6rem;">
-          <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Muntin Rows${isGrouped?' (each pane)':''}</div>
-          <input type="number" id="unitMuntinRows" min="0" max="10" style="width:100%;background:transparent;border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:0.8rem;outline:none;">
-        </div>
-      </div>
-      <div style="margin-bottom:1rem;">
-        <label style="font-size:0.75rem;">Description / Notes${isGrouped?' (this piece only)':''}</label>
-        <textarea id="unitDesc" placeholder="e.g. notch top-left, hinge cutout, arched top..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.55rem 0.7rem;outline:none;resize:vertical;min-height:60px;"></textarea>
-      </div>
-      <button class="btn-print" onclick="saveUnitEdits('${p.id}')" style="width:100%;">${isGrouped ? 'Apply to Whole Assembly' : 'Apply to This Piece'}</button>
-    </div>`;
-  popover.addEventListener('click', () => popover.remove());
-  document.body.appendChild(popover);
-
-  document.getElementById('unitFrameMaterial').value = p.sketchFrameMaterial || '';
-  document.getElementById('unitMuntinCols').value = p.sketchMuntinCols || '';
-  document.getElementById('unitMuntinRows').value = p.sketchMuntinRows || '';
-  document.getElementById('unitDesc').value = p.sketchNote || '';
-  const groupLabelInput = document.getElementById('unitGroupLabel');
-  if (groupLabelInput) groupLabelInput.value = p.sketchGroupLabel || '';
-}
-
-function saveUnitEdits(pieceId) {
-  const frameMaterial = document.getElementById('unitFrameMaterial').value;
-  const muntinCols = document.getElementById('unitMuntinCols').value;
-  const muntinRows = document.getElementById('unitMuntinRows').value;
-  const desc = document.getElementById('unitDesc').value;
-  const groupLabelInput = document.getElementById('unitGroupLabel');
-  const groupLabel = groupLabelInput ? groupLabelInput.value : '';
-
-  // Frame + muntins + assembly label apply to every piece in the connected group so
-  // the whole assembly stays visually consistent; description stays piece-specific.
-  const targetIds = _unitEditorGroupIds.length ? _unitEditorGroupIds : [pieceId];
-  targetIds.forEach(id => {
-    const gp = pieces.find(pc => pc.id === id);
-    if (!gp) return;
-    gp.sketchFrameMaterial = frameMaterial;
-    gp.sketchMuntinCols = muntinCols;
-    gp.sketchMuntinRows = muntinRows;
-    if (groupLabelInput) gp.sketchGroupLabel = groupLabel;
-    if (id === pieceId) gp.sketchNote = desc;
-  });
-
-  document.getElementById('unitEditorPopover').remove();
-  renderProjectCanvas();
-  showToast(targetIds.length > 1 ? '✓ Applied to whole assembly' : '✓ Updated');
-}
-
-function startDragUnit(e, u, box, allUnits, topOffset) {
-  e.preventDefault();
-  topOffset = topOffset || 0;
-  _dragUnit = u;
-  _dragMoved = false;
-  const startX = e.clientX, startY = e.clientY;
-  const canvas = document.getElementById('fullProjectCanvas');
-  const canvasRect = canvas.getBoundingClientRect();
-  _dragOffsetX = e.clientX - canvasRect.left - u.pos.x;
-  _dragOffsetY = e.clientY - canvasRect.top - u.pos.y;
-  box.style.cursor = 'grabbing';
-  box.style.zIndex = 50;
-  box.style.opacity = '0.85';
-
-  const isIG = u.p.glassCategory === 'insulated';
-  const marginTop = isIG ? Math.min(u.uw, u.uh) * 0.22 + 14 : 0;
-
-  const SNAP_DIST = 8; // pixels — snaps to grid lines and other pieces' edges within this distance
-  const GRID = 20;
-
-  const onMove = (ev) => {
-    if (!_dragUnit) return;
-    if (Math.abs(ev.clientX - startX) > 4 || Math.abs(ev.clientY - startY) > 4) _dragMoved = true;
-    const rect = canvas.getBoundingClientRect();
-    let nx = ev.clientX - rect.left - _dragOffsetX;
-    let ny = ev.clientY - rect.top - _dragOffsetY;
-    nx = Math.max(0, nx); ny = Math.max(0, ny);
-
-    // Snap to grid
-    const gridSnapX = Math.round(nx / GRID) * GRID, gridSnapY = Math.round(ny / GRID) * GRID;
-    if (Math.abs(nx - gridSnapX) < SNAP_DIST) nx = gridSnapX;
-    if (Math.abs(ny - gridSnapY) < SNAP_DIST) ny = gridSnapY;
-
-    // Snap to alignment with other pieces' TRUE GLASS edges (not the outer DOM box,
-    // which can be wider than the glass for IG pieces due to reserved isometric margin —
-    // using the outer box for snapping was leaving a real gap between glass edges).
-    let guideX = null, guideY = null;
-    (allUnits || []).forEach(ou => {
-      if (ou === u) return;
-      const ol = ou.pos.x, ot = ou.pos.y, ow = ou.uw, oh = ou.uh;
-      [ol, ol + ow - u.uw].forEach(edge => { if (Math.abs(nx - edge) < SNAP_DIST) { nx = edge; guideX = ol; } });
-      [ot, ot + oh - u.uh].forEach(edge => { if (Math.abs(ny - edge) < SNAP_DIST) { ny = edge; guideY = ot; } });
-      // Also snap edge-to-edge (right side of dragged piece touching left side of other, etc.)
-      [ol - u.uw, ol + ow].forEach(edge => { if (Math.abs(nx - edge) < SNAP_DIST) { nx = edge; guideX = ol; } });
-      [ot - u.uh, ot + oh].forEach(edge => { if (Math.abs(ny - edge) < SNAP_DIST) { ny = edge; guideY = ot; } });
-    });
-
-    _dragUnit.pos.x = nx; _dragUnit.pos.y = ny;
-    box.style.left = nx + 'px';
-    box.style.top = (ny - marginTop + topOffset) + 'px';
-
-    // Draw temporary alignment guide lines
-    let guideEl = document.getElementById('alignGuides');
-    if (!guideEl) {
-      guideEl = document.createElement('div');
-      guideEl.id = 'alignGuides';
-      guideEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
-      canvas.appendChild(guideEl);
-    }
-    guideEl.innerHTML = '';
-    if (guideX !== null) guideEl.innerHTML += `<div style="position:absolute;left:${guideX}px;top:0;bottom:0;width:1px;background:#4a9eff;"></div>`;
-    if (guideY !== null) guideEl.innerHTML += `<div style="position:absolute;top:${guideY}px;left:0;right:0;height:1px;background:#4a9eff;"></div>`;
-
-    // Expand canvas if dragged near edge
-    const canvasW = parseFloat(canvas.style.width), canvasH = parseFloat(canvas.style.height);
-    if (nx + u.uw + 40 > canvasW) canvas.style.width = (nx + u.uw + 60) + 'px';
-    if (ny + u.uh + 60 > canvasH) canvas.style.height = (ny + u.uh + 90) + 'px';
-  };
-  const onUp = () => {
-    box.style.cursor = 'grab';
-    box.style.zIndex = '';
-    box.style.opacity = '1';
-    _dragUnit = null;
-    const guideEl = document.getElementById('alignGuides');
-    if (guideEl) guideEl.innerHTML = '';
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', onUp);
-    // Recompute touching clusters and overall dimension brackets now that the piece has moved
-    if (_dragMoved) renderProjectCanvas();
-  };
-  window.addEventListener('pointermove', onMove);
-  window.addEventListener('pointerup', onUp);
-}
-
-function resetProjectLayout() {
-  pieces.forEach(p => { p.layoutUnits = null; });
-  renderProjectCanvas();
-  showToast('✓ Layout reset');
-}
-
-function openFullProjectView() {
-  const validPieces = pieces.filter(p => getPieceW(p) && getPieceH(p));
-  if (!validPieces.length) { showToast('Add piece dimensions first', 'error'); return; }
-  _pjEdit.on = false; _pjEdit.tool = null; mkSelect('pj', null, null);
-
-  const modal = document.createElement('div');
-  modal.id = 'fullProjectModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto;';
-  modal.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;max-width:960px;width:100%;max-height:94vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
-        <div class="card-label" style="margin:0;">Full Project View</div>
-        <button onclick="document.getElementById('fullProjectModal').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:0.2rem 0.5rem;">✕</button>
-      </div>
-      <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;">
-        <button class="marker-type-btn active" id="pjModeMove" onclick="pjSetMode(false)">✥ Move pieces</button>
-        <button class="marker-type-btn" id="pjModeEdit" onclick="pjSetMode(true)">⊙ Holes &amp; hardware</button>
-      </div>
-      <div id="pjHint" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.7rem;">Drag any piece to rearrange the layout — every quantity is shown as its own separate piece, just like the finished project.</div>
-      <div id="pjMarkerPanel" style="display:none;margin-bottom:0.85rem;"></div>
-      <div id="pjActionBar" class="mk-actionbar" style="display:none;"></div>
-      <div style="background:#fff;border-radius:10px;padding:1.25rem;margin-bottom:1rem;overflow:auto;max-height:60vh;">
-        <div id="fullProjectCanvas"></div>
-      </div>
-      <div id="pjInspectorWrap"></div>
-      <div style="display:flex;gap:0.6rem;">
-        <button class="btn-print" onclick="downloadFullProjectView()" style="flex:1;">⬇ Download Image</button>
-        <button class="btn-print" onclick="resetProjectLayout()" style="flex:1;background:var(--surface2);color:var(--text);">↺ Reset Layout</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  renderProjectCanvas();
-}
-
-function downloadFullProjectView() {
-  const canvas = document.getElementById('fullProjectCanvas');
-  if (!canvas) { showToast('Nothing to download', 'error'); return; }
-  const w = parseFloat(canvas.style.width), h = parseFloat(canvas.style.height);
-  if (!w || !h) { showToast('Nothing to download', 'error'); return; }
-
-  try {
-    // Build one FLAT svg — every piece and overlay is pasted in as plain SVG primitives
-    // (rect/line/text/circle) inside a <g transform> wrapper, with NO nested <svg> tags
-    // and no embedded HTML. This is the same proven technique the single-piece sketch
-    // download already uses reliably — avoiding foreignObject/nested-svg entirely sidesteps
-    // the cross-browser image-loading and canvas-tainting issues those approaches hit.
-    let inner = `<rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>`;
-
-    Array.from(canvas.children).forEach(child => {
-      if (child.id === 'alignGuides') return; // temporary drag guide, not part of the drawing
-
-      if (child.id === 'groundLine') {
-        // Floor/ground reference line — a solid horizontal line with diagonal hatch ticks
-        const gy = parseFloat(child.dataset.groundY) || 0;
-        const gw = parseFloat(child.dataset.width) || 0;
-        const hatchCount = parseInt(child.dataset.hatchCount) || 0;
-        inner += `<line x1="0" y1="${gy}" x2="${gw}" y2="${gy}" stroke="#999" stroke-width="1.5"/>`;
-        for (let i = 0; i < hatchCount; i++) {
-          const hx = i * 14;
-          inner += `<line x1="${hx}" y1="${gy+2}" x2="${hx+6}" y2="${gy+8}" stroke="#aaa" stroke-width="1"/>`;
-        }
-        return;
-      }
-
-      if (child.classList && child.classList.contains('project-unit')) {
-        const left = parseFloat(child.style.left) || 0, top = parseFloat(child.style.top) || 0;
-        const svgEl = child.querySelector('svg');
-        if (!svgEl) return;
-        // Paste the piece's own flat SVG content directly — no nested <svg> wrapper needed
-        const cleanSvg = svgEl.cloneNode(true);
-        cleanSvg.querySelectorAll('.mk-halo').forEach(n => n.remove()); // selection highlight is for editing only
-        inner += `<g transform="translate(${left},${top})">${cleanSvg.innerHTML}</g>`;
-        const labels = child.querySelectorAll('div');
-        const svgH = parseFloat(svgEl.getAttribute('height')) || 0;
-        const svgW = parseFloat(svgEl.getAttribute('width')) || 0;
-        let ly = top + svgH + 14;
-        labels.forEach((lbl, i) => {
-          const txt = (lbl.textContent || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          inner += `<text x="${left + svgW/2}" y="${ly}" text-anchor="middle" font-family="${i===0?'DM Mono, monospace':'DM Sans, sans-serif'}" font-size="${i===0?10:9}" fill="${i===0?'#333':'#777'}">${txt}</text>`;
-          ly += 13;
-        });
-      } else if (child.tagName === 'svg') {
-        // Standalone overlay SVG (continuous frame, seam mask, muntin grid) — already flat content
-        const left = parseFloat(child.style.left) || 0, top = parseFloat(child.style.top) || 0;
-        inner += `<g transform="translate(${left},${top})">${child.innerHTML}</g>`;
-      } else {
-        // Overall-dimension bracket — a plain div with a border line + text label
-        const left = parseFloat(child.style.left) || 0, top = parseFloat(child.style.top) || 0;
-        const width = parseFloat(child.style.width) || child.offsetWidth || 0;
-        const textEl = child.querySelector('div:last-child');
-        const label = (textEl ? textEl.textContent : '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        inner += `<line x1="${left}" y1="${top+8}" x2="${left+width}" y2="${top+8}" stroke="#4a9eff" stroke-width="1.5"/>`;
-        inner += `<line x1="${left}" y1="${top}" x2="${left}" y2="${top+8}" stroke="#4a9eff" stroke-width="1"/>`;
-        inner += `<line x1="${left+width}" y1="${top}" x2="${left+width}" y2="${top+8}" stroke="#4a9eff" stroke-width="1"/>`;
-        inner += `<text x="${left+width/2}" y="${top+22}" text-anchor="middle" font-family="DM Mono, monospace" font-size="10" font-weight="600" fill="#2a6fc9">${label}</text>`;
-      }
-    });
-
-    const fullSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${inner}</svg>`;
-
-    const svgBlob = new Blob([fullSvg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    const img = new Image();
-    img.onload = function() {
-      const outCanvas = document.createElement('canvas');
-      const scaleFactor = 2;
-      outCanvas.width = w * scaleFactor;
-      outCanvas.height = h * scaleFactor;
-      const ctx = outCanvas.getContext('2d');
-      ctx.scale(scaleFactor, scaleFactor);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      outCanvas.toBlob(function(blob) {
-        if (!blob) { showToast('Download failed — try again', 'error'); return; }
-        const link = document.createElement('a');
-        link.download = 'full-project-view.png';
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        showToast('✓ Downloaded');
-      });
-    };
-    img.onerror = function() {
-      console.error('Full Project View export: SVG failed to load as image');
-      showToast('Download failed — try again', 'error');
-    };
-    img.src = url;
-  } catch (err) {
-    console.error('Download failed:', err);
-    showToast('Download failed — try again', 'error');
+function drDown(e) {
+  if (DR.view === 'customer' || (e.button !== undefined && e.button > 0)) return;
+  const svg = document.getElementById('drSvg'); if (!svg || !svg.contains(e.target) && e.target.id !== 'drCanvasWrap') return;
+  const pt = drPt(e), t = DR.tool;
+  if (t === 'select') {
+    const hit = e.target.closest && e.target.closest('[data-id]');
+    if (!hit) { DR.sel = null; drRender(); return; }
+    const id = hit.getAttribute('data-id'), hd = hit.getAttribute('data-h'), o = drObj(id); if (!o) return;
+    DR.sel = id;
+    DR.drag = { id, h: hd, start: pt, orig: drClone(o), moved: false, panelOrig: null };
+    e.preventDefault();
+    drRenderProps(); drRenderCanvas();
+    try { document.getElementById('drCanvasWrap').setPointerCapture(e.pointerId); } catch (x) {}
+    return;
+  }
+  if (t === 'marker') {
+    const p = drPanelAt(pt);
+    if (!p) { showToast('Click inside a panel to place it', 'error'); return; }
+    const sp = drSnapPt(pt, false);
+    const m = { id: uid(), type: 'marker', panelId: p.id, kind: DR.kind, xIn: Math.min(Math.max(sp.x - p.x, 0), p.w), yIn: Math.min(Math.max(sp.y - p.y, 0), p.h), size: DR_KINDS[DR.kind].size, note: '', vis: 'both' };
+    DR.cur.objects.push(m); DR.sel = m.id; drCommit(); drRender(); return;
+  }
+  if (t === 'dim') {
+    const sp = drSnapPt(pt, true);
+    if (!DR.tmp) { DR.tmp = sp; drRenderCanvas(); return; }
+    if (Math.hypot(sp.x - DR.tmp.x, sp.y - DR.tmp.y) < 0.25) { showToast('Pick a second point away from the first', 'error'); return; }
+    const o = { id: uid(), type: 'dim', x1: DR.tmp.x, y1: DR.tmp.y, x2: sp.x, y2: sp.y, text: '', vis: 'shop' };
+    DR.cur.objects.push(o); DR.tmp = null; DR.sel = o.id; DR.tool = 'select'; drCommit(); drRender(); return;
+  }
+  if (t === 'label') {
+    const sp = drSnapPt(pt, false);
+    const o = { id: uid(), type: 'label', x: sp.x, y: sp.y, text: 'Text', size: 3, vis: 'both' };
+    DR.cur.objects.push(o); DR.sel = o.id; DR.tool = 'select'; drCommit(); drRender();
+    setTimeout(() => { const i = document.querySelector('#drProps [data-f="text"]'); if (i) { i.focus(); i.select(); } }, 30);
   }
 }
+function drMove(e) {
+  const dg = DR.drag;
+  if (!dg) {
+    if (DR.tool === 'dim' && DR.tmp && DR.view !== 'customer') { // rubber-band preview
+      const svg = document.getElementById('drSvg'); if (!svg) return;
+      let tl = svg.querySelector('#drRub'); if (!tl) { tl = document.createElementNS('http://www.w3.org/2000/svg', 'line'); tl.id = 'drRub'; tl.setAttribute('stroke', '#e8c27a'); tl.setAttribute('stroke-dasharray', '3 3'); tl.setAttribute('stroke-width', 1.2 / DR.scale); svg.appendChild(tl); }
+      const sp = drSnapPt(drPt(e), true); tl.setAttribute('x1', DR.tmp.x); tl.setAttribute('y1', DR.tmp.y); tl.setAttribute('x2', sp.x); tl.setAttribute('y2', sp.y);
+    }
+    return;
+  }
+  const o = drObj(dg.id); if (!o) return;
+  const pt = drPt(e), dx = pt.x - dg.start.x, dy = pt.y - dg.start.y;
+  if (!dg.moved && Math.hypot(dx, dy) * DR.scale < 3) return;
+  dg.moved = true;
+  const og = dg.orig;
+  if (o.type === 'panel') {
+    if (dg.h === 'size') { o.w = Math.max(1, drSnapV(og.w + dx)); o.h = Math.max(1, drSnapV(og.h + dy)); }
+    else if (dg.h && dg.h[0] === 'v') { const i = +dg.h.slice(1); const q = o.pts[i]; q.x = drSnapV(og.pts[i].x + dx); q.y = drSnapV(og.pts[i].y + dy); }
+    else { o.x = Math.max(0, drSnapV(og.x + dx)); o.y = Math.max(0, drSnapV(og.y + dy)); }
+  } else if (o.type === 'marker') {
+    const p = drObj(o.panelId); if (!p) return;
+    o.xIn = Math.min(Math.max(drSnapV(og.xIn + dx), 0), p.w); o.yIn = Math.min(Math.max(drSnapV(og.yIn + dy), 0), p.h);
+  } else if (o.type === 'dim') {
+    if (dg.h === 'p1') { const s = drSnapPt({ x: og.x1 + dx, y: og.y1 + dy }, true); o.x1 = s.x; o.y1 = s.y; }
+    else if (dg.h === 'p2') { const s = drSnapPt({ x: og.x2 + dx, y: og.y2 + dy }, true); o.x2 = s.x; o.y2 = s.y; }
+    else { o.x1 = Math.max(0, drSnapV(og.x1 + dx)); o.y1 = Math.max(0, drSnapV(og.y1 + dy)); o.x2 = o.x1 + (og.x2 - og.x1); o.y2 = o.y1 + (og.y2 - og.y1); }
+  } else if (o.type === 'label') { o.x = Math.max(0, drSnapV(og.x + dx)); o.y = Math.max(0, drSnapV(og.y + dy)); }
+  drRenderCanvas();
+}
+function drUp() {
+  const dg = DR.drag; if (!dg) return;
+  DR.drag = null;
+  if (!dg.moved) return;
+  const o = drObj(dg.id); if (o && o.type === 'panel') drNormPoly(o);
+  drCommit(); drRender();
+}
+function drKey(e) {
+  const tab = document.getElementById('tab-drawing'); if (!tab || !tab.classList.contains('active')) return;
+  const tg = e.target && e.target.tagName;
+  const typing = tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT';
+  if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); e.shiftKey ? drRedo() : drUndo(); return; }
+  if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); drRedo(); return; }
+  if (typing) return;
+  if (e.key === 'Escape') { DR.tool = 'select'; DR.tmp = null; drRender(); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && DR.sel) { e.preventDefault(); drDelSel(); }
+  else if (DR.sel && e.key.startsWith('Arrow')) {
+    const o = drObj(DR.sel); if (!o) return; e.preventDefault();
+    const s = DR.snap ? DR.snapIn : 0.0625, dx = e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0, dy = e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0;
+    if (o.type === 'panel' || o.type === 'label') { o.x = Math.max(0, o.x + dx); o.y = Math.max(0, o.y + dy); }
+    else if (o.type === 'marker') { const p = drObj(o.panelId); o.xIn = Math.min(Math.max(o.xIn + dx, 0), p ? p.w : 999); o.yIn = Math.min(Math.max(o.yIn + dy, 0), p ? p.h : 999); }
+    else if (o.type === 'dim') { o.x1 += dx; o.x2 += dx; o.y1 += dy; o.y2 += dy; }
+    clearTimeout(drKey._t); drCommit(); drRender();
+  }
+}
+function drWire() {
+  const wrap = document.getElementById('drCanvasWrap'); if (!wrap || wrap._wired) return; wrap._wired = true;
+  wrap.addEventListener('pointerdown', drDown);
+  wrap.addEventListener('pointermove', drMove);
+  wrap.addEventListener('pointerup', drUp);
+  wrap.addEventListener('pointercancel', drUp);
+  wrap.addEventListener('wheel', e => { if (e.ctrlKey) { e.preventDefault(); drZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15); } }, { passive: false });
+  document.addEventListener('keydown', drKey);
+  window.addEventListener('beforeunload', e => { if (DR.dirty) { e.preventDefault(); e.returnValue = ''; } });
+}
+function drOnShow() { drInit(); drWire(); if (!DR._fitted) { DR._fitted = true; drFit(); } }
+window.drOnShow = drOnShow;
+
 </script>
 
 </body>
