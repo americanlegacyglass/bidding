@@ -5464,7 +5464,7 @@ async function drExport(mode, fmt) {
     }
     if (!window.jspdf) { showToast('PDF library did not load — use PNG instead', 'error'); return; }
     const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'FAST');
     pdf.save(base + '.pdf');
     showToast('✓ PDF downloaded');
   } catch (e) { console.error('Drawing export failed:', e); showToast('Export failed — try PNG', 'error'); }
@@ -6551,7 +6551,7 @@ async function tdMakeSheet(info, base) {
     const canvas = await drSvgToCanvas(tdSheetSvg(info), 1100, 850, 2);
     if (window.jspdf) {
       const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5); pdf.save(base + '.pdf');
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'FAST'); pdf.save(base + '.pdf');
     } else canvas.toBlob(b => drDownloadBlob(b, base + '.png'), 'image/png');
     showToast('✓ Order sheet downloaded');
   } catch (e) { console.error('Order sheet failed:', e); showToast('Order sheet failed — try again', 'error'); }
