@@ -432,6 +432,23 @@ onAuthStateChanged(auth, async user => {
   #tab-drawing #drImportBox { display:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.7rem; margin-bottom:.7rem; }
   #tab-drawing textarea.dr-in { min-height:60px; resize:vertical; }
   @media (max-width: 900px) { #tab-drawing .dr-main { flex-direction:column; } #tab-drawing .dr-props { width:auto; border-left:none; border-top:1px solid var(--border); max-height:none; } }
+  .sh-cards { display:flex; flex-wrap:wrap; gap:.45rem; }
+  .sh-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); cursor:pointer; padding:.45rem .55rem; display:flex; flex-direction:column; align-items:center; gap:.2rem; min-width:84px; max-width:150px; font-family:'DM Sans',sans-serif; }
+  .sh-card b { font-size:.74rem; font-weight:500; text-align:center; }
+  .sh-card small { font-size:.62rem; color:var(--muted); text-align:center; line-height:1.25; }
+  .sh-card:hover { border-color:var(--accent2); }
+  .sh-card.on { border-color:var(--invoice-accent); box-shadow:0 0 0 1px var(--invoice-accent) inset; background:#2a2620; }
+  .sh-card svg { background:#fff; border-radius:4px; }
+  .hw-sw { width:34px; height:22px; border-radius:4px; border:1px solid #555; display:block; }
+  .hw-modal { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:600; display:none; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow:auto; }
+  .hw-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.2rem; width:100%; max-width:720px; }
+  .hw-box .dr-sub { font-family:'DM Mono',monospace; font-size:.66rem; color:var(--invoice-accent); text-transform:uppercase; letter-spacing:.08em; margin:.8rem 0 .35rem; }
+  .hw-box .dr-ptitle { font-family:'Bebas Neue',sans-serif; letter-spacing:.08em; font-size:1.3rem; }
+  .hw-box .dr-hint { font-size:.74rem; color:var(--muted); margin:.4rem 0; }
+  .hw-erow { display:flex; gap:.4rem; margin-bottom:.35rem; align-items:center; }
+  .hw-erow input, .hw-erow select, .hw-box input[type=number] { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:.35rem .45rem; font-family:'DM Sans',sans-serif; font-size:.8rem; min-width:0; }
+  .hw-erow input[data-f=name] { flex:1; }
+  .sh-card:disabled, .hw-box button:disabled { opacity:.4; cursor:default; }
 
   /* ── Sketch marker toolbar ── */
   .marker-type-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 0.4rem 0.7rem; transition: all 0.15s; }
@@ -1406,7 +1423,7 @@ onAuthStateChanged(auth, async user => {
         </div>
         <div class="collapsible-body" id="hw-body">
           <div id="hwList"></div>
-          <button class="btn-add" onclick="addHardware()">+ Add Hardware Item</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;"><button class="btn-add" style="flex:1 1 200px" onclick="hwOpenPicker()">🔩 Pick hardware (from your price list)</button><button class="btn-add" style="flex:1 1 200px" onclick="addHardware()">+ Type a hardware item</button></div>
         </div>
       </div>
 
@@ -1568,6 +1585,7 @@ onAuthStateChanged(auth, async user => {
       <button class="dr-btn" onclick="document.getElementById('drFileIn').click()">⬆ Open file</button>
       <input type="file" id="drFileIn" accept=".json,application/json" style="display:none" onchange="drImportFile(this)">
       <button class="dr-btn on" onclick="drToggleShower()" title="Enter the opening and get sized glass with hinges, handle and clamps placed">🚿 Shower layout</button>
+      <button class="dr-btn" onclick="drSendToBid()" title="Copy this drawing's glass sizes and hardware into the bid open on the Bid tab">➜ Send to bid</button>
       <select id="drTplSel" class="dr-in" style="width:auto;" onchange="drUseTemplate(this)"></select>
       <button class="dr-btn" onclick="drSaveTemplate()" title="Save this drawing as a reusable template on this computer">☆ Save as template</button>
       <button class="dr-btn" onclick="drDeleteTemplate()" title="Delete one of your templates">✕ Template</button>
@@ -1725,7 +1743,7 @@ onAuthStateChanged(auth, async user => {
         <summary>4 &middot; Hardware, labor, extras and how the price is built</summary>
         <div class="tut-body">
           <ul>
-            <li><b>Hardware/Extra:</b> a name and a cost for each item (hinges, handles and so on).</li>
+            <li><b>Hardware/Extra:</b> press <b>🔩 Pick hardware</b> to choose an item and finish from your own price list (pictures; the price fills in), or <b>+ Type a hardware item</b> to type a name and cost. <b>✎ Edit price list</b> (owner login) sets the items, their prices and any extra % for a finish. No prices are built in.</li>
             <li><b>Labor Costs:</b> a name and a cost. Marked tax free.</li>
             <li><b>Additional Costs:</b> a name and either a dollar amount or a percentage of the materials.</li>
           </ul>
@@ -1797,7 +1815,10 @@ onAuthStateChanged(auth, async user => {
             <li>Press <b>🚿 Shower layout</b>, pick the layout (door only, door + panel, panel + door + panel, 90° corner with a return, or a fixed panel), and type the opening width, glass height and door width.</li>
             <li>The app takes off your gaps (wall, hinge, strike, glass-to-glass, under the door) and draws every piece at its glass size, with hinges, the handle and wall clamps already placed. The opening is dimensioned and the sizes and gaps used are written into the shop notes.</li>
             <li><b>Set your own gap and hardware numbers once.</b> The starting numbers are not a supplier spec. Whatever you type is remembered on that computer for next time.</li>
+            <li>Pick the layout from the pictures: door only, door + panel, panel + door + panel, door + notched panel (knee wall), 90° corner with a return, neo-angle, or a fixed panel. Also pick beveled or square hinges, clamps or U-channel for the fixed glass, which way the door opens, and an optional fixed transom.</li>
+            <li>Enter the <b>left and right wall heights</b>. If they differ, the glass is cut to the shorter one and the shop notes flag it as out of plumb.</li>
             <li>Everything it draws is normal panels and markers, so you can fix anything by hand afterwards.</li>
+            <li><b>➜ Send to bid</b> copies the drawing's glass sizes and hardware counts into the bid open on the Bid tab. It asks first, it only adds lines, and the drawing stays separate. Glass type and edge copy from the bid's last piece; hardware takes its price from your price list or is left for you to fill in.</li>
             <li><b>☆ Save as template</b> keeps a drawing you reuse; pick it later from <b>📁 My templates</b>. Templates are saved on that computer only.</li>
           </ul>
           <h4>Shape it</h4>
@@ -5371,7 +5392,7 @@ function drSheetSvg(d, mode, customerDims) {
     });
     rows.slice(0, maxRows).forEach((r, i) => {
       const y = hdr + (i + 1) * lh, k = DR_KINDS[r.m.kind] || DR_KINDS.hole;
-      s += t(hx, y, String(r.n), fsT) + t(hx + 22, y, k.label, fsT) + t(hx + 90, y, drFmtPlain(r.m.size || 0) + '"', fsT) + t(hx + 140, y, drFmt(r.m.xIn), fsT) + t(hx + 205, y, drFmt(r.m.yIn), fsT) + t(hx + 270, y, (drPanelName(d, r.p) + (r.m.note ? ' — ' + r.m.note : '')).slice(0, 34), fsT);
+      s += t(hx, y, String(r.n), fsT) + t(hx + 22, y, k.label, fsT) + t(hx + 90, y, drFmtPlain(r.m.size || 0) + '"', fsT) + t(hx + 140, y, drFmt(r.m.xIn), fsT) + t(hx + 205, y, drFmt(r.m.yIn), fsT) + t(hx + 270, y, (drPanelName(d, r.p) + (r.m.note ? ' — ' + r.m.note : '')).slice(0, 44), fsT);
     });
     const hidden = Math.max(panels.length - maxRows, rows.length - maxRows);
     if (hidden > 0) s += t(M, H - M - noteH - 4, '+' + hidden + ' more rows not shown on this sheet — see the saved drawing', 9, 'fill="#b00020"');
@@ -5897,169 +5918,299 @@ function drOnShow() { drInit(); drWire(); if (!DR._fitted) { DR._fitted = true; 
 window.drOnShow = drOnShow;
 
 // ═════════════════════════════════════════════════
-// SHOWER LAYOUT BUILDER — enter the opening, get sized glass + hardware markers.
+// SHOWER LAYOUT BUILDER — pick a layout card, enter the opening, get sized glass + hardware markers.
 // Deductions are the shop's own numbers (saved on this computer); the defaults are only starting points.
 // ═════════════════════════════════════════════════
 const SH_LAYOUTS = {
-  door:      'Door only (hinged to wall)',
-  doorpanel: 'Door + fixed panel (inline)',
-  pdp:       'Panel + door + panel (inline)',
-  corner:    '90° corner: door + panel front, return panel',
-  panel:     'Fixed panel only (splash / walk-in)',
+  door:      { t: 'Door only',              d: 'Door hinged to the wall' },
+  doorpanel: { t: 'Door + panel',           d: 'Inline, door hinged to a fixed panel' },
+  pdp:       { t: 'Panel + door + panel',   d: 'Inline, door in the middle' },
+  knee:      { t: 'Door + notched panel',   d: 'Fixed panel notched over a knee wall / bench' },
+  corner:    { t: '90° corner',             d: 'Door + panel front, return panel' },
+  neo:       { t: 'Neo-angle',              d: 'Two angled panels, door in the middle face' },
+  panel:     { t: 'Fixed panel',            d: 'Splash panel / walk-in' },
 };
+// small picture for each layout card (panels light blue, door outlined darker, walls grey)
+function shThumb(k) {
+  const g = (x, w, h, door, y = 0) => `<rect x="${x}" y="${6 + y}" width="${w}" height="${h}" fill="${door ? '#cfe9f1' : '#e3f3f8'}" stroke="${door ? '#2a6f86' : '#5a8a99'}" stroke-width="${door ? 1.6 : 1}"/>` + (door ? `<line x1="${x + w - 4}" y1="${6 + y + h * 0.45}" x2="${x + w - 4}" y2="${6 + y + h * 0.6}" stroke="#2a6f86" stroke-width="1.6"/>` : '');
+  const wall = (x) => `<rect x="${x}" y="2" width="3" height="56" fill="#888"/>`;
+  let s = wall(2) + wall(75);
+  if (k === 'door') s += g(7, 66, 50, true);
+  if (k === 'doorpanel') s += g(7, 36, 50, false) + g(44, 29, 50, true);
+  if (k === 'pdp') s += g(7, 20, 50) + g(28, 24, 50, true) + g(53, 20, 50);
+  if (k === 'knee') s += `<path d="M7,6 L43,6 L43,56 L22,56 L22,40 L7,40 Z" fill="#e3f3f8" stroke="#5a8a99"/><rect x="5" y="41" width="17" height="15" fill="#aaa"/>` + g(44, 29, 50, true);
+  if (k === 'corner') s = wall(2) + g(7, 30, 50) + g(38, 24, 50, true) + `<path d="M63,6 L76,1 L76,51 L63,56 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
+  if (k === 'neo') s = `<path d="M3,10 L20,4 L20,54 L3,60 Z" fill="#e3f3f8" stroke="#5a8a99"/>` + g(21, 37, 50, true, -2) + `<path d="M59,4 L76,10 L76,60 L59,54 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
+  if (k === 'panel') s = wall(2) + g(7, 36, 50);
+  return `<svg viewBox="0 0 80 62" width="80" height="62">${s}</svg>`;
+}
 const SH_DEFAULTS = {
-  layout: 'doorpanel', W: '60', H: '72', D: '36', doorW: '24',
-  wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
-  hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right',
+  layout: 'doorpanel', W: '60', HL: '72', HR: '72', D: '36', doorW: '24', A: '18', B: '24', C: '18',
+  kneeW: '18', kneeH: '36', wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
+  hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right', hinge: 'beveled', fix: 'clamps',
+  transom: 'no', ceilH: '96', headGap: '1/2',
 };
 function shLoad() { try { return Object.assign({}, SH_DEFAULTS, JSON.parse(localStorage.getItem('alg_shower_defaults') || '{}')); } catch (e) { return Object.assign({}, SH_DEFAULTS); } }
-function shSave(v) { try { const keep = Object.assign({}, v); localStorage.setItem('alg_shower_defaults', JSON.stringify(keep)); } catch (e) {} }
+function shSave(v) { try { localStorage.setItem('alg_shower_defaults', JSON.stringify(v)); } catch (e) {} }
 
 function shField(id, label, val, hint) {
-  return `<label class="dr-row"><span>${label}</span><input class="dr-in" id="sh_${id}" value="${drEsc(val)}" ${hint ? `title="${drEsc(hint)}"` : ''}></label>`;
+  return `<label class="dr-row" id="shr_${id}"><span>${label}</span><input class="dr-in" id="sh_${id}" value="${drEsc(val)}" ${hint ? `title="${drEsc(hint)}"` : ''}></label>`;
+}
+function shCards(name, opts, cur) {
+  return `<div class="sh-cards" data-name="${name}">` + Object.entries(opts).map(([k, o]) =>
+    `<button type="button" class="sh-card ${cur === k ? 'on' : ''}" data-v="${k}" onclick="shPick('${name}','${k}')">${o.pic || ''}<b>${drEsc(o.t)}</b>${o.d ? `<small>${drEsc(o.d)}</small>` : ''}</button>`).join('') + `<input type="hidden" id="sh_${name}" value="${drEsc(cur)}"></div>`;
+}
+function shPick(name, v) {
+  document.getElementById('sh_' + name).value = v;
+  document.querySelectorAll(`.sh-cards[data-name="${name}"] .sh-card`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  shShowFields();
 }
 function drToggleShower() {
   const box = document.getElementById('drShowerBox'); if (!box) return;
   if (box.style.display === 'block') { box.style.display = 'none'; return; }
   const v = shLoad();
+  const lay = Object.fromEntries(Object.entries(SH_LAYOUTS).map(([k, o]) => [k, Object.assign({ pic: shThumb(k) }, o)]));
   box.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1.2rem;">
+    <div class="dr-sub" style="margin-top:0">1 · Layout</div>
+    ${shCards('layout', lay, v.layout)}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:.6rem;">
+      <div><div class="dr-sub" style="margin-top:0">Hinges</div>${shCards('hinge', { beveled: { t: 'Beveled' }, square: { t: 'Square' } }, v.hinge)}</div>
+      <div id="shw_fix"><div class="dr-sub" style="margin-top:0">Fixed panels held by</div>${shCards('fix', { clamps: { t: 'Clamps' }, channel: { t: 'U-channel' } }, v.fix)}</div>
+      <div id="shw_side"><div class="dr-sub" style="margin-top:0">Door opens on</div>${shCards('handleSide', { left: { t: 'Left' }, right: { t: 'Right' } }, v.handleSide)}</div>
+      <div id="shw_tr"><div class="dr-sub" style="margin-top:0">Transom above</div>${shCards('transom', { no: { t: 'None' }, fixed: { t: 'Fixed' } }, v.transom)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1.2rem;margin-top:.4rem;">
       <div>
-        <div class="dr-sub" style="margin-top:0">Layout & opening</div>
-        <label class="dr-row"><span>Layout</span><select class="dr-in" id="sh_layout" onchange="shShowFields()">${Object.entries(SH_LAYOUTS).map(([k, t]) => `<option value="${k}" ${v.layout === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
-        ${shField('W', 'Opening W', v.W, 'Wall to wall, finished')}
-        ${shField('H', 'Glass height', v.H)}
-        <div id="sh_wD">${shField('D', 'Return depth', v.D, 'Back wall to outside face of the front glass')}</div>
-        <div id="sh_wDoor">${shField('doorW', 'Door width', v.doorW)}</div>
-        <div id="sh_wSide"><label class="dr-row"><span>Handle side</span><select class="dr-in" id="sh_handleSide"><option value="right" ${v.handleSide === 'right' ? 'selected' : ''}>Door opens on right</option><option value="left" ${v.handleSide === 'left' ? 'selected' : ''}>Door opens on left</option></select></label></div>
+        <div class="dr-sub">2 · Measurements</div>
+        ${shField('W', 'Opening W', v.W, 'Wall to wall at the tightest point')}
+        ${shField('A', 'Left face', v.A, 'Wall to first corner, along the glass line')}
+        ${shField('B', 'Center face', v.B, 'Corner to corner, along the glass line')}
+        ${shField('C', 'Right face', v.C, 'Second corner to wall, along the glass line')}
+        ${shField('HL', 'Height — left wall', v.HL)}
+        ${shField('HR', 'Height — right wall', v.HR, 'If the walls or curb are out of level, the glass is cut to the shorter height')}
+        ${shField('D', 'Return depth', v.D, 'Back wall to outside face of the front glass')}
+        ${shField('doorW', 'Door width', v.doorW)}
+        ${shField('kneeW', 'Knee wall width', v.kneeW, 'From the wall to the end of the knee wall')}
+        ${shField('kneeH', 'Knee wall height', v.kneeH, 'From the curb to the top of the knee wall')}
+        ${shField('ceilH', 'Ceiling height', v.ceilH, 'Curb to ceiling')}
+        ${shField('headGap', 'Gap at ceiling', v.headGap)}
       </div>
       <div>
-        <div class="dr-sub" style="margin-top:0">Your deductions (gaps)</div>
+        <div class="dr-sub">Your deductions (gaps)</div>
         ${shField('wallGap', 'Panel ↔ wall', v.wallGap)}
         ${shField('hingeGap', 'Hinge ↔ wall', v.hingeGap)}
         ${shField('strikeGap', 'Door ↔ strike', v.strikeGap)}
         ${shField('glassGap', 'Glass ↔ glass', v.glassGap)}
         ${shField('doorBottom', 'Under door', v.doorBottom, 'Door is this much shorter than the panels')}
-        ${shField('t', 'Glass thick.', v.t, 'Used for the return panel')}
+        ${shField('t', 'Glass thick.', v.t)}
       </div>
       <div>
-        <div class="dr-sub" style="margin-top:0">Hardware positions</div>
+        <div class="dr-sub">Hardware positions</div>
         ${shField('hingeOff', 'Hinge from top/bottom', v.hingeOff)}
         ${shField('handleH', 'Handle center up', v.handleH, 'From the bottom of the door')}
         ${shField('handleIn', 'Handle from edge', v.handleIn)}
         ${shField('clampOff', 'Clamp from top/bottom', v.clampOff)}
       </div>
     </div>
-    <div class="dr-hint">The gap and hardware numbers are starting points, not a supplier's spec. Change them to your shop's real numbers once; they're remembered on this computer. Measure out-of-plumb walls at the tightest point.</div>
+    <div class="dr-hint">Gap and hardware numbers are starting points, not a supplier spec. Change them to your shop's real numbers once; they're remembered on this computer.</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;"><button class="dr-btn on" onclick="drBuildShower()">Build shower</button><button class="dr-btn" onclick="drToggleShower()">Cancel</button></div>`;
   box.style.display = 'block';
   shShowFields();
 }
 function shShowFields() {
-  const l = document.getElementById('sh_layout').value;
-  document.getElementById('sh_wD').style.display = l === 'corner' ? '' : 'none';
-  document.getElementById('sh_wDoor').style.display = l === 'panel' || l === 'door' ? 'none' : '';
-  document.getElementById('sh_wSide').style.display = l === 'panel' ? 'none' : '';
+  const l = document.getElementById('sh_layout').value, tr = document.getElementById('sh_transom').value;
+  const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; };
+  show('shr_W', l !== 'neo'); ['A', 'B', 'C'].forEach(k => show('shr_' + k, l === 'neo'));
+  show('shr_D', l === 'corner'); show('shr_doorW', !['panel', 'door', 'neo'].includes(l));
+  show('shr_kneeW', l === 'knee'); show('shr_kneeH', l === 'knee');
+  show('shw_side', l !== 'panel'); show('shw_fix', l !== 'door');
+  const canTr = ['door', 'doorpanel', 'pdp', 'panel'].includes(l);
+  show('shw_tr', canTr); show('shr_ceilH', canTr && tr === 'fixed'); show('shr_headGap', canTr && tr === 'fixed');
 }
+const SH_TEXT = ['layout', 'handleSide', 'hinge', 'fix', 'transom'];
 function shRead() {
   const raw = {}, num = {}, bad = [];
   Object.keys(SH_DEFAULTS).forEach(k => {
     const el = document.getElementById('sh_' + k); if (!el) return;
     raw[k] = el.value;
-    if (k === 'layout' || k === 'handleSide') return;
+    if (SH_TEXT.includes(k)) return;
+    const row = document.getElementById('shr_' + k);
     const n = drParseIn(el.value);
-    if (isNaN(n) || n < 0) bad.push(k); else num[k] = n;
+    if (isNaN(n) || n < 0) { if (!row || row.style.display !== 'none') bad.push(k); } else num[k] = n;
   });
   return { raw, num, bad, layout: raw.layout, side: raw.handleSide };
 }
 
-// Pure calculation (also used by tests): returns panels [{role,label,w,h}] or {error}
-function shCompute(layout, n) {
+// Pure calculation (also used by tests). n.H = glass height to use. Returns panels or {error}.
+function shCompute(layout, n, opt = {}) {
   const { W, H, D, doorW, wallGap, hingeGap, strikeGap, glassGap, doorBottom, t } = n;
   const doorH = H - doorBottom;
   const out = [];
   if (layout === 'door') {
     out.push({ role: 'door', label: 'Door', w: W - hingeGap - strikeGap, h: doorH, hinge: 'wall' });
   } else if (layout === 'panel') {
-    out.push({ role: 'panel', label: 'Fixed panel', w: W - wallGap, h: H, clamps: 'wall' });
-  } else if (layout === 'doorpanel' || layout === 'corner') {
+    out.push({ role: 'panel', label: 'Fixed panel', w: W - wallGap, h: H });
+  } else if (layout === 'doorpanel' || layout === 'corner' || layout === 'knee') {
     const pw = W - wallGap - glassGap - doorW - strikeGap;
-    out.push({ role: 'panel', label: 'Fixed panel', w: pw, h: H, clamps: 'wall' });
+    const p = { role: 'panel', label: 'Fixed panel', w: pw, h: H };
+    if (layout === 'knee') {
+      const nw = n.kneeW - wallGap, nh = n.kneeH;
+      if (!(nw > 0) || nw >= pw - 2) return { error: 'The knee wall is as wide as the fixed panel — check the knee wall width' };
+      if (!(nh > 0) || nh >= H - 6) return { error: 'The knee wall is almost as tall as the glass — check the knee wall height' };
+      p.notch = { w: nw, h: nh }; p.label = 'Notched panel';
+    }
+    out.push(p);
     out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
-    if (layout === 'corner') out.push({ role: 'return', label: 'Return panel', w: D - wallGap - t, h: H, clamps: 'wall' });
+    if (layout === 'corner') out.push({ role: 'return', label: 'Return panel', w: D - wallGap - t, h: H });
   } else if (layout === 'pdp') {
     const each = (W - 2 * wallGap - 2 * glassGap - doorW) / 2;
-    out.push({ role: 'panel', label: 'Left panel', w: each, h: H, clamps: 'wall' });
+    out.push({ role: 'panel', label: 'Left panel', w: each, h: H });
     out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
-    out.push({ role: 'panel', label: 'Right panel', w: each, h: H, clamps: 'wall' });
+    out.push({ role: 'panel', label: 'Right panel', w: each, h: H });
+  } else if (layout === 'neo') {
+    out.push({ role: 'panel', label: 'Left angled panel', w: n.A - wallGap - glassGap / 2, h: H });
+    out.push({ role: 'door', label: 'Door', w: n.B - glassGap - strikeGap, h: doorH, hinge: 'glass' });
+    out.push({ role: 'panel', label: 'Right angled panel', w: n.C - wallGap - strikeGap / 2, h: H });
+    out.neo = true;
   }
-  const small = out.find(p => p.w < 6 || p.h < 12);
   if (!out.length) return { error: 'Pick a layout' };
-  if (small) return { error: `${small.label} would be only ${drFmt(small.w)} wide — check the opening and door width` };
+  if (opt.transom) {
+    const th = n.ceilH - H - n.headGap - glassGap;
+    if (th < 4) return { error: 'Not enough room for a transom — check the ceiling height' };
+    out.push({ role: 'transom', label: 'Transom', w: W - 2 * wallGap, h: th });
+  }
+  const small = out.find(p => p.w < 6 || p.h < 3);
+  if (small) return { error: `${small.label} would be only ${drFmt(small.w)} wide — check the measurements` };
   if (out.some(p => p.role === 'door' && p.w > 36)) out.warn = 'Door is wider than 36" — check your hinge rating.';
   return out;
 }
 
 function drBuildShower() {
   const r = shRead();
+  document.querySelectorAll('#drShowerBox input.dr-in').forEach(e => e.style.borderColor = '');
   if (r.bad.length) { showToast('Check the highlighted numbers (use 36, 36.5 or 36 1/2)', 'error'); r.bad.forEach(k => { const e = document.getElementById('sh_' + k); if (e) e.style.borderColor = '#cc3333'; }); return; }
-  const res = shCompute(r.layout, r.num);
+  const n = r.num;
+  n.H = Math.min(n.HL, n.HR);
+  const plumb = Math.abs(n.HL - n.HR);
+  const canTr = ['door', 'doorpanel', 'pdp', 'panel'].includes(r.layout);
+  if (r.layout === 'neo') n.W = n.A + n.B + n.C;
+  const res = shCompute(r.layout, n, { transom: canTr && r.raw.transom === 'fixed' });
   if (res.error) { showToast(res.error, 'error'); return; }
   shSave(Object.assign({}, r.raw));
-  const n = r.num, right = r.side !== 'left';
-  // inline glass ordered left→right; mirror it when the door opens on the left
-  let front = res.filter(p => p.role !== 'return');
-  if (!right && r.layout !== 'pdp') front = front.slice().reverse();
-  const ex = drPanels(); const y0 = ex.length ? Math.max(...ex.map(p => p.y + p.h)) + 16 : 12;
-  let x = 12 + (r.layout === 'panel' ? n.wallGap : r.layout === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
+  const right = r.side !== 'left', channel = r.raw.fix === 'channel';
+  const hingeName = (r.raw.hinge === 'square' ? 'square ' : 'beveled ');
+  let front = res.filter(p => p.role !== 'return' && p.role !== 'transom');
+  if (!right && !['pdp', 'neo'].includes(r.layout)) front = front.slice().reverse();
+  const ex = drPanels(); const tr = res.find(p => p.role === 'transom');
+  const yTop = ex.length ? Math.max(...ex.map(p => p.y + p.h)) + 16 : 12;
+  const y0 = yTop + (tr ? tr.h + n.glassGap + 9 : 0); // room for the transom's width dimension
+  let x = 12 + (r.layout === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
   const made = [];
-  const gapAfter = (i) => i < front.length - 1 ? n.glassGap : 0;
   front.forEach((p, i) => {
     const pn = drNewPanel('rect', x, y0 + (n.H - p.h)); pn.w = p.w; pn.h = p.h; pn.label = p.label;
-    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = p.role === 'door' ? 'Door' : '';
+    if (p.notch) {
+      const nl = right; // the fixed panel is on the wall side: left when the door opens right, right when it opens left
+      const W2 = p.w, H2 = p.h, a = p.notch.w, b = p.notch.h;
+      pn.shape = 'poly';
+      pn.pts = nl ? [{ x: 0, y: 0 }, { x: W2, y: 0 }, { x: W2, y: H2 }, { x: a, y: H2 }, { x: a, y: H2 - b }, { x: 0, y: H2 - b }]
+                  : [{ x: 0, y: 0 }, { x: W2, y: 0 }, { x: W2, y: H2 - b }, { x: W2 - a, y: H2 - b }, { x: W2 - a, y: H2 }, { x: 0, y: H2 }];
+      pn.shopNote = 'Notch ' + drFmt(a) + ' × ' + drFmt(b) + ' for the knee wall';
+    }
+    pn.spec = drFmtPlain(n.t) + '" tempered' + (p.role !== 'door' && channel ? ', set in U-channel' : '');
     DR.cur.objects.push(pn); made.push({ p, pn });
-    x += p.w + gapAfter(i);
+    x += p.w + (i < front.length - 1 ? n.glassGap : 0);
   });
   const mk = (pn, kind, xIn, yIn, note) => DR.cur.objects.push({ id: uid(), type: 'marker', panelId: pn.id, kind, xIn, yIn, size: DR_KINDS[kind].size, note, vis: 'both' });
   const door = made.find(m => m.p.role === 'door');
   if (door) {
-    const d = door.pn;
-    // hinge edge: the edge next to the wall (door only) or next to the fixed panel
+    const d = door.pn, idx = made.indexOf(door);
     let hingeLeft;
-    if (r.layout === 'door') hingeLeft = right;           // opens right → hinged on the left wall
-    else if (r.layout === 'pdp') hingeLeft = right;       // hinged to the left panel when it opens right
-    else hingeLeft = made.indexOf(door) > 0;              // panel sits to the left of the door
+    if (r.layout === 'door') hingeLeft = right;
+    else if (r.layout === 'pdp' || r.layout === 'neo') hingeLeft = right;
+    else hingeLeft = idx > 0;
     const hx = hingeLeft ? 0 : d.w, lx = hingeLeft ? d.w - n.handleIn : n.handleIn;
-    const note = door.p.hinge === 'wall' ? 'wall-mount hinge' : 'glass-to-glass hinge';
-    [n.hingeOff, d.h - n.hingeOff].forEach(yy => mk(d, 'hinge', hx, yy, note));
+    const note = hingeName + (door.p.hinge === 'wall' ? 'wall-mount hinge' : (r.layout === 'neo' ? '135° glass-to-glass hinge' : 'glass-to-glass hinge'));
+    const hys = [n.hingeOff, d.h - n.hingeOff];
+    hys.forEach(yy => mk(d, 'hinge', hx, yy, note));
     mk(d, 'handle', lx, Math.max(0, d.h - n.handleH), 'handle center');
     if (door.p.hinge === 'glass') {
-      const idx = made.indexOf(door), nb = made[hingeLeft ? idx - 1 : idx + 1];
-      if (nb) [n.hingeOff, d.h - n.hingeOff].forEach(yy => mk(nb.pn, 'hinge', hingeLeft ? nb.pn.w : 0, yy + (d.y - nb.pn.y), 'glass-to-glass hinge (mate)'));
+      const nb = made[hingeLeft ? idx - 1 : idx + 1];
+      if (nb) hys.forEach(yy => mk(nb.pn, 'hinge', hingeLeft ? nb.pn.w : 0, yy + (d.y - nb.pn.y), note + ' (mate)'));
     }
   }
-  made.filter(m => m.p.role === 'panel').forEach(m => {
-    const pn = m.pn, idx = made.indexOf(m);
-    const onLeft = idx === 0, edgeX = onLeft ? 0 : pn.w;
-    [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', edgeX, yy, 'wall clamp'));
+  // fixed panels: clamps on the wall edge (none when set in U-channel)
+  if (!channel) made.filter(m => m.p.role === 'panel').forEach(m => {
+    const pn = m.pn, idx = made.indexOf(m), onLeft = idx === 0, edgeX = onLeft ? 0 : pn.w;
+    const top = n.clampOff, bot = (m.p.notch ? pn.h - m.p.notch.h : pn.h) - n.clampOff;
+    [top, Math.max(top + 4, bot)].forEach(yy => mk(pn, 'standoff', edgeX, yy, 'wall clamp'));
   });
   const ret = res.find(p => p.role === 'return');
   if (ret) {
     const pn = drNewPanel('rect', x + 14, y0); pn.w = ret.w; pn.h = ret.h; pn.label = 'Return panel';
-    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
+    pn.spec = drFmtPlain(n.t) + '" tempered' + (channel ? ', set in U-channel' : ''); pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
     DR.cur.objects.push(pn);
-    [n.clampOff, pn.h - n.clampOff].forEach(yy => { mk(pn, 'standoff', pn.w, yy, 'wall clamp'); mk(pn, 'standoff', 0, yy, '90° glass clamp'); });
+    if (!channel) [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', pn.w, yy, 'wall clamp'));
+    [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', 0, yy, '90° glass clamp'));
     DR.cur.objects.push({ id: uid(), type: 'label', x: pn.x, y: y0 - 3, text: 'RETURN (side view)', size: 2.5, vis: 'both' });
   }
-  // opening dimension (both versions) and a summary in shop notes
-  DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: y0 - 6, x2: 12 + n.W, y2: y0 - 6, text: 'Opening ' + drFmt(n.W), vis: 'both' });
+  if (tr) {
+    const pn = drNewPanel('rect', 12 + n.wallGap, yTop); pn.w = tr.w; pn.h = tr.h; pn.label = 'Transom';
+    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = 'Fixed transom; ' + drFmt(n.headGap) + ' gap at ceiling';
+    DR.cur.objects.push(pn);
+  }
+  if (r.layout === 'neo') DR.cur.objects.push({ id: uid(), type: 'label', x: 12, y: y0 + n.H + 14, text: 'Neo-angle shown unfolded flat (135° corners)', size: 2.5, vis: 'both' });
+  const dimY = yTop - 6;
+  DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: dimY, x2: 12 + n.W, y2: dimY, text: (r.layout === 'neo' ? 'Faces total ' : 'Opening ') + drFmt(n.W), vis: 'both' });
   const lines = res.map(p => `${p.label}: ${drFmt(p.w)} × ${drFmt(p.h)}`).join('; ');
-  const ded = `Gaps used — wall ${drFmt(n.wallGap)}, hinge ${drFmt(n.hingeGap)}, strike ${drFmt(n.strikeGap)}, glass ${drFmt(n.glassGap)}, under door ${drFmt(n.doorBottom)}.`;
-  DR.cur.shopNotes = [DR.cur.shopNotes, SH_LAYOUTS[r.layout] + ' — ' + lines, ded].filter(Boolean).join('\n');
+  const notes = [SH_LAYOUTS[r.layout].t + ' — ' + lines,
+    `Gaps used — wall ${drFmt(n.wallGap)}, hinge ${drFmt(n.hingeGap)}, strike ${drFmt(n.strikeGap)}, glass ${drFmt(n.glassGap)}, under door ${drFmt(n.doorBottom)}.`,
+    `Hardware: ${r.raw.hinge} hinges; fixed glass in ${channel ? 'U-channel' : 'clamps'}.`];
+  if (plumb >= 0.125) notes.push(`OUT OF PLUMB: left ${drFmt(n.HL)}, right ${drFmt(n.HR)} (${drFmt(plumb)} difference). Glass cut to the shorter height — check before ordering.`);
+  if (r.layout === 'neo') notes.push('Neo-angle: 135° joints — confirm the glass-thickness allowance with your supplier.');
+  DR.cur.shopNotes = [DR.cur.shopNotes].concat(notes).filter(Boolean).join('\n');
   if (!DR.cur.name) DR.cur.name = 'Shower ' + drFmt(n.W) + ' × ' + drFmt(n.H);
   document.getElementById('drShowerBox').style.display = 'none';
   DR.sel = null; DR.tool = 'select'; drCommit(); drRender(); drFit();
-  showToast(res.warn ? '⚠ ' + res.warn : '✓ Shower built — check sizes, then adjust anything by hand', res.warn ? 'error' : 'success');
+  const warn = res.warn || (plumb >= 0.125 ? 'Walls out of plumb by ' + drFmt(plumb) + ' — glass cut to the shorter height.' : '');
+  showToast(warn ? '⚠ ' + warn : '✓ Shower built — check sizes, then adjust anything by hand', warn ? 'error' : 'success');
+}
+
+// ── send a drawing's glass to the open bid (button press only; the drawing itself stays separate) ──
+function drSplitInches(v) {
+  const s = Math.round(v * 16) / 16; let whole = Math.floor(s), frac = +(s - whole).toFixed(4);
+  if (frac >= 1) { whole++; frac = 0; }
+  return { whole: String(whole), frac };
+}
+function drSendToBid() {
+  const ps = drPanels();
+  if (!ps.length) { showToast('Nothing to send — add panels first', 'error'); return; }
+  const marks = DR.cur.objects.filter(o => o.type === 'marker');
+  const count = k => marks.filter(m => m.kind === k && !/\(mate\)/.test(m.note || '')).length;
+  const hw = [['hinge', 'Hinge'], ['handle', 'Handle'], ['standoff', 'Clamp']].map(([k, nm]) => [nm, count(k)]).filter(x => x[1]);
+  if (!confirm(`Add ${ps.length} glass piece${ps.length > 1 ? 's' : ''}${hw.length ? ' and ' + hw.map(h => h[1] + ' ' + h[0].toLowerCase() + (h[1] > 1 ? 's' : '')).join(', ') : ''} to the bid open on the Bid tab?\n\nGlass type and edge copy from the bid's last piece. Hardware is added with no price unless it's in your hardware price list. Nothing in the drawing changes.`)) return;
+  // drop the empty starter row if it's the only thing in the bid
+  // glass/edge come from the bid's last glass piece (read before the empty starter row is dropped)
+  const last = pieces.slice().reverse().find(p => !p.flatPrice) || null;
+  if (pieces.length === 1 && !getPieceW(pieces[0]) && !getPieceH(pieces[0]) && !pieces[0].flatPrice) pieces.length = 0;
+  ps.forEach(p => {
+    const w = drSplitInches(p.w), h = drSplitInches(p.h);
+    const np = { id: uid(), wWhole: w.whole, wFrac: w.frac, hWhole: h.whole, hFrac: h.frac, qty: '1', fabrications: {}, flatPrice: false, flatPriceValue: '', flatPriceDesc: '',
+      thickness: last ? last.thickness || '' : '', glassCategory: last ? last.glassCategory || '' : '', glassTreatment: last ? last.glassTreatment || '' : '',
+      glassTypeName: last ? last.glassTypeName || '' : '', glassAddons: last ? (last.glassAddons || []).slice() : [], glassType: last ? last.glassType || '' : '',
+      rate: last ? last.rate || '' : '', edgeName: last ? last.edgeName || '' : '', edgeCpf: last ? last.edgeCpf || '' : '' };
+    if (p.shape !== 'rect') np.sketchNote = (p.label || 'Panel') + ': ' + DR_SHAPES[p.shape] + ' — sized by its outside box';
+    pieces.push(np);
+  });
+  let unpriced = 0;
+  hw.forEach(([nm, c]) => {
+    const item = (window.hwFindByKind ? hwFindByKind(nm.toLowerCase()) : null);
+    const cost = item && item.price !== '' && !isNaN(parseFloat(item.price)) ? (parseFloat(item.price) * c).toFixed(2) : '';
+    if (!cost) unpriced++;
+    hardware.push({ id: uid(), name: c + '× ' + (item ? item.name : nm), cost });
+  });
+  if (typeof renderHardware === 'function') renderHardware();
+  switchTab('bid'); renderPieces(); calculate();
+  showToast(unpriced ? '✓ Added — ' + unpriced + ' hardware line(s) need a price' : '✓ Added to the bid', unpriced ? 'error' : 'success');
 }
 
 // ── your own templates (saved on this computer) ──
@@ -6102,10 +6253,146 @@ function drRenderTplSel() {
   const list = shTpls();
   el.innerHTML = `<option value="">📁 My templates (${list.length})…</option>` + list.map((t, i) => `<option value="${i}">${drEsc(t.name)}</option>`).join('');
 }
-window.drToggleShower = drToggleShower; window.shShowFields = shShowFields; window.drBuildShower = drBuildShower;
+window.drToggleShower = drToggleShower; window.shShowFields = shShowFields; window.shPick = shPick; window.drBuildShower = drBuildShower; window.drSendToBid = drSendToBid;
 window.drSaveTemplate = drSaveTemplate; window.drUseTemplate = drUseTemplate; window.drDeleteTemplate = drDeleteTemplate;
 const _drOnShowOrig = drOnShow;
 window.drOnShow = drOnShow = function () { _drOnShowOrig(); drRenderTplSel(); };
+
+// ═════════════════════════════════════════════════
+// HARDWARE PICKER — picture cards for hardware + finish, priced from the shop's own list.
+// The list is stored in Firestore (shopSettings/hardware) so everyone sees the same prices.
+// No prices are built in: every price is typed by the owner.
+// ═════════════════════════════════════════════════
+const HW_KINDS = { hinge: 'Hinge', handle: 'Handle', clamp: 'Clamp', channel: 'Channel', other: 'Other' };
+const HW_FINISH_COLORS = { 'Chrome': '#d9dde0', 'Brushed Nickel': '#b9b5ab', 'Polished Nickel': '#cfcac0', 'Matte Black': '#2b2b2b', 'Oil Rubbed Bronze': '#4a3326', 'Brushed Bronze': '#8a6a45', 'Satin Brass': '#c9a95c', 'Gold': '#d4af37' };
+const HW_STARTER = {
+  finishes: [{ name: 'Chrome', up: 0 }, { name: 'Brushed Nickel', up: 0 }, { name: 'Matte Black', up: 0 }, { name: 'Oil Rubbed Bronze', up: 0 }, { name: 'Satin Brass', up: 0 }],
+  items: [{ id: 'h1', kind: 'hinge', name: 'Wall-mount hinge', price: '' }, { id: 'h2', kind: 'hinge', name: 'Glass-to-glass hinge', price: '' },
+    { id: 'h3', kind: 'handle', name: '8" pull handle', price: '' }, { id: 'h4', kind: 'handle', name: '6" × 24" towel bar / pull', price: '' },
+    { id: 'h5', kind: 'clamp', name: 'Wall clamp', price: '' }, { id: 'h6', kind: 'clamp', name: '90° glass clamp', price: '' },
+    { id: 'h7', kind: 'channel', name: 'U-channel (per foot)', price: '' }],
+};
+let HW = { list: null, loaded: false, sel: { item: null, finish: null, qty: 1 } };
+function hwIcon(kind, color) {
+  const c = color || '#bbb', s = '#555';
+  const p = {
+    hinge: `<rect x="10" y="12" width="16" height="26" rx="2" fill="${c}" stroke="${s}"/><rect x="26" y="12" width="16" height="26" rx="2" fill="${c}" stroke="${s}"/><line x1="26" y1="10" x2="26" y2="40" stroke="${s}" stroke-width="2"/>`,
+    handle: `<rect x="23" y="6" width="6" height="38" rx="3" fill="${c}" stroke="${s}"/><rect x="14" y="10" width="10" height="4" fill="${c}" stroke="${s}"/><rect x="14" y="36" width="10" height="4" fill="${c}" stroke="${s}"/>`,
+    clamp: `<rect x="12" y="14" width="28" height="22" rx="3" fill="${c}" stroke="${s}"/><circle cx="26" cy="25" r="3" fill="#fff" stroke="${s}"/>`,
+    channel: `<path d="M8,16 L8,36 L44,36 L44,16 L38,16 L38,30 L14,30 L14,16 Z" fill="${c}" stroke="${s}"/>`,
+    other: `<circle cx="26" cy="25" r="13" fill="${c}" stroke="${s}"/>`,
+  };
+  return `<svg viewBox="0 0 52 50" width="52" height="50">${p[kind] || p.other}</svg>`;
+}
+async function hwLoad(force) {
+  if (HW.loaded && !force) return HW.list;
+  HW.list = null;
+  try {
+    if (window._db && window._getDoc) {
+      const snap = await window._getDoc(window._doc(window._db, 'shopSettings', 'hardware'));
+      if (snap.exists()) HW.list = snap.data();
+    }
+  } catch (e) { console.warn('Hardware list not readable (rules not published yet?):', e); HW.denied = true; }
+  if (!HW.list) { try { HW.list = JSON.parse(localStorage.getItem('alg_hw_list') || 'null'); } catch (e) {} }
+  if (!HW.list || !Array.isArray(HW.list.items)) HW.list = JSON.parse(JSON.stringify(HW_STARTER));
+  HW.list.items = HW.list.items.filter(i => i && typeof i === 'object').map(i => ({ id: isSafeId(i.id) ? i.id : uid(), kind: HW_KINDS[i.kind] ? i.kind : 'other', name: String(i.name || ''), price: i.price === '' || i.price == null ? '' : String(i.price) }));
+  HW.list.finishes = (Array.isArray(HW.list.finishes) ? HW.list.finishes : []).filter(f => f && f.name).map(f => ({ name: String(f.name), up: parseFloat(f.up) || 0 }));
+  HW.loaded = true;
+  return HW.list;
+}
+function hwFindByKind(kind) {
+  if (!HW.list) return null;
+  const k = kind === 'clamp' || kind === 'standoff' ? 'clamp' : kind;
+  return HW.list.items.find(i => i.kind === k) || null;
+}
+window.hwFindByKind = hwFindByKind;
+
+function hwPrice(item, finish, qty) {
+  const base = parseFloat(item.price);
+  if (isNaN(base)) return null;
+  const up = finish ? (parseFloat(finish.up) || 0) : 0;
+  return Math.round(base * (1 + up / 100) * qty * 100) / 100;
+}
+function hwModal(html) {
+  let m = document.getElementById('hwModal');
+  if (!m) { m = document.createElement('div'); m.id = 'hwModal'; m.className = 'hw-modal'; m.onclick = e => { if (e.target === m) hwClose(); }; document.body.appendChild(m); }
+  m.innerHTML = `<div class="hw-box">${html}</div>`; m.style.display = 'flex';
+}
+function hwClose() { const m = document.getElementById('hwModal'); if (m) m.style.display = 'none'; }
+async function hwOpenPicker() {
+  await hwLoad(true);
+  HW.sel = { item: null, finish: HW.list.finishes[0] ? HW.list.finishes[0].name : null, qty: 1 };
+  hwRenderPicker();
+}
+function hwRenderPicker() {
+  const L = HW.list, s = HW.sel;
+  const fin = L.finishes.find(f => f.name === s.finish) || null;
+  const col = fin ? HW_FINISH_COLORS[fin.name] : null;
+  const groups = Object.keys(HW_KINDS).map(k => {
+    const its = L.items.filter(i => i.kind === k); if (!its.length) return '';
+    return `<div class="dr-sub">${HW_KINDS[k]}s</div><div class="sh-cards">` + its.map(i => `<button type="button" class="sh-card ${s.item === i.id ? 'on' : ''}" onclick="HW.sel.item='${i.id}';hwRenderPicker()">${hwIcon(i.kind, col)}<b>${escapeHtml(i.name || '(no name)')}</b><small>${i.price === '' ? 'no price set' : fmt(parseFloat(i.price))}</small></button>`).join('') + '</div>';
+  }).join('');
+  const item = L.items.find(i => i.id === s.item);
+  const price = item ? hwPrice(item, fin, s.qty) : null;
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Add hardware</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    ${groups || '<div class="dr-hint">Your hardware list is empty. Press "Edit price list" to add items.</div>'}
+    <div class="dr-sub">Finish</div>
+    <div class="sh-cards">${L.finishes.map((f, fi) => `<button type="button" class="sh-card fin ${s.finish === f.name ? 'on' : ''}" onclick="HW.sel.finish=HW.list.finishes[${fi}].name;hwRenderPicker()"><span class="hw-sw" style="background:${HW_FINISH_COLORS[f.name] || '#999'}"></span><b>${escapeHtml(f.name)}</b>${f.up ? `<small>+${f.up}%</small>` : ''}</button>`).join('') || '<div class="dr-hint">No finishes in your list.</div>'}</div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem;flex-wrap:wrap;">
+      <label style="font-size:.78rem;color:var(--muted);">Qty <input type="number" min="1" max="99" value="${s.qty}" style="width:60px" oninput="HW.sel.qty=Math.max(1,Math.min(99,parseInt(this.value)||1));hwRenderPicker()"></label>
+      <span style="flex:1;font-size:.85rem;">${item ? escapeHtml(s.qty + '× ' + item.name + (fin ? ' – ' + fin.name : '')) + ' · <b>' + (price == null ? 'no price — set it in the list' : fmt(price)) + '</b>' : '<span style="color:var(--muted)">Pick an item</span>'}</span>
+      <button class="btn-add" style="width:auto;margin:0" ${item ? '' : 'disabled'} onclick="hwAddLine()">Add to bid</button>
+    </div>
+    <div style="margin-top:.8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;">
+      <span class="dr-hint" style="margin:0">Prices come only from your list. Hardware gets your margin, like other hardware lines.</span>
+      ${window._currentUserRole === 'employee' ? '' : '<button class="btn-remove" style="width:auto;padding:.3rem .6rem" onclick="hwOpenEditor()">✎ Edit price list</button>'}
+    </div>`);
+}
+function hwAddLine() {
+  const L = HW.list, s = HW.sel, item = L.items.find(i => i.id === s.item); if (!item) return;
+  const fin = L.finishes.find(f => f.name === s.finish) || null;
+  const price = hwPrice(item, fin, s.qty);
+  hardware.push({ id: uid(), name: s.qty + '× ' + item.name + (fin ? ' – ' + fin.name : ''), cost: price == null ? '' : price.toFixed(2) });
+  if (typeof expandSection === 'function') expandSection('hw');
+  renderHardware(); calculate(); hwClose();
+  showToast(price == null ? 'Added — type its price (none in your list)' : '✓ Hardware added', price == null ? 'error' : 'success');
+}
+function hwOpenEditor() {
+  const L = HW.list;
+  const rows = L.items.map((i, n) => `<div class="hw-erow"><select data-i="${n}" data-f="kind">${Object.entries(HW_KINDS).map(([k, t]) => `<option value="${k}" ${i.kind === k ? 'selected' : ''}>${t}</option>`).join('')}</select><input data-i="${n}" data-f="name" value="${escapeHtml(i.name)}" placeholder="Item name"><input data-i="${n}" data-f="price" type="number" min="0" step="0.01" value="${escapeHtml(i.price)}" placeholder="$ each" style="max-width:90px"><button class="btn-remove" onclick="hwEdRemove('items',${n})">✕</button></div>`).join('');
+  const frows = L.finishes.map((f, n) => `<div class="hw-erow"><input data-fi="${n}" data-f="name" value="${escapeHtml(f.name)}" placeholder="Finish"><input data-fi="${n}" data-f="up" type="number" step="1" value="${f.up}" style="max-width:90px" title="Extra % on the item price"><span style="font-size:.7rem;color:var(--muted)">% extra</span><button class="btn-remove" onclick="hwEdRemove('finishes',${n})">✕</button></div>`).join('');
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Hardware price list</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div class="dr-hint">Your cost or price for each item (before margin). Leave a price blank if you don't know it yet; the app will ask for it when used.</div>
+    <div class="dr-sub">Items</div><div id="hwEdItems">${rows}</div><button class="btn-add" style="width:auto" onclick="hwEdSync();HW.list.items.push({id:uid(),kind:'other',name:'',price:''});hwOpenEditor()">+ Item</button>
+    <div class="dr-sub">Finishes</div><div id="hwEdFin">${frows}</div><button class="btn-add" style="width:auto" onclick="hwEdSync();HW.list.finishes.push({name:'',up:0});hwOpenEditor()">+ Finish</button>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwOpenPicker()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="hwEdSave()">Save list</button></div>`);
+}
+function hwEdSync() {
+  document.querySelectorAll('#hwModal [data-i]').forEach(e => { HW.list.items[+e.dataset.i][e.dataset.f] = e.value; });
+  document.querySelectorAll('#hwModal [data-fi]').forEach(e => { const f = HW.list.finishes[+e.dataset.fi]; f[e.dataset.f] = e.dataset.f === 'up' ? (parseFloat(e.value) || 0) : e.value; });
+}
+function hwEdRemove(which, n) { hwEdSync(); HW.list[which].splice(n, 1); hwOpenEditor(); }
+async function hwEdSave() {
+  hwEdSync();
+  const L = HW.list;
+  if (L.items.some(i => i.price !== '' && (isNaN(parseFloat(i.price)) || parseFloat(i.price) < 0))) { showToast('Prices must be 0 or more', 'error'); return; }
+  L.items = L.items.filter(i => String(i.name).trim()); L.finishes = L.finishes.filter(f => String(f.name).trim());
+  const data = JSON.parse(JSON.stringify({ items: L.items, finishes: L.finishes, updatedAt: new Date().toISOString() }));
+  try { localStorage.setItem('alg_hw_list', JSON.stringify(data)); } catch (e) {}
+  try {
+    await window._setDoc(window._doc(window._db, 'shopSettings', 'hardware'), data);
+    showToast('✓ Price list saved for everyone');
+  } catch (e) {
+    console.error('Hardware list save failed:', e);
+    showToast('Saved on this computer only — publish the new Firestore rules to share it', 'error');
+  }
+  hwOpenPicker();
+}
+window.hwOpenPicker = hwOpenPicker; window.hwClose = hwClose; window.hwAddLine = hwAddLine; window.hwRenderPicker = hwRenderPicker;
+window.hwOpenEditor = hwOpenEditor; window.hwEdSync = hwEdSync; window.hwEdRemove = hwEdRemove; window.hwEdSave = hwEdSave; window.HW = HW;
+setTimeout(() => { if (window._db) hwLoad(); }, 1500);
 
 </script>
 
