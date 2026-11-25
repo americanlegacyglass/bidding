@@ -1567,10 +1567,15 @@ onAuthStateChanged(auth, async user => {
       <button class="dr-btn" onclick="drExportFile()" title="Download this drawing as a file you can keep or send to another computer">⬇ Save file</button>
       <button class="dr-btn" onclick="document.getElementById('drFileIn').click()">⬆ Open file</button>
       <input type="file" id="drFileIn" accept=".json,application/json" style="display:none" onchange="drImportFile(this)">
+      <button class="dr-btn on" onclick="drToggleShower()" title="Enter the opening and get sized glass with hinges, handle and clamps placed">🚿 Shower layout</button>
+      <select id="drTplSel" class="dr-in" style="width:auto;" onchange="drUseTemplate(this)"></select>
+      <button class="dr-btn" onclick="drSaveTemplate()" title="Save this drawing as a reusable template on this computer">☆ Save as template</button>
+      <button class="dr-btn" onclick="drDeleteTemplate()" title="Delete one of your templates">✕ Template</button>
       <button class="dr-btn" onclick="drToggleImport()" title="Copy the glass pieces from a bid into this drawing (sizes only, no prices)">📋 Copy from a bid</button>
       <span id="drDirty" style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);"></span>
     </div>
     <div id="drImportBox"></div>
+    <div id="drShowerBox" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.7rem;margin-bottom:.7rem;"></div>
 
     <div class="dr-meta">
       <label>Drawing name<input class="dr-in" id="drName" oninput="drMeta('name',this)" placeholder="e.g. Smith master shower"></label>
@@ -1786,6 +1791,14 @@ onAuthStateChanged(auth, async user => {
             <li>Type a <b>Drawing name</b> (required to save), and a customer and job if you want them on the printout.</li>
             <li><b>＋ Add panel</b> adds a piece of glass: Rectangle, Circle / oval, Arch top, or Polygon (any shape, with as many corners as you need).</li>
             <li><b>📋 Copy from a bid</b> brings in the glass pieces you already entered (sizes only, plus any holes and notes from the old sketch). The bid is not changed.</li>
+          </ul>
+          <h4>Shower layout (fastest way)</h4>
+          <ul>
+            <li>Press <b>🚿 Shower layout</b>, pick the layout (door only, door + panel, panel + door + panel, 90° corner with a return, or a fixed panel), and type the opening width, glass height and door width.</li>
+            <li>The app takes off your gaps (wall, hinge, strike, glass-to-glass, under the door) and draws every piece at its glass size, with hinges, the handle and wall clamps already placed. The opening is dimensioned and the sizes and gaps used are written into the shop notes.</li>
+            <li><b>Set your own gap and hardware numbers once.</b> The starting numbers are not a supplier spec. Whatever you type is remembered on that computer for next time.</li>
+            <li>Everything it draws is normal panels and markers, so you can fix anything by hand afterwards.</li>
+            <li><b>☆ Save as template</b> keeps a drawing you reuse; pick it later from <b>📁 My templates</b>. Templates are saved on that computer only.</li>
           </ul>
           <h4>Shape it</h4>
           <ul>
@@ -5218,7 +5231,8 @@ function drMarkerSvg(m, p, num, opt, ink) {
   let tag = '';
   if (opt.mode === 'shop' && num) {
     const tr = m.kind === 'hole' ? Math.max(r, (m.size || 0) / 2) : r;
-    tag = `<text x="${cx + tr + 2 / px}" y="${cy - tr}" font-size="${10 / px}" font-weight="bold" font-family="Arial,sans-serif" fill="${opt.dark ? '#e8c27a' : '#b00020'}">${num}</text>`;
+    const lft = m.xIn < p.w / 2 && m.xIn < 1; // marker on a left edge: number goes outside to the left
+    tag = `<text text-anchor="${lft ? 'end' : 'start'}" x="${lft ? cx - tr - 2 / px : cx + tr + 2 / px}" y="${cy - tr}" font-size="${10 / px}" font-weight="bold" font-family="Arial,sans-serif" fill="${opt.dark ? '#e8c27a' : '#b00020'}">${num}</text>`;
   }
   return `<g ${attrs}>${g}<circle cx="${cx}" cy="${cy}" r="${Math.max(r, 8 / px)}" fill="transparent" stroke="none"/></g>${tag}`;
 }
@@ -5256,9 +5270,14 @@ function drContent(d, opt) {
     if (showDims) {
       const off = 4, bx = p.x, by = p.y, bw = p.w, bh = p.h;
       const ext = (xa, ya, xb, yb) => `<line x1="${xa}" y1="${ya}" x2="${xb}" y2="${yb}" stroke="${ink}" stroke-width="${0.7 / px}" stroke-dasharray="${2 / px} ${2 / px}"/>`;
-      out += ext(bx, by + bh, bx, by + bh + off + 1) + ext(bx + bw, by + bh, bx + bw, by + bh + off + 1) + ext(bx, by, bx - off - 1, by) + ext(bx, by + bh, bx - off - 1, by + bh);
+      out += ext(bx, by + bh, bx, by + bh + off + 1) + ext(bx + bw, by + bh, bx + bw, by + bh + off + 1);
       out += drDimLine(bx, by + bh + off, bx + bw, by + bh + off, drFmt(bw), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
-      out += drDimLine(bx - off, by + bh, bx - off, by, drFmt(bh), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
+      // height goes on the left unless another panel sits right against that side; then on the right
+      const crowded = d.objects.some(q => q.type === 'panel' && q !== p && q.x + q.w <= bx + 0.01 && q.x + q.w > bx - 10 && q.y < by + bh && q.y + q.h > by);
+      const hx = crowded ? bx + bw + off : bx - off;
+      if (crowded) out += ext(bx + bw, by, bx + bw + off + 1, by) + ext(bx + bw, by + bh, bx + bw + off + 1, by + bh);
+      else out += ext(bx, by, bx - off - 1, by) + ext(bx, by + bh, bx - off - 1, by + bh);
+      out += drDimLine(hx, by + bh, hx, by, drFmt(bh), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
       if (p.shape === 'arch') out += `<text x="${bx + bw / 2}" y="${by - 2 / px}" font-size="${10 / px}" font-family="Arial,sans-serif" text-anchor="middle" fill="${ink}">rise ${drFmt(p.rise)}</text>`;
     }
   });
@@ -5876,6 +5895,217 @@ function drWire() {
 }
 function drOnShow() { drInit(); drWire(); if (!DR._fitted) { DR._fitted = true; drFit(); } }
 window.drOnShow = drOnShow;
+
+// ═════════════════════════════════════════════════
+// SHOWER LAYOUT BUILDER — enter the opening, get sized glass + hardware markers.
+// Deductions are the shop's own numbers (saved on this computer); the defaults are only starting points.
+// ═════════════════════════════════════════════════
+const SH_LAYOUTS = {
+  door:      'Door only (hinged to wall)',
+  doorpanel: 'Door + fixed panel (inline)',
+  pdp:       'Panel + door + panel (inline)',
+  corner:    '90° corner: door + panel front, return panel',
+  panel:     'Fixed panel only (splash / walk-in)',
+};
+const SH_DEFAULTS = {
+  layout: 'doorpanel', W: '60', H: '72', D: '36', doorW: '24',
+  wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
+  hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right',
+};
+function shLoad() { try { return Object.assign({}, SH_DEFAULTS, JSON.parse(localStorage.getItem('alg_shower_defaults') || '{}')); } catch (e) { return Object.assign({}, SH_DEFAULTS); } }
+function shSave(v) { try { const keep = Object.assign({}, v); localStorage.setItem('alg_shower_defaults', JSON.stringify(keep)); } catch (e) {} }
+
+function shField(id, label, val, hint) {
+  return `<label class="dr-row"><span>${label}</span><input class="dr-in" id="sh_${id}" value="${drEsc(val)}" ${hint ? `title="${drEsc(hint)}"` : ''}></label>`;
+}
+function drToggleShower() {
+  const box = document.getElementById('drShowerBox'); if (!box) return;
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  const v = shLoad();
+  box.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1.2rem;">
+      <div>
+        <div class="dr-sub" style="margin-top:0">Layout & opening</div>
+        <label class="dr-row"><span>Layout</span><select class="dr-in" id="sh_layout" onchange="shShowFields()">${Object.entries(SH_LAYOUTS).map(([k, t]) => `<option value="${k}" ${v.layout === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        ${shField('W', 'Opening W', v.W, 'Wall to wall, finished')}
+        ${shField('H', 'Glass height', v.H)}
+        <div id="sh_wD">${shField('D', 'Return depth', v.D, 'Back wall to outside face of the front glass')}</div>
+        <div id="sh_wDoor">${shField('doorW', 'Door width', v.doorW)}</div>
+        <div id="sh_wSide"><label class="dr-row"><span>Handle side</span><select class="dr-in" id="sh_handleSide"><option value="right" ${v.handleSide === 'right' ? 'selected' : ''}>Door opens on right</option><option value="left" ${v.handleSide === 'left' ? 'selected' : ''}>Door opens on left</option></select></label></div>
+      </div>
+      <div>
+        <div class="dr-sub" style="margin-top:0">Your deductions (gaps)</div>
+        ${shField('wallGap', 'Panel ↔ wall', v.wallGap)}
+        ${shField('hingeGap', 'Hinge ↔ wall', v.hingeGap)}
+        ${shField('strikeGap', 'Door ↔ strike', v.strikeGap)}
+        ${shField('glassGap', 'Glass ↔ glass', v.glassGap)}
+        ${shField('doorBottom', 'Under door', v.doorBottom, 'Door is this much shorter than the panels')}
+        ${shField('t', 'Glass thick.', v.t, 'Used for the return panel')}
+      </div>
+      <div>
+        <div class="dr-sub" style="margin-top:0">Hardware positions</div>
+        ${shField('hingeOff', 'Hinge from top/bottom', v.hingeOff)}
+        ${shField('handleH', 'Handle center up', v.handleH, 'From the bottom of the door')}
+        ${shField('handleIn', 'Handle from edge', v.handleIn)}
+        ${shField('clampOff', 'Clamp from top/bottom', v.clampOff)}
+      </div>
+    </div>
+    <div class="dr-hint">The gap and hardware numbers are starting points, not a supplier's spec. Change them to your shop's real numbers once; they're remembered on this computer. Measure out-of-plumb walls at the tightest point.</div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;"><button class="dr-btn on" onclick="drBuildShower()">Build shower</button><button class="dr-btn" onclick="drToggleShower()">Cancel</button></div>`;
+  box.style.display = 'block';
+  shShowFields();
+}
+function shShowFields() {
+  const l = document.getElementById('sh_layout').value;
+  document.getElementById('sh_wD').style.display = l === 'corner' ? '' : 'none';
+  document.getElementById('sh_wDoor').style.display = l === 'panel' || l === 'door' ? 'none' : '';
+  document.getElementById('sh_wSide').style.display = l === 'panel' ? 'none' : '';
+}
+function shRead() {
+  const raw = {}, num = {}, bad = [];
+  Object.keys(SH_DEFAULTS).forEach(k => {
+    const el = document.getElementById('sh_' + k); if (!el) return;
+    raw[k] = el.value;
+    if (k === 'layout' || k === 'handleSide') return;
+    const n = drParseIn(el.value);
+    if (isNaN(n) || n < 0) bad.push(k); else num[k] = n;
+  });
+  return { raw, num, bad, layout: raw.layout, side: raw.handleSide };
+}
+
+// Pure calculation (also used by tests): returns panels [{role,label,w,h}] or {error}
+function shCompute(layout, n) {
+  const { W, H, D, doorW, wallGap, hingeGap, strikeGap, glassGap, doorBottom, t } = n;
+  const doorH = H - doorBottom;
+  const out = [];
+  if (layout === 'door') {
+    out.push({ role: 'door', label: 'Door', w: W - hingeGap - strikeGap, h: doorH, hinge: 'wall' });
+  } else if (layout === 'panel') {
+    out.push({ role: 'panel', label: 'Fixed panel', w: W - wallGap, h: H, clamps: 'wall' });
+  } else if (layout === 'doorpanel' || layout === 'corner') {
+    const pw = W - wallGap - glassGap - doorW - strikeGap;
+    out.push({ role: 'panel', label: 'Fixed panel', w: pw, h: H, clamps: 'wall' });
+    out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
+    if (layout === 'corner') out.push({ role: 'return', label: 'Return panel', w: D - wallGap - t, h: H, clamps: 'wall' });
+  } else if (layout === 'pdp') {
+    const each = (W - 2 * wallGap - 2 * glassGap - doorW) / 2;
+    out.push({ role: 'panel', label: 'Left panel', w: each, h: H, clamps: 'wall' });
+    out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
+    out.push({ role: 'panel', label: 'Right panel', w: each, h: H, clamps: 'wall' });
+  }
+  const small = out.find(p => p.w < 6 || p.h < 12);
+  if (!out.length) return { error: 'Pick a layout' };
+  if (small) return { error: `${small.label} would be only ${drFmt(small.w)} wide — check the opening and door width` };
+  if (out.some(p => p.role === 'door' && p.w > 36)) out.warn = 'Door is wider than 36" — check your hinge rating.';
+  return out;
+}
+
+function drBuildShower() {
+  const r = shRead();
+  if (r.bad.length) { showToast('Check the highlighted numbers (use 36, 36.5 or 36 1/2)', 'error'); r.bad.forEach(k => { const e = document.getElementById('sh_' + k); if (e) e.style.borderColor = '#cc3333'; }); return; }
+  const res = shCompute(r.layout, r.num);
+  if (res.error) { showToast(res.error, 'error'); return; }
+  shSave(Object.assign({}, r.raw));
+  const n = r.num, right = r.side !== 'left';
+  // inline glass ordered left→right; mirror it when the door opens on the left
+  let front = res.filter(p => p.role !== 'return');
+  if (!right && r.layout !== 'pdp') front = front.slice().reverse();
+  const ex = drPanels(); const y0 = ex.length ? Math.max(...ex.map(p => p.y + p.h)) + 16 : 12;
+  let x = 12 + (r.layout === 'panel' ? n.wallGap : r.layout === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
+  const made = [];
+  const gapAfter = (i) => i < front.length - 1 ? n.glassGap : 0;
+  front.forEach((p, i) => {
+    const pn = drNewPanel('rect', x, y0 + (n.H - p.h)); pn.w = p.w; pn.h = p.h; pn.label = p.label;
+    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = p.role === 'door' ? 'Door' : '';
+    DR.cur.objects.push(pn); made.push({ p, pn });
+    x += p.w + gapAfter(i);
+  });
+  const mk = (pn, kind, xIn, yIn, note) => DR.cur.objects.push({ id: uid(), type: 'marker', panelId: pn.id, kind, xIn, yIn, size: DR_KINDS[kind].size, note, vis: 'both' });
+  const door = made.find(m => m.p.role === 'door');
+  if (door) {
+    const d = door.pn;
+    // hinge edge: the edge next to the wall (door only) or next to the fixed panel
+    let hingeLeft;
+    if (r.layout === 'door') hingeLeft = right;           // opens right → hinged on the left wall
+    else if (r.layout === 'pdp') hingeLeft = right;       // hinged to the left panel when it opens right
+    else hingeLeft = made.indexOf(door) > 0;              // panel sits to the left of the door
+    const hx = hingeLeft ? 0 : d.w, lx = hingeLeft ? d.w - n.handleIn : n.handleIn;
+    const note = door.p.hinge === 'wall' ? 'wall-mount hinge' : 'glass-to-glass hinge';
+    [n.hingeOff, d.h - n.hingeOff].forEach(yy => mk(d, 'hinge', hx, yy, note));
+    mk(d, 'handle', lx, Math.max(0, d.h - n.handleH), 'handle center');
+    if (door.p.hinge === 'glass') {
+      const idx = made.indexOf(door), nb = made[hingeLeft ? idx - 1 : idx + 1];
+      if (nb) [n.hingeOff, d.h - n.hingeOff].forEach(yy => mk(nb.pn, 'hinge', hingeLeft ? nb.pn.w : 0, yy + (d.y - nb.pn.y), 'glass-to-glass hinge (mate)'));
+    }
+  }
+  made.filter(m => m.p.role === 'panel').forEach(m => {
+    const pn = m.pn, idx = made.indexOf(m);
+    const onLeft = idx === 0, edgeX = onLeft ? 0 : pn.w;
+    [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', edgeX, yy, 'wall clamp'));
+  });
+  const ret = res.find(p => p.role === 'return');
+  if (ret) {
+    const pn = drNewPanel('rect', x + 14, y0); pn.w = ret.w; pn.h = ret.h; pn.label = 'Return panel';
+    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
+    DR.cur.objects.push(pn);
+    [n.clampOff, pn.h - n.clampOff].forEach(yy => { mk(pn, 'standoff', pn.w, yy, 'wall clamp'); mk(pn, 'standoff', 0, yy, '90° glass clamp'); });
+    DR.cur.objects.push({ id: uid(), type: 'label', x: pn.x, y: y0 - 3, text: 'RETURN (side view)', size: 2.5, vis: 'both' });
+  }
+  // opening dimension (both versions) and a summary in shop notes
+  DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: y0 - 6, x2: 12 + n.W, y2: y0 - 6, text: 'Opening ' + drFmt(n.W), vis: 'both' });
+  const lines = res.map(p => `${p.label}: ${drFmt(p.w)} × ${drFmt(p.h)}`).join('; ');
+  const ded = `Gaps used — wall ${drFmt(n.wallGap)}, hinge ${drFmt(n.hingeGap)}, strike ${drFmt(n.strikeGap)}, glass ${drFmt(n.glassGap)}, under door ${drFmt(n.doorBottom)}.`;
+  DR.cur.shopNotes = [DR.cur.shopNotes, SH_LAYOUTS[r.layout] + ' — ' + lines, ded].filter(Boolean).join('\n');
+  if (!DR.cur.name) DR.cur.name = 'Shower ' + drFmt(n.W) + ' × ' + drFmt(n.H);
+  document.getElementById('drShowerBox').style.display = 'none';
+  DR.sel = null; DR.tool = 'select'; drCommit(); drRender(); drFit();
+  showToast(res.warn ? '⚠ ' + res.warn : '✓ Shower built — check sizes, then adjust anything by hand', res.warn ? 'error' : 'success');
+}
+
+// ── your own templates (saved on this computer) ──
+function shTpls() { try { return JSON.parse(localStorage.getItem('alg_drawing_templates') || '[]'); } catch (e) { return []; } }
+function drSaveTemplate() {
+  if (!DR.cur || !drPanels().length) { showToast('Draw something first', 'error'); return; }
+  const name = prompt('Name this template (e.g. "Standard 60\\" door + panel")', DR.cur.name || '');
+  if (!name) return;
+  const list = shTpls().filter(t => t.name !== name);
+  list.push({ name: name.slice(0, 60), objects: drClone(DR.cur.objects), shopNotes: DR.cur.shopNotes || '' });
+  try { localStorage.setItem('alg_drawing_templates', JSON.stringify(list.slice(-30))); showToast('✓ Template saved on this computer'); }
+  catch (e) { showToast('Could not save template', 'error'); }
+  drRenderTplSel();
+}
+function drUseTemplate(sel) {
+  const t = shTpls()[parseInt(sel.value)]; sel.value = '';
+  if (!t) return;
+  const map = {}; const objs = drClone(t.objects);
+  objs.forEach(o => { map[o.id] = uid(); });
+  const ex = drPanels(); const dy = ex.length ? Math.max(...ex.map(p => p.y + p.h)) + 16 : 0;
+  objs.forEach(o => {
+    o.id = map[o.id]; if (o.panelId) o.panelId = map[o.panelId];
+    if (o.type === 'panel' || o.type === 'label') o.y += dy;
+    if (o.type === 'dim') { o.y1 += dy; o.y2 += dy; }
+  });
+  DR.cur.objects.push(...objs);
+  if (!DR.cur.shopNotes && t.shopNotes) DR.cur.shopNotes = t.shopNotes;
+  drCommit(); drRender(); drFit(); showToast('✓ Template added');
+}
+function drDeleteTemplate() {
+  const list = shTpls(); if (!list.length) { showToast('No saved templates', 'error'); return; }
+  const name = prompt('Type the name of the template to delete:\n' + list.map(t => '• ' + t.name).join('\n'));
+  if (!name) return;
+  const next = list.filter(t => t.name !== name);
+  if (next.length === list.length) { showToast('No template with that name', 'error'); return; }
+  localStorage.setItem('alg_drawing_templates', JSON.stringify(next)); drRenderTplSel(); showToast('Template deleted');
+}
+function drRenderTplSel() {
+  const el = document.getElementById('drTplSel'); if (!el) return;
+  const list = shTpls();
+  el.innerHTML = `<option value="">📁 My templates (${list.length})…</option>` + list.map((t, i) => `<option value="${i}">${drEsc(t.name)}</option>`).join('');
+}
+window.drToggleShower = drToggleShower; window.shShowFields = shShowFields; window.drBuildShower = drBuildShower;
+window.drSaveTemplate = drSaveTemplate; window.drUseTemplate = drUseTemplate; window.drDeleteTemplate = drDeleteTemplate;
+const _drOnShowOrig = drOnShow;
+window.drOnShow = drOnShow = function () { _drOnShowOrig(); drRenderTplSel(); };
 
 </script>
 
