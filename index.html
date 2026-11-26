@@ -6202,7 +6202,7 @@ const SH_DEFAULTS = {
   kneeW: '18', kneeH: '36', wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
   hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right', hinge: 'beveled', fix: 'clamps',
   transom: 'no', ceilH: '96', headGap: '1/2', overlap: '2',
-  WT: '', fit: 'square', outWall: 'left', glass: 'clear', finish: 'chrome', slideType: 'single',
+  WT: '', fit: 'square', outWall: 'left', glass: 'clear', finish: 'chrome', slideType: 'single', doorHinge: 'wall',
 };
 function shLoad() { try { return Object.assign({}, SH_DEFAULTS, JSON.parse(localStorage.getItem('alg_shower_defaults') || '{}')); } catch (e) { return Object.assign({}, SH_DEFAULTS); } }
 function shSave(v) { try { localStorage.setItem('alg_shower_defaults', JSON.stringify(v)); } catch (e) {} }
@@ -6234,6 +6234,7 @@ function drToggleShower() {
       <div><div class="dr-sub" style="margin-top:0">Hinges</div>${shCards('hinge', { beveled: { t: 'Beveled' }, square: { t: 'Square' } }, v.hinge)}</div>
       <div id="shw_fix"><div class="dr-sub" style="margin-top:0">Fixed panels held by</div>${shCards('fix', { clamps: { t: 'Clamps' }, channel: { t: 'U-channel' } }, v.fix)}</div>
       <div id="shw_side"><div class="dr-sub" style="margin-top:0">Door opens on</div>${shCards('handleSide', { left: { t: 'Left' }, right: { t: 'Right' } }, v.handleSide)}</div>
+      <div id="shw_dh"><div class="dr-sub" style="margin-top:0">Door hinges on</div>${shCards('doorHinge', { wall: { t: 'Wall', d: 'Recommended' }, glass: { t: 'Panel', d: 'Glass-to-glass' } }, v.doorHinge)}</div>
       <div id="shw_tr"><div class="dr-sub" style="margin-top:0">Transom above</div>${shCards('transom', { no: { t: 'None' }, fixed: { t: 'Fixed' } }, v.transom)}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1.2rem;margin-top:.4rem;">
@@ -6286,11 +6287,11 @@ function shShowFields() {
   show('shw_fit', !['neo', 'door', 'knee', 'slider'].includes(l)); show('shw_slide', l === 'slider'); show('shw_out', fit === 'exact');
   show('shr_D', l === 'corner'); show('shr_doorW', !['panel', 'door', 'neo', 'slider'].includes(l)); show('shr_overlap', l === 'slider');
   show('shr_kneeW', l === 'knee'); show('shr_kneeH', l === 'knee');
-  show('shw_side', l !== 'panel'); show('shw_fix', l !== 'door');
+  show('shw_side', l !== 'panel'); show('shw_fix', l !== 'door'); show('shw_dh', ['doorpanel', 'tub', 'steam', 'knee'].includes(l));
   const canTr = ['door', 'doorpanel', 'pdp', 'panel', 'tub'].includes(l);
   show('shw_tr', canTr); show('shr_ceilH', l === 'steam' || (canTr && tr === 'fixed')); show('shr_headGap', l === 'steam' || (canTr && tr === 'fixed'));
 }
-const SH_TEXT = ['layout', 'handleSide', 'hinge', 'fix', 'transom', 'fit', 'outWall', 'glass', 'finish', 'slideType'];
+const SH_TEXT = ['layout', 'handleSide', 'hinge', 'fix', 'transom', 'fit', 'outWall', 'glass', 'finish', 'slideType', 'doorHinge'];
 function shRead() {
   const raw = {}, num = {}, bad = [];
   Object.keys(SH_DEFAULTS).forEach(k => {
@@ -6315,7 +6316,9 @@ function shCompute(layout, n, opt = {}) {
   } else if (layout === 'panel') {
     out.push({ role: 'panel', label: 'Fixed panel', w: W - wallGap, h: H });
   } else if (layout === 'doorpanel' || layout === 'corner' || layout === 'knee' || layout === 'tub' || layout === 'steam') {
-    const pw = W - wallGap - glassGap - doorW - strikeGap;
+    // hinged off the wall: wall → hinge gap → door → strike gap → panel → wall gap. Hinged off the panel: wall → strike gap → door → glass gap (hinge) → panel → wall gap.
+    const wallHinge = opt.doorHinge === 'wall' && layout !== 'corner';
+    const pw = wallHinge ? W - wallGap - strikeGap - doorW - hingeGap : W - wallGap - glassGap - doorW - strikeGap;
     const p = { role: 'panel', label: 'Fixed panel', w: pw, h: H };
     if (layout === 'knee') {
       const nw = n.kneeW - wallGap, nh = n.kneeH;
@@ -6324,7 +6327,7 @@ function shCompute(layout, n, opt = {}) {
       p.notch = { w: nw, h: nh }; p.label = 'Notched panel';
     }
     out.push(p);
-    out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
+    out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: wallHinge ? 'wall' : 'glass', wallHinge });
     if (layout === 'corner') out.push({ role: 'return', label: 'Return panel', w: D - wallGap - t, h: H });
   } else if (layout === 'pdp') {
     const each = (W - 2 * wallGap - 2 * glassGap - doorW) / 2;
@@ -6413,7 +6416,8 @@ function drBuildShower() {
   const canTr = ['door', 'doorpanel', 'pdp', 'panel', 'tub'].includes(L);
   if (L === 'neo') n.W = n.A + n.B + n.C;
   const slideType = ['single', 'bypass', 'barn'].includes(r.raw.slideType) ? r.raw.slideType : 'single';
-  const res = shCompute(L, n, { transom: canTr && r.raw.transom === 'fixed', slideType });
+  const doorHinge = r.raw.doorHinge === 'glass' ? 'glass' : 'wall';
+  const res = shCompute(L, n, { transom: canTr && r.raw.transom === 'fixed', slideType, doorHinge });
   if (res.error) { showToast(res.error, 'error'); return; }
   shSave(Object.assign({}, r.raw));
   DR.cur.finish = DR_FINISH[r.raw.finish] ? r.raw.finish : 'chrome';
@@ -6426,7 +6430,8 @@ function drBuildShower() {
   const ex = drPanels(); const tr = res.find(p => p.role === 'transom');
   const yTop = ex.length ? Math.max(...ex.map(p => p.y + p.h), ...DR.cur.objects.filter(o => o.type === 'plan').map(o => o.y + drPlanBounds(o).y1 + 10)) + 16 : 12;
   const y0 = yTop + (tr ? tr.h + n.glassGap + 9 : 0); // room for the transom's width dimension
-  let x = 12 + (L === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
+  const wallHung = res.some(p => p.wallHinge);
+  let x = 12 + (L === 'door' ? (right ? n.hingeGap : n.strikeGap) : (wallHung && !right ? n.hingeGap : n.wallGap));
   const made = [];
   front.forEach((p, i) => {
     const pn = drNewPanel('rect', x, y0 + (n.H - p.h)); pn.w = p.w; pn.h = p.h; pn.label = p.label; pn.glass = glassKind;
@@ -6440,7 +6445,7 @@ function drBuildShower() {
     }
     pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (p.role !== 'door' && channel ? ', U-channel wall + bottom' : '');
     DR.cur.objects.push(pn); made.push({ p, pn });
-    x += p.w + (i < front.length - 1 ? n.glassGap : 0);
+    x += p.w + (i < front.length - 1 ? (wallHung ? n.strikeGap : n.glassGap) : 0);
   });
   if (L === 'slider') { // the second piece overlaps the first; the sliding (or front) door runs in front
     const a = made[0], b = made[1], ov = (a.p.overlap || b.p.overlap);
@@ -6488,9 +6493,11 @@ function drBuildShower() {
   if (door) {
     const d = door.pn, idx = made.indexOf(door);
     if (L === 'door' || L === 'pdp' || L === 'neo') hingeLeft = right;
+    else if (door.p.wallHinge) hingeLeft = idx === 0; // hinged on its wall edge
     else hingeLeft = idx > 0;
     d.swing = hingeLeft ? 'left' : 'right';
     const hx = hingeLeft ? 0 : d.w, lx = hingeLeft ? d.w - n.handleIn : n.handleIn;
+    if (door.p.wallHinge) d.shopNote = 'Hinged off the wall; closes against the fixed panel (strike side)';
     const note = hingeName + (door.p.hinge === 'wall' ? 'wall-mount hinge' : (L === 'neo' ? '135° glass-to-glass hinge' : 'glass-to-glass hinge'));
     const hys = [n.hingeOff, d.h - n.hingeOff];
     hys.forEach(yy => mk(d, 'hinge', hx, yy, note));
@@ -7310,7 +7317,7 @@ function ldOpenDrawing(id) {
   const pick = (k, v) => { if (v && document.querySelector(`.sh-cards[data-name="${k}"] [data-v="${v}"]`)) shPick(k, v); };
   // a pony wall or bench next to a door + panel is the knee-wall layout (notched panel)
   const knee = (d.wall === 'pony' || d.wall === 'bench') && ['doorpanel', 'steam'].includes(d.layout);
-  pick('layout', knee ? 'knee' : d.layout); pick('fix', d.fix);
+  pick('layout', knee ? 'knee' : d.layout); pick('fix', d.fix); if (d.hinge) pick('doorHinge', d.hinge);
   // the builder's "door opens on" = handle side for a door on its own, door + panels or neo; door position otherwise
   const doorSide = ['door', 'pdp', 'neo'].includes(d.layout) ? (d.handle || d.side) : d.side;
   if (d.layout === 'slider') pick('slideType', d.slideType === 'corner' ? 'single' : d.slideType); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', doorSide);
@@ -7318,7 +7325,7 @@ function ldOpenDrawing(id) {
   if (knee) { fill('kneeW', d.wallL); fill('kneeH', d.wallH); }
   fill('W', d.layout === 'panel' && +d.P ? d.P : d.W); fill('HL', d.H); fill('HR', d.H); fill('D', d.D); fill('A', d.A); fill('B', d.B); fill('C', d.A); fill('ceilH', d.ceil);
   const wt = document.getElementById('sh_WT'); if (wt) wt.value = '';
-  const extra = (d.hinge === 'wall' ? ' They want the handle next to the panel (door hinged off the wall) — the builder hinges the door off the panel, so change the hinges to wall-mount by hand.' : '') + (d.slideType === 'corner' ? ' Corner slider: the side (return) panel isn\'t drawn — add it by hand.' : '') + (d.layout === 'panel' && +d.P ? ' Walk-in: set the panel width to ' + drFmt(+d.P) + ' after building.' : '') + (d.wall === 'pony' || d.wall === 'bench') && !knee ? ' The ' + (d.wall === 'pony' ? 'pony wall' : 'bench') + ' isn\'t drawn for this style — notch the panel by hand after building.' : '';
+  const extra = (d.slideType === 'corner' ? ' Corner slider: the side (return) panel isn\'t drawn — add it by hand.' : '') + (d.layout === 'panel' && +d.P ? ' Walk-in: set the panel width to ' + drFmt(+d.P) + ' after building.' : '') + (d.wall === 'pony' || d.wall === 'bench') && !knee ? ' The ' + (d.wall === 'pony' ? 'pony wall' : 'bench') + ' isn\'t drawn for this style — notch the panel by hand after building.' : '';
   showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.' + extra);
 }
 // ── website prices ──
