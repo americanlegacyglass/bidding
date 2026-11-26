@@ -58,6 +58,8 @@
   .preview { position: sticky; top: 1.2rem; background: var(--soft); border: 1px solid var(--line); border-radius: 20px; padding: 1.2rem; }
   .pic { background: #fff; border-radius: 14px; padding: .8rem; }
   #pic { width: 100%; height: auto; display: block; max-height: 70vh; }
+  .plan-lbl { font-size: .8rem; font-weight: 600; color: var(--muted); margin: .7rem .2rem .3rem; }
+  #plan { width: 100%; height: auto; display: block; max-height: min(300px, 42vh); }
   .legend { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .74rem; color: var(--muted); padding: .35rem .3rem 0; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: .3rem; vertical-align: -1px; }
   .price { margin-top: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; }
@@ -97,7 +99,7 @@
       </section>
 
       <section class="step"><h2><span class="n">3</span>Shower head &amp; water handle <span class="rec-tag">Recommended</span></h2>
-        <p class="hint" style="margin:-.4rem 0 .2rem">Tell us where these are and we'll suggest the best side for the door, so you can turn the water on without stepping into the spray.</p>
+        <p class="hint" style="margin:-.4rem 0 .2rem">Helps us plan where the door and the glass go.</p>
         <div class="sub">Where's the shower head?</div><div class="chips" id="head"></div>
         <div class="sub">Where's the handle that turns on the water?</div><div class="chips" id="valve"></div>
       </section>
@@ -152,6 +154,7 @@
 
     <aside class="preview">
       <div class="pic"><svg id="pic" viewBox="0 0 100 100" role="img" aria-label="Preview of your shower design"></svg>
+        <div class="plan-lbl">From above</div><svg id="plan" viewBox="0 0 100 60" role="img" aria-label="Your shower seen from above"></svg>
         <div class="legend" id="legend"></div></div>
       <div class="price" id="price"></div>
       <ul class="summary" id="summary"></ul>
@@ -192,7 +195,7 @@ const GLASS = { clear: { t: 'Clear', c: ['#cfe7ed', '#f1fafc', '#d6ecf1'] }, low
 const FIN = { chrome: { t: 'Chrome', a: '#fbfcfd', b: '#a9b2b7', c: '#59626a' }, black: { t: 'Matte black', a: '#555', b: '#2b2b2b', c: '#0c0c0c' }, brushed: { t: 'Brushed nickel', a: '#efede7', b: '#bebab1', c: '#7d786e' }, gold: { t: 'Satin brass', a: '#f8e7a9', b: '#c9a24a', c: '#85671e' } };
 const SLIDES = { single: { t: 'Single slider', d: 'Fixed panel + sliding door' }, bypass: { t: 'Bypass', d: 'Both panels slide' }, barn: { t: 'Barn style', d: 'Flat bar, big exposed rollers' }, corner: { t: 'Corner slider', d: 'Sliding door + side panel' } };
 const SPOTS = { L: 'Left wall', BL: 'Back wall – left', BC: 'Back wall – middle', BR: 'Back wall – right', R: 'Right wall' };
-const S = { layout: 'doorpanel', side: 'right', sideTouched: false, handle: 'right', handleTouched: false, glass: 'clear', finish: 'chrome', fix: 'clamps', W: 60, H: 72, D: 36, A: 18, B: 26, ceil: 96,
+const S = { layout: 'doorpanel', side: 'right', sideTouched: false, handle: 'left', handleTouched: false, glass: 'clear', finish: 'chrome', fix: 'clamps', W: 60, H: 72, D: 36, A: 18, B: 26, ceil: 96,
   P: 34, slideType: 'single', onTub: false, sweep: false, seals: false, head: '', valve: '', wall: 'none', wallH: 36, wallL: 18, wallSide: 'left', coat: false, removal: false, tile: '', when: '' };
 let PRICING = null;
 const $ = id => document.getElementById(id);
@@ -211,7 +214,9 @@ const pickWallSide = l => l === 'pdp';
 const swingStyles = ['doorpanel', 'tub', 'steam', 'corner', 'door', 'pdp', 'neo'];
 const hasHandle = l => swingStyles.includes(l);           // hinged doors: pick the handle side (hinges go on the other edge)
 const hasPlace = l => ['doorpanel', 'tub', 'steam', 'corner', 'slider', 'panel'].includes(l); // styles where the door's position is a choice
-const hingeOnWall = () => ['doorpanel', 'tub', 'steam', 'corner'].includes(S.layout) && S.handle !== S.side; // handle toward the panel → hinges on the wall
+const panelStyles = ['doorpanel', 'tub', 'steam', 'corner'];
+const hingeOnWall = () => ['doorpanel', 'tub', 'steam'].includes(S.layout) && S.handle !== S.side; // handle toward the panel → hinges on the wall (recommended)
+const other = s => s === 'left' ? 'right' : 'left';
 const hingeLeftNow = () => S.handle === 'right';
 const hasSeals = () => S.layout !== 'panel';
 
@@ -318,6 +323,16 @@ function advice() {
     if (!notes.some(n => n.w) && (S.head || S.valve)) notes.unshift({ w: 0, t: 'Good layout: the glass covers the spray and the opening is by the handle.' });
     return { rec: sideOf(S.valve) || (S.head && S.head[0] === 'B' && sideOf(S.head) ? (sideOf(S.head) === 'left' ? 'right' : 'left') : null), notes };
   }
+  if (panelStyles.includes(S.layout)) {
+    // fixed panel in front of the shower head, door at the other end, hinged off the wall
+    const hs = sideOf(S.head) || (S.head === 'BC' ? null : null);
+    const recSide = hs ? other(hs) : (sideOf(S.valve) ? other(sideOf(S.valve)) : null);
+    if (hs && S.side === hs) notes.push({ w: 1, t: `The door is on the same end as the shower head, so water sprays at the door. Put the fixed panel in front of the shower head and the door on the ${other(hs)}.` });
+    if (S.head === 'BC') notes.push({ w: 0, t: 'The shower head is in the middle of the back wall — the glass takes the spray either way.' });
+    if (S.layout !== 'corner' && !hingeOnWall()) notes.push({ w: 1, t: 'Hinging the door off the glass panel works, but hinging it off the wall is stronger and stays adjusted longer.', fix: 'hinge' });
+    if (!notes.some(n => n.w)) notes.unshift({ w: 0, t: S.layout === 'corner' ? 'Good layout: the fixed panel takes the spray.' : 'Good layout: the fixed panel takes the spray and the door hinges off the wall — the strongest setup.' });
+    return { rec: recSide, notes, panelRules: true };
+  }
   const open = hasHandle(S.layout) ? S.handle : S.side; // the edge you step in at
   if (S.valve && sideOf(S.valve) && sideOf(S.valve) !== open) notes.push({ w: 1, t: `With the door opening on the ${open}, you'd have to step into the shower to reach the water handle. Opening on the ${sideOf(S.valve)} lets you turn the water on from outside.` });
   if ((S.head === 'L' || S.head === 'R') && sideOf(S.head) !== open) notes.push({ w: 1, t: `The shower head on the ${sideOf(S.head)} wall sprays toward the door opening — expect some water at the door. Opening on the ${sideOf(S.head)} stays drier.` });
@@ -325,12 +340,21 @@ function advice() {
   if (!notes.some(n => n.w) && rec === open) notes.unshift({ w: 0, t: `Good spot: opening on the ${open}, you can reach the water handle without stepping into the spray.` });
   return { rec, notes };
 }
-function renderAdvice() {
+function renderAdvice() { $('rec').innerHTML = ''; }
+function renderAdviceOld() {
   const a = advice(), box = $('rec');
   if (!a.notes.length) { box.innerHTML = ''; return; }
   const warn = a.notes.some(n => n.w);
-  box.innerHTML = `<div class="tip ${warn ? 'warn' : ''}">${a.notes.map(n => esc(n.t)).join('<br>')}${warn && a.rec && a.rec !== (hasHandle(S.layout) ? S.handle : S.side) ? `<br><button type="button" id="useRec">${S.layout === 'panel' ? 'Open it on the ' + a.rec : 'Open the door on the ' + a.rec}</button>` : ''}</div>`;
-  const b = $('useRec'); if (b) b.onclick = () => { if (hasPlace(S.layout)) S.side = a.rec; S.handle = a.rec; S.sideTouched = S.handleTouched = true; renderChoices(); update(); };
+  let btn = '';
+  if (a.panelRules) {
+    const moveDoor = a.rec && a.rec !== S.side, fixHinge = a.notes.some(n => n.fix === 'hinge');
+    if (moveDoor || fixHinge) btn = `<br><button type="button" id="useRec">${moveDoor ? 'Door on the ' + a.rec + ', hinged off the wall' : 'Hinge it off the wall'}</button>`;
+  } else if (warn && a.rec && a.rec !== (hasHandle(S.layout) ? S.handle : S.side)) btn = `<br><button type="button" id="useRec">${S.layout === 'panel' ? 'Open it on the ' + a.rec : 'Open the door on the ' + a.rec}</button>`;
+  box.innerHTML = `<div class="tip ${warn ? 'warn' : ''}">${a.notes.map(n => esc(n.t)).join('<br>')}${btn}</div>`;
+  const b = $('useRec'); if (b) b.onclick = () => {
+    if (a.panelRules) { if (a.rec) S.side = a.rec; S.handle = S.layout === 'corner' ? S.side : other(S.side); }
+    else { if (hasPlace(S.layout)) S.side = a.rec; S.handle = a.rec; }
+    S.sideTouched = S.handleTouched = true; renderChoices(); update(); };
 }
 
 // ── pictures for option cards ──
@@ -368,7 +392,7 @@ function draw() {
   const vbW = totalW + (ret ? ret * 0.55 + 4 : 0) + pad * 2 + 8;
   const k = Math.SQRT1_2, neoPlan = (2 * S.A * k + S.B / 2) + S.B + 10;
   const planSc = Math.min(1, (vbW - 2 * pad - 6) / Math.max(totalW, 1)), doorR = Math.max(0, ...ps.filter(q => q.r === 'door').map(q => q.w)) * planSc;
-  const planTop = y0 + H + tubH + 16, planH = L === 'neo' ? neoPlan : (isCornerish() ? Math.min(S.D * planSc, 30) : 16) + Math.max(doorR, 10) + 10, vbH = planTop + planH;
+  const planTop = y0 + H + tubH + 16, planH = L === 'neo' ? neoPlan : (isCornerish() ? Math.min(S.D * planSc, 30) : 16) + Math.max(doorR, 10) + 10, vbH = y0 + H + tubH + 6;
   const metal = (x, y, w, h, rx = .25) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#mt)" stroke="rgba(0,0,0,.4)" stroke-width=".15"/>`;
   const frost = S.glass === 'frost', go = frost ? [.88, .82, .88] : [.42, .22, .38];
   let defsExtra = '';
@@ -512,14 +536,16 @@ function draw() {
     s += barn ? metal(x0 - .2, y0 - 2.2, totalW + .4, 1.1, .1) : metal(x0 - .2, y0 - 1.4, totalW + .4, 1.8, .9);
   }
   if (ret) { const rx = x0 + totalW, rw = ret * 0.55; s += `<path d="M${rx},${y0} L${rx + rw},${y0 - rw * 0.35} L${rx + rw},${y0 + H - rw * 0.35} L${rx},${y0 + H} Z" fill="url(#gl)" stroke="#6f8f99" stroke-width=".35"/>`; }
-  s += plan(ps, planTop, vbW, totalW, pad);
+  const pl = plan(ps, totalW);
+  const ps2 = $('plan'); ps2.setAttribute('viewBox', `${pl.x0.toFixed(1)} ${pl.y0.toFixed(1)} ${(pl.x1 - pl.x0).toFixed(1)} ${(pl.y1 - pl.y0).toFixed(1)}`); ps2.innerHTML = pl.svg;
   s = s.replace('DEFS_EXTRA', defsExtra);
   const svg = $('pic'); svg.setAttribute('viewBox', `0 0 ${vbW.toFixed(1)} ${vbH.toFixed(1)}`); svg.innerHTML = s;
   $('legend').innerHTML = (S.head ? '<span><i style="background:#2f8fb0"></i>Shower head</span>' : '') + (S.valve ? '<span><i style="background:#c0702b;border-radius:2px"></i>Water handle</span>' : '') + (!['slider', 'panel'].includes(L) ? '<span><i style="border:1px dashed #5d6870"></i>Door swing</span>' : '');
 }
-function plan(ps, py, vbW, totalW, pad) {
-  const L = S.layout, sc = Math.min(1, (vbW - 2 * pad - 6) / Math.max(totalW, 1)), px = pad + 4;
-  let s = `<text x="${pad}" y="${py - 3}" font-size="3.2" fill="#5b6b73" font-family="Figtree,Arial,sans-serif" font-weight="600">From above</text>`;
+// its own picture, drawn to scale in inches, so it fills the card width
+function plan(ps, totalW) {
+  const L = S.layout, sc = 1, px = 0, py = 0;
+  let s = '';
   const seg = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || (c === '#a8b2b5' ? 2.2 : 1)}" stroke-linecap="round"/>`;
   const arc = (hx, hy, r, hl) => `<path d="M${hl ? hx + r : hx - r},${hy} A${r},${r} 0 0 ${hl ? 1 : 0} ${hx},${hy + r}" fill="none" stroke="#5d6870" stroke-width=".35" stroke-dasharray="1.2 1"/>` + seg(hx, hy, hx, hy + r * .96, '#5aa7bd');
   const head = (x, y, dir) => `<path d="M${x},${y} L${x + Math.cos(dir - .45) * 10},${y + Math.sin(dir - .45) * 10} A10,10 0 0 1 ${x + Math.cos(dir + .45) * 10},${y + Math.sin(dir + .45) * 10} Z" fill="#2f8fb0" opacity=".16"/><circle cx="${x}" cy="${y}" r="1.5" fill="#2f8fb0"/>`;
@@ -531,9 +557,10 @@ function plan(ps, py, vbW, totalW, pad) {
     const hl = hingeLeftNow(), hx = hl ? px + a : px + a + b; s += arc(hx, by, b, hl);
     const onWall = (v, t) => v === 'L' ? [px + (cx - px) * t, by - a + (cy - by + a) * t, Math.PI * .25] : v === 'R' ? [px + 2 * a + b + (cx - px - 2 * a - b) * t, by - a + (cy - by + a) * t, Math.PI * .75] : null;
     const h = onWall(S.head, .55), v = onWall(S.valve, .3);
-    return s + (h ? head(h[0], h[1], h[2]) : '') + (v ? valve(v[0], v[1]) : '');
+    s += (h ? head(h[0], h[1], h[2]) : '') + (v ? valve(v[0], v[1]) : '');
+    return { svg: s, x0: px - 4, y0: cy - 4, x1: px + 2 * a + b + 4, y1: by + b + 4 };
   }
-  const cornerish = isCornerish(), depth = cornerish ? Math.min(S.D * sc, 30) : 16, by = py + depth + 2, W = totalW * sc;
+  const cornerish = isCornerish(), depth = cornerish ? S.D : Math.min(36, Math.max(30, totalW * .55)), by = py + depth + 2, W = totalW * sc;
   s += seg(px, by - depth, px, by + 1, '#a8b2b5') + seg(px, by - depth, px + W + (cornerish ? 1 : 0), by - depth, '#a8b2b5');
   if (!cornerish) s += seg(px + W, by - depth, px + W, by + 1, '#a8b2b5'); else s += seg(px + W, by, px + W, by - depth + 1.2, '#5aa7bd');
   let cx = px;
@@ -558,7 +585,8 @@ function plan(ps, py, vbW, totalW, pad) {
   const h = spot(S.head), v = spot(S.valve);
   if (h) s += head(h[0], h[1], h[2]);
   if (v) { const same = S.head === S.valve; s += valve(v[0] + (same && S.valve[0] !== 'B' ? 0 : same ? 3.2 : 0), v[1] + (same && S.valve[0] !== 'B' ? 4 : 0)); }
-  return s;
+  const dr = Math.max(0, ...ps.filter(q => q.r === 'door').map(q => q.w));
+  return { svg: s, x0: px - 4, y0: by - depth - 3, x1: px + W + 4, y1: by + Math.max(dr, 9) + 4 };
 }
 
 // ── the design that gets saved ──
@@ -566,7 +594,7 @@ function design() {
   const d = { layout: S.layout, glass: S.glass, finish: S.finish, H: S.H };
   fieldsFor(S.layout).forEach(k => { d[k] = S[k]; });
   if (hasPlace(S.layout)) d.side = S.side;
-  if (hasHandle(S.layout)) { d.handle = S.handle; if (['doorpanel', 'tub', 'steam', 'corner'].includes(S.layout)) d.hinge = hingeOnWall() ? 'wall' : 'glass'; }
+  if (hasHandle(S.layout)) { d.handle = S.handle; if (panelStyles.includes(S.layout)) d.hinge = hingeOnWall() ? 'wall' : 'glass'; }
   if (S.layout === 'slider') { d.slideType = S.slideType; if (onTub()) d.tub = true; }
   if (fixOk(S.layout)) d.fix = S.fix;
   if (S.head) d.head = S.head;
@@ -615,7 +643,12 @@ function cards(id, opts, key, after) {
   $(id).innerHTML = Object.entries(opts).map(([k, o]) => `<button type="button" class="card ${S[key] === k ? 'on' : ''}" data-k="${k}" aria-pressed="${S[key] === k}">${thumb(key === 'slideType' ? thumbKey(k) : k)}<b>${esc(o.t)}</b>${o.d ? `<small>${esc(o.d)}</small>` : ''}</button>`).join('');
   $(id).querySelectorAll('.card').forEach(b => b.onclick = () => { S[key] = b.dataset.k; if (after) after(); renderChoices(); update(); });
 }
-function autoSide() { const a = advice(); if (!a.rec) return; if (!S.sideTouched) S.side = a.rec; if (!S.handleTouched) S.handle = a.rec; }
+function autoSide() { /* suggestions removed: the customer's choices are left as they set them */ }
+function autoSideOld() {
+  const a = advice();
+  if (a.panelRules) { if (a.rec && !S.sideTouched) S.side = a.rec; if (!S.handleTouched) S.handle = S.layout === 'corner' ? S.side : other(S.side); return; }
+  if (!a.rec) return; if (!S.sideTouched) S.side = a.rec; if (!S.handleTouched) S.handle = a.rec;
+}
 function renderChoices() {
   const L = S.layout;
   cards('layouts', LAYOUTS, 'layout', () => {
@@ -626,6 +659,7 @@ function renderChoices() {
     if (S.layout === 'panel' && S.P > S.W - 20) S.P = Math.max(20, Math.min(34, S.W - 20));
     if (!spotsFor(S.layout).includes(S.head)) S.head = '';
     if (!spotsFor(S.layout).includes(S.valve)) S.valve = '';
+    if (!S.handleTouched) S.handle = ['doorpanel', 'tub', 'steam'].includes(S.layout) ? other(S.side) : S.layout === 'corner' ? S.side : 'right';
     renderFields(); autoSide();
   });
   $('slideBox').style.display = L === 'slider' ? '' : 'none';
@@ -639,9 +673,10 @@ function renderChoices() {
   $('handleBox').style.display = hasHandle(L) ? '' : 'none';
   chips('handles', { left: { t: 'Left' }, right: { t: 'Right' } }, 'handle', null, { after: () => { S.handleTouched = true; }, rerender: true });
   $('hingeNote').textContent = !hasHandle(L) ? '' : ['door', 'pdp', 'neo'].includes(L) ? `Hinges on the ${S.handle === 'right' ? 'left' : 'right'} edge.`
-    : hingeOnWall() ? 'Handle next to the panel: the door hinges off the wall (wall-mount hinges) and closes against the panel.' : 'Handle by the wall: the door hinges off the glass panel (glass-to-glass hinges) — the most common setup.';
+    : L === 'corner' ? 'On a corner the door hinges off the glass next to it.'
+    : hingeOnWall() ? 'Handle next to the panel: the door hinges off the wall.' : 'Handle by the wall: the door hinges off the glass panel.';
   $('sideLbl').textContent = L === 'panel' ? 'Open (walk-in) side' : L === 'slider' ? (S.slideType === 'bypass' ? 'Front door on the' : 'Door slides open on the') : 'Door on the';
-  chips('sides', { left: { t: 'Left' }, right: { t: 'Right' } }, 'side', null, { after: () => { S.sideTouched = true; if (!S.handleTouched) S.handle = S.side; }, rerender: true });
+  chips('sides', { left: { t: 'Left' }, right: { t: 'Right' } }, 'side', null, { after: () => { S.sideTouched = true; if (!S.handleTouched) S.handle = panelStyles.includes(S.layout) && S.layout !== 'corner' ? other(S.side) : S.side; }, rerender: true });
   $('wallStep').style.display = wallOk(L) ? '' : 'none';
   cards('walls', { none: { t: 'Neither' }, pony: { t: 'Pony wall', d: 'Half wall the glass sits on' }, bench: { t: 'Bench', d: 'Seat that meets the glass' } }, 'wall');
   renderWallFields();
