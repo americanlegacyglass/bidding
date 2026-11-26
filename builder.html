@@ -82,7 +82,10 @@
   </header>
   <div class="grid">
     <div id="form">
-      <section class="step"><h2><span class="n">1</span>Style</h2><div class="cards" id="layouts"></div></section>
+      <section class="step"><h2><span class="n">1</span>Style</h2><div class="cards" id="layouts"></div>
+        <div id="slideBox"><div class="sub">Type of sliding door</div><div class="cards two" id="slides"></div>
+          <div class="checks"><label><input type="checkbox" id="xTub"><span>It's on a bathtub</span></label></div></div>
+      </section>
 
       <section class="step"><h2><span class="n">2</span>Rough size</h2>
         <div class="fields" id="sizeFields"></div>
@@ -174,9 +177,10 @@ const LAYOUTS = {
 };
 const GLASS = { clear: { t: 'Clear', c: ['#cfe7ed', '#f1fafc', '#d6ecf1'] }, lowiron: { t: 'Low-iron (extra clear)', c: ['#e6f3f6', '#fbfeff', '#e9f5f8'] }, frost: { t: 'Frosted', c: ['#e3e7e9', '#f4f6f7', '#dfe4e6'] } };
 const FIN = { chrome: { t: 'Chrome', a: '#fbfcfd', b: '#a9b2b7', c: '#59626a' }, black: { t: 'Matte black', a: '#555', b: '#2b2b2b', c: '#0c0c0c' }, brushed: { t: 'Brushed nickel', a: '#efede7', b: '#bebab1', c: '#7d786e' }, gold: { t: 'Satin brass', a: '#f8e7a9', b: '#c9a24a', c: '#85671e' } };
+const SLIDES = { single: { t: 'Single slider', d: 'Fixed panel + sliding door' }, bypass: { t: 'Bypass', d: 'Both panels slide' }, barn: { t: 'Barn style', d: 'Flat bar, big exposed rollers' }, corner: { t: 'Corner slider', d: 'Sliding door + side panel' } };
 const SPOTS = { L: 'Left wall', BL: 'Back wall – left', BC: 'Back wall – middle', BR: 'Back wall – right', R: 'Right wall' };
 const S = { layout: 'doorpanel', side: 'right', sideTouched: false, glass: 'clear', finish: 'chrome', fix: 'clamps', W: 60, H: 72, D: 36, A: 18, B: 26, ceil: 96,
-  head: '', valve: '', wall: 'none', wallH: 36, wallL: 18, wallSide: 'left', coat: false, removal: false, tile: '', when: '' };
+  P: 34, slideType: 'single', onTub: false, head: '', valve: '', wall: 'none', wallH: 36, wallL: 18, wallSide: 'left', coat: false, removal: false, tile: '', when: '' };
 let PRICING = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -184,22 +188,25 @@ const money = n => '$' + Math.round(n).toLocaleString('en-US');
 const fmtIn = v => { let w = Math.floor(v + 1e-9), f = Math.round((v - w) * 8); if (f === 8) { w++; f = 0; } const fr = f ? (f % 4 === 0 ? '1/2' : f % 2 === 0 ? (f / 2) + '/4' : f + '/8') : ''; return (fr ? w + ' ' + fr : w) + '"'; };
 
 // which options each style has
-const hasDoor = l => l !== 'panel';
+const hasDoor = l => true; // splash panel: "door side" = the open end
 const wallOk = l => ['doorpanel', 'steam', 'pdp', 'panel', 'corner'].includes(l);
+const isCornerish = () => S.layout === 'corner' || (S.layout === 'slider' && S.slideType === 'corner');
+const onTub = () => S.layout === 'tub' || (S.layout === 'slider' && S.onTub && S.slideType !== 'corner');
 const fixOk = l => l !== 'door';
-const spotsFor = l => l === 'neo' ? ['L', 'R'] : l === 'corner' ? ['L', 'BL', 'BC', 'BR'] : ['L', 'BL', 'BC', 'BR', 'R'];
-const pickWallSide = l => ['pdp', 'panel'].includes(l);
+const spotsFor = l => l === 'neo' ? ['L', 'R'] : (l === 'corner' || (l === 'slider' && S.slideType === 'corner')) ? ['L', 'BL', 'BC', 'BR'] : ['L', 'BL', 'BC', 'BR', 'R'];
+const pickWallSide = l => l === 'pdp';
 
 // ── price (same formula as the staff app, leads.js — keep the two in step) ──
 function area(d) {
-  if (d.layout === 'corner') return (d.W + d.D) * d.H / 144;
+  if (d.layout === 'corner' || (d.layout === 'slider' && d.slideType === 'corner')) return (d.W + d.D) * d.H / 144;
+  if (d.layout === 'panel') return (d.P || d.W) * d.H / 144;
   if (d.layout === 'neo') return (2 * d.A + d.B) * d.H / 144;
   if (d.layout === 'steam') return d.W * d.ceil / 144;
   return d.W * d.H / 144;
 }
 function estimate(pr, d) {
   if (!pr || !pr.enabled) return null;
-  const rate = (pr.rate || {})[d.glass] || 0, base = (pr.base || {})[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
+  const bs = pr.base || {}, rate = (pr.rate || {})[d.glass] || 0, base = (d.layout === 'slider' && d.slideType && d.slideType !== 'single' ? +bs['slider_' + d.slideType] || 0 : 0) || bs[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
   if (!rate || !base) return null;
   const ex = pr.extra || {}, a = area(d);
   const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0);
@@ -217,10 +224,11 @@ const FIELDS = {
   A: { l: 'Each angled side', min: 10, max: 36, h: 'Wall to the front corner' },
   B: { l: 'Front (door) width', min: 20, max: 36, h: 'Corner to corner' },
   ceil: { l: 'Ceiling height', min: 76, max: 120, h: 'Curb to ceiling' },
+  P: { l: 'Panel width', min: 20, max: 60, h: 'How much glass — the rest stays open' },
   wallH: { l: 'Height', min: 12, max: 60, h: 'Floor/curb to the top' },
   wallL: { l: 'Length', min: 4, max: 60, h: 'Along the glass line' },
 };
-function fieldsFor(l) { return l === 'neo' ? ['A', 'B', 'H'] : l === 'corner' ? ['W', 'D', 'H'] : l === 'steam' ? ['W', 'H', 'ceil'] : ['W', 'H']; }
+function fieldsFor(l) { return l === 'neo' ? ['A', 'B', 'H'] : (l === 'corner' || (l === 'slider' && S.slideType === 'corner')) ? ['W', 'D', 'H'] : l === 'steam' ? ['W', 'H', 'ceil'] : l === 'panel' ? ['W', 'P', 'H'] : ['W', 'H']; }
 function wallFields() { return S.wall !== 'none' && wallOk(S.layout) ? ['wallH', 'wallL'] : []; }
 function parseNum(s) {
   s = String(s || '').trim().replace(/["”]/g, '').replace(/-/g, ' ');
@@ -244,12 +252,13 @@ function pieces() {
   const L = S.layout, W = S.W, DOOR = Math.min(26, Math.max(22, W * 0.4));
   let p = [];
   if (L === 'door') p = [{ r: 'door', w: W }];
-  else if (L === 'panel') p = [{ r: 'panel', w: W }];
+  else if (L === 'panel') p = [{ r: 'panel', w: Math.min(S.P, W) }, { r: 'open', w: Math.max(W - S.P, 0) }];
   else if (L === 'pdp') { const e = (W - DOOR) / 2; p = [{ r: 'panel', w: e }, { r: 'door', w: DOOR }, { r: 'panel', w: e }]; }
   else if (L === 'neo') p = [{ r: 'panel', w: S.A }, { r: 'door', w: S.B }, { r: 'panel', w: S.A }];
   else if (L === 'slider') { const e = (W + 2) / 2; p = [{ r: 'panel', w: e }, { r: 'slide', w: e }]; }
   else p = [{ r: 'panel', w: W - DOOR }, { r: 'door', w: DOOR }];
-  if (S.side === 'left' && !['pdp', 'neo', 'door', 'panel'].includes(L)) p.reverse();
+  if (L === 'slider' && S.slideType === 'bypass') p = [{ r: 'slide', w: (W + 2) / 2, back: true }, { r: 'slide', w: (W + 2) / 2 }];
+  if (S.side === 'left' && !['pdp', 'neo', 'door'].includes(L)) p.reverse();
   // where the pony wall / bench sits: the fixed panel at the wall end
   if (S.wall !== 'none' && wallOk(L)) {
     const i = pickWallSide(L) ? (S.wallSide === 'right' ? p.length - 1 : 0) : p.findIndex(q => q.r === 'panel');
@@ -269,6 +278,7 @@ function sizeProblem() {
   if (L === 'pdp' && S.W < 44) return 'That opening is too narrow for two panels and a door — try "Door + panel".';
   if (L === 'door' && S.W > 36) return 'A door alone can be up to 36" wide — try "Door + panel" for this opening.';
   if (L === 'slider' && (S.W < 44 || S.W > 72)) return 'Sliding doors fit openings from 44" to 72" wide.';
+  if (L === 'panel' && S.P > S.W - 20) return 'Leave at least 20" open to walk in — make the panel narrower or the opening wider.';
   if (wallFields().length) {
     const q = pieces().find(x => x.notch), nm = S.wall === 'pony' ? 'pony wall' : 'bench';
     if (q && S.wallL > q.w - 4) return `The ${nm} is longer than the glass panel above it — check the length, or pick a wider opening.`;
@@ -284,6 +294,12 @@ function advice() {
   const rec = sideOf(S.valve) || (S.head === 'L' || S.head === 'R' ? sideOf(S.head) : null);
   const notes = [];
   if (S.valve && sideOf(S.valve) && sideOf(S.valve) !== S.side) notes.push({ w: 1, t: `With the door on the ${S.side}, you'd have to step into the shower to reach the handle. A door on the ${sideOf(S.valve)} lets you turn the water on from outside.` });
+  if (S.layout === 'panel') {
+    if (S.head && sideOf(S.head) === S.side && S.head[0] === 'B') notes.push({ w: 1, t: `The shower head is at the open end — water will spray out. Put the glass panel in front of the shower head (open side on the ${S.side === 'left' ? 'right' : 'left'}).` });
+    if (S.valve && sideOf(S.valve) && sideOf(S.valve) !== S.side) notes.splice(0, notes.length, ...notes.filter(n => !/step into/.test(n.t)), { w: 1, t: `The handle is behind the glass — you'd reach in past the spray. Opening on the ${sideOf(S.valve)} puts the handle by the way in.` });
+    if (!notes.some(n => n.w) && (S.head || S.valve)) notes.unshift({ w: 0, t: 'Good layout: the glass covers the spray and the opening is by the handle.' });
+    return { rec: sideOf(S.valve) || (S.head && S.head[0] === 'B' && sideOf(S.head) ? (sideOf(S.head) === 'left' ? 'right' : 'left') : null), notes };
+  }
   if ((S.head === 'L' || S.head === 'R') && sideOf(S.head) !== S.side) notes.push({ w: 1, t: `The shower head on the ${sideOf(S.head)} wall sprays toward the door opening — expect some water at the door. A door on the ${sideOf(S.head)} stays drier.` });
   if (S.head && S.head[0] === 'B') notes.push({ w: 0, t: 'The shower head points at the glass. That\'s normal — the glass takes the spray, and we seal it to keep the water in.' });
   if (!notes.some(n => n.w) && rec === S.side) notes.unshift({ w: 0, t: `Good spot: with the door on the ${S.side} you can reach the handle without stepping into the spray.` });
@@ -293,7 +309,7 @@ function renderAdvice() {
   const a = advice(), box = $('rec');
   if (!a.notes.length) { box.innerHTML = ''; return; }
   const warn = a.notes.some(n => n.w);
-  box.innerHTML = `<div class="tip ${warn ? 'warn' : ''}">${a.notes.map(n => esc(n.t)).join('<br>')}${warn && a.rec && a.rec !== S.side ? `<br><button type="button" id="useRec">Put the door on the ${a.rec}</button>` : ''}</div>`;
+  box.innerHTML = `<div class="tip ${warn ? 'warn' : ''}">${a.notes.map(n => esc(n.t)).join('<br>')}${warn && a.rec && a.rec !== S.side ? `<br><button type="button" id="useRec">${S.layout === 'panel' ? 'Open it on the ' + a.rec : 'Put the door on the ' + a.rec}</button>` : ''}</div>`;
   const b = $('useRec'); if (b) b.onclick = () => { S.side = a.rec; S.sideTouched = true; renderChoices(); update(); };
 }
 
@@ -302,7 +318,7 @@ function thumb(k) {
   const g = (x, w, h, door, y = 6) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${door ? '#d4ecf3' : '#e7f4f8'}" stroke="${door ? '#2a6f86' : '#6a97a5'}" stroke-width="${door ? 1.6 : 1}"/>` + (door ? `<line x1="${x + w - 4}" y1="${y + h * .42}" x2="${x + w - 4}" y2="${y + h * .62}" stroke="#2a6f86" stroke-width="1.8"/>` : '');
   const wall = x => `<rect x="${x}" y="2" width="3" height="56" fill="#a8b2b5"/>`;
   let s = wall(2) + wall(75);
-  if (k === 'door') s += g(7, 66, 50, true);
+  if (k === 'door') s = wall(19) + wall(58) + g(24, 32, 50, true) + `<rect x="22.5" y="13" width="4" height="3" rx=".6" fill="#8b979b"/><rect x="22.5" y="46" width="4" height="3" rx=".6" fill="#8b979b"/>`;
   if (k === 'doorpanel' || k === 'none') s += g(7, 36, 50) + g(44, 29, 50, true);
   if (k === 'pdp') s += g(7, 20, 50) + g(28, 24, 50, true) + g(53, 20, 50);
   if (k === 'slider') s += `<rect x="5" y="3" width="70" height="2.4" rx="1" fill="#8b979b"/>` + g(7, 38, 50) + `<rect x="35" y="8" width="38" height="49" fill="#d4ecf3" stroke="#2a6f86" stroke-width="1.6" opacity=".92"/><line x1="40" y1="25" x2="40" y2="40" stroke="#2a6f86" stroke-width="1.8"/>`;
@@ -310,30 +326,36 @@ function thumb(k) {
   if (k === 'neo') s = `<path d="M3,10 L20,4 L20,54 L3,60 Z" fill="#e7f4f8" stroke="#6a97a5"/>` + g(21, 37, 50, true, 4) + `<path d="M59,4 L76,10 L76,60 L59,54 Z" fill="#e7f4f8" stroke="#6a97a5"/>`;
   if (k === 'tub') s += `<rect x="5" y="44" width="70" height="14" rx="3" fill="#e9e9e9" stroke="#aaa"/>` + g(7, 36, 38) + g(44, 29, 38, true);
   if (k === 'steam') s = `<rect x="2" y="1" width="76" height="3" fill="#a8b2b5"/>` + wall(2) + wall(75) + `<rect x="7" y="4" width="66" height="2" fill="#e7f4f8" stroke="#6a97a5" stroke-width=".6"/>` + g(7, 36, 50) + g(44, 29, 50, true);
-  if (k === 'panel') s = wall(2) + g(7, 36, 50);
+  if (k === 'panel') s = wall(2) + wall(75) + g(7, 36, 50) + `<circle cx="43" cy="8" r="1.6" fill="#8b979b"/><text x="58" y="34" font-size="7" fill="#8b979b" text-anchor="middle" font-family="Arial">open</text>`;
   if (k === 'pony') s += `<rect x="5" y="36" width="18" height="20" fill="#d9d2c4" stroke="#a89f8e"/><rect x="4" y="34.5" width="20" height="2" fill="#bdb4a3"/><path d="M7,6 L43,6 L43,56 L23,56 L23,34 L7,34 Z" fill="#e7f4f8" stroke="#6a97a5"/>` + g(44, 29, 50, true);
   if (k === 'bench') s += `<rect x="5" y="38" width="22" height="18" fill="#ece6da" stroke="#bdb4a3"/><path d="M7,6 L43,6 L43,56 L27,56 L27,38 L7,38 Z" fill="#e7f4f8" stroke="#6a97a5" opacity=".9"/>` + g(44, 29, 50, true);
+  if (k === 'single') s += `<rect x="5" y="3" width="70" height="2.4" rx="1.2" fill="#8b979b"/>` + g(7, 38, 50) + `<rect x="35" y="8" width="38" height="49" fill="#d4ecf3" stroke="#2a6f86" stroke-width="1.6" opacity=".92"/><circle cx="40" cy="6.5" r="1.6" fill="#8b979b"/><circle cx="68" cy="6.5" r="1.6" fill="#8b979b"/>`;
+  if (k === 'bypass') s += `<rect x="5" y="3" width="70" height="2.4" rx="1.2" fill="#8b979b"/><rect x="7" y="7" width="38" height="50" fill="#e0f0f5" stroke="#2a6f86" stroke-width="1.3"/><rect x="35" y="8" width="38" height="49" fill="#d4ecf3" stroke="#2a6f86" stroke-width="1.6" opacity=".92"/><line x1="11" y1="25" x2="11" y2="40" stroke="#2a6f86" stroke-width="1.6"/><line x1="69" y1="25" x2="69" y2="40" stroke="#2a6f86" stroke-width="1.6"/>`;
+  if (k === 'barn') s += `<rect x="5" y="2" width="70" height="2" fill="#555"/>` + g(7, 38, 50, false, 9) + `<rect x="35" y="10" width="38" height="47" fill="#d4ecf3" stroke="#2a6f86" stroke-width="1.6" opacity=".92"/><circle cx="42" cy="4" r="3.2" fill="#444"/><circle cx="66" cy="4" r="3.2" fill="#444"/>`;
+  if (k === 'corner2') s = wall(2) + `<rect x="5" y="3" width="58" height="2.2" rx="1.1" fill="#8b979b"/>` + g(7, 30, 50) + `<rect x="30" y="8" width="32" height="49" fill="#d4ecf3" stroke="#2a6f86" stroke-width="1.6" opacity=".92"/><path d="M63,6 L76,1 L76,51 L63,56 Z" fill="#e7f4f8" stroke="#6a97a5"/>`;
   if (k === 'clamps') s = wall(2) + g(7, 50, 50) + `<rect x="5" y="12" width="6" height="4" rx="1" fill="#8b979b"/><rect x="5" y="44" width="6" height="4" rx="1" fill="#8b979b"/>`;
   if (k === 'channel') s = wall(2) + g(7, 50, 50) + `<rect x="5" y="6" width="3" height="50" fill="#8b979b"/><rect x="5" y="55" width="54" height="3" fill="#8b979b"/>`;
   return `<svg viewBox="0 0 80 62" width="70" height="54" aria-hidden="true">${s}</svg>`;
 }
+const thumbKey = k => k === 'corner' && S.layout === 'slider' ? 'corner2' : k;
 
 // ── the main picture: front view on top, view from above underneath ──
 function draw() {
   const L = S.layout, H = S.H, f = FIN[S.finish], gc = GLASS[S.glass].c, ps = pieces();
-  const totalW = L === 'slider' ? S.W : ps.reduce((a, q) => a + q.w, 0), ret = L === 'corner' ? S.D : 0;
-  const headroom = L === 'steam' ? S.ceil - H : Math.max(12, 86 - H), tubH = L === 'tub' ? 18 : 0;
+  const totalW = L === 'slider' ? S.W : ps.reduce((a, q) => a + q.w, 0), ret = isCornerish() ? S.D : 0;
+  const headroom = L === 'steam' ? S.ceil - H : Math.max(12, 86 - H), tubH = onTub() ? 18 : 0;
   const pad = 6, gap = 0.4, x0 = pad + 4, y0 = pad + headroom;
   const vbW = totalW + (ret ? ret * 0.55 + 4 : 0) + pad * 2 + 8;
   const k = Math.SQRT1_2, neoPlan = (2 * S.A * k + S.B / 2) + S.B + 10;
-  const planTop = y0 + H + tubH + 12, planH = L === 'neo' ? neoPlan : (L === 'corner' ? Math.min(S.D, 30) : 16) + 30, vbH = planTop + planH;
+  const planSc = Math.min(1, (vbW - 2 * pad - 6) / Math.max(totalW, 1)), doorR = Math.max(0, ...ps.filter(q => q.r === 'door').map(q => q.w)) * planSc;
+  const planTop = y0 + H + tubH + 12, planH = L === 'neo' ? neoPlan : (isCornerish() ? Math.min(S.D * planSc, 30) : 16) + Math.max(doorR, 10) + 10, vbH = planTop + planH;
   const metal = (x, y, w, h, rx = .25) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#mt)" stroke="rgba(0,0,0,.4)" stroke-width=".15"/>`;
   let s = `<defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2=".35"><stop offset="0" stop-color="${gc[0]}" stop-opacity=".9"/><stop offset=".5" stop-color="${gc[1]}" stop-opacity=".8"/><stop offset="1" stop-color="${gc[2]}" stop-opacity=".9"/></linearGradient>` +
     `<linearGradient id="mt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${f.a}"/><stop offset=".45" stop-color="${f.b}"/><stop offset=".55" stop-color="${f.a}"/><stop offset="1" stop-color="${f.c}"/></linearGradient>` +
     `<pattern id="tilepat" width="24" height="12" patternUnits="userSpaceOnUse"><rect width="24" height="12" fill="#ebe5da"/><path d="M0,0 H24 M0,6 H24 M12,0 V6 M0,6 V12 M24,6 V12" stroke="#d3cabb" stroke-width=".35"/></pattern></defs>`;
   const wallTop = pad - 2, wallBot = y0 + H + tubH;
   s += `<rect x="${x0 - 3}" y="${wallTop}" width="${totalW + 6}" height="${wallBot - wallTop}" fill="url(#tilepat)"/>`;
-  const leftWall = L !== 'neo', rightWall = L !== 'neo' && L !== 'corner';
+  const leftWall = L !== 'neo', rightWall = L !== 'neo' && !isCornerish();
   if (leftWall) s += `<rect x="${x0 - 4}" y="${wallTop}" width="4" height="${wallBot - wallTop}" fill="#d6cfc2"/>`;
   if (rightWall) s += `<rect x="${x0 + totalW}" y="${wallTop}" width="4" height="${wallBot - wallTop}" fill="#d6cfc2"/>`;
   if (L === 'steam') s += `<rect x="${x0 - 4}" y="${wallTop}" width="${totalW + 8}" height="2" fill="#cfc8bb"/>`;
@@ -371,7 +393,7 @@ function draw() {
   const doorHingeLeft = i => (L === 'door' || L === 'pdp' || L === 'neo') ? S.side === 'right' : i > 0;
   let x = x0; const fixed = [];
   ps.forEach((q, i) => {
-    if (q.r === 'slide') { x += q.w; return; }
+    if (q.r === 'slide' || q.r === 'open') { x += q.w; return; }
     const isDoor = q.r === 'door', h = isDoor ? H - .5 : H, gx = L === 'slider' && i > 0 ? x0 + totalW - q.w : x + gap / 2, gw = q.w - gap;
     s += glass(gx, y0, gw, h, q.notch);
     if (isDoor) {
@@ -392,19 +414,27 @@ function draw() {
       if (!q.notch) s += metal(gx, y0 + H - .8, gw, .9, .1);
       else { const a = q.notch.w; s += metal(q.notch.at === 'left' ? gx + a : gx, y0 + H - .8, gw - a, .9, .1) + metal(q.notch.at === 'left' ? gx : gx + gw - a, y0 + H - q.notch.h - .8, a, .9, .1); }
     } else if (atWall) s += clamp(ex, y0 + 8) + clamp(ex, botY - 8);
+    if (L === 'panel') { const fx = onLeft ? gx + gw : gx; s += `<circle cx="${fx}" cy="${y0 + 1.2}" r="1.1" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`; } // support bar to the back wall
   });
-  // sliding door: in front of the fixed panel, header track and rollers
+  // sliding doors: header (round tube, or flat bar for barn style), rollers, pulls
   if (L === 'slider') {
-    const dp = ps.find(q => q.r === 'slide'), openLeft = ps[0] === dp, dx = openLeft ? x0 : x0 + totalW - dp.w;
-    s += glass(dx, y0 + 1.6, dp.w, H - 2.1);
-    s += metal(x0 - .2, y0 - 1.4, totalW + .4, 1.8, .45);
-    [dx + 3, dx + dp.w - 3].forEach(rx => { s += `<circle cx="${rx}" cy="${y0 + .7}" r="1.4" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`; });
-    const hx = openLeft ? dx + 3 : dx + dp.w - 3; s += metal(hx - .42, y0 + H - 42, .84, 12, .42);
+    const barn = S.slideType === 'barn';
+    const slides = ps.map((q, i) => ({ q, i })).filter(o => o.q.r === 'slide');
+    slides.sort((a, b2) => (a.q.back ? 0 : 1) - (b2.q.back ? 0 : 1)); // back door first, front door on top
+    slides.forEach(({ q, i }) => {
+      const dx = i === 0 ? x0 : x0 + totalW - q.w, dy = q.back ? y0 + .6 : y0 + 1.6;
+      s += glass(dx, dy, q.w, H - (dy - y0) - .5);
+      const hx = i === 0 ? dx + 3 : dx + q.w - 3; s += metal(hx - .42, y0 + H - 42, .84, 12, .42);
+      const rs = barn ? [dx + 5, dx + q.w - 5] : [dx + 3, dx + q.w - 3];
+      rs.forEach(rx => { s += barn ? metal(rx - .5, y0 - 3.4, 1, dy - y0 + 4.4, .2) + `<circle cx="${rx}" cy="${y0 - 3.8}" r="2.3" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".18"/><circle cx="${rx}" cy="${y0 - 3.8}" r=".7" fill="rgba(0,0,0,.35)"/>`
+        : `<circle cx="${rx}" cy="${y0 + .7}" r="1.4" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`; });
+    });
+    s += barn ? metal(x0 - .2, y0 - 2.2, totalW + .4, 1.1, .1) : metal(x0 - .2, y0 - 1.4, totalW + .4, 1.8, .9);
   }
   if (ret) { const rx = x0 + totalW, rw = ret * 0.55; s += `<path d="M${rx},${y0} L${rx + rw},${y0 - rw * 0.35} L${rx + rw},${y0 + H - rw * 0.35} L${rx},${y0 + H} Z" fill="url(#gl)" stroke="#6f8f99" stroke-width=".35"/>`; }
   s += plan(ps, planTop, vbW, totalW, pad);
   const svg = $('pic'); svg.setAttribute('viewBox', `0 0 ${vbW.toFixed(1)} ${vbH.toFixed(1)}`); svg.innerHTML = s;
-  $('legend').innerHTML = (S.head ? '<span><i style="background:#2f8fb0"></i>Shower head</span>' : '') + (S.valve ? '<span><i style="background:#c0702b;border-radius:2px"></i>Water handle</span>' : '') + (hasDoor(L) && L !== 'slider' ? '<span><i style="border:1px dashed #5d6870"></i>Door swing</span>' : '');
+  $('legend').innerHTML = (S.head ? '<span><i style="background:#2f8fb0"></i>Shower head</span>' : '') + (S.valve ? '<span><i style="background:#c0702b;border-radius:2px"></i>Water handle</span>' : '') + (!['slider', 'panel'].includes(L) ? '<span><i style="border:1px dashed #5d6870"></i>Door swing</span>' : '');
 }
 function plan(ps, py, vbW, totalW, pad) {
   const L = S.layout, sc = Math.min(1, (vbW - 2 * pad - 6) / Math.max(totalW, 1)), px = pad + 4;
@@ -422,20 +452,23 @@ function plan(ps, py, vbW, totalW, pad) {
     const h = onWall(S.head, .55), v = onWall(S.valve, .3);
     return s + (h ? head(h[0], h[1], h[2]) : '') + (v ? valve(v[0], v[1]) : '');
   }
-  const depth = L === 'corner' ? Math.min(S.D * sc, 30) : 16, by = py + depth + 2, W = totalW * sc;
-  s += seg(px, by - depth, px, by + 1, '#a8b2b5') + seg(px, by - depth, px + W + (L === 'corner' ? 1 : 0), by - depth, '#a8b2b5');
-  if (L !== 'corner') s += seg(px + W, by - depth, px + W, by + 1, '#a8b2b5'); else s += seg(px + W, by, px + W, by - depth + 1.2, '#5aa7bd');
+  const cornerish = isCornerish(), depth = cornerish ? Math.min(S.D * sc, 30) : 16, by = py + depth + 2, W = totalW * sc;
+  s += seg(px, by - depth, px, by + 1, '#a8b2b5') + seg(px, by - depth, px + W + (cornerish ? 1 : 0), by - depth, '#a8b2b5');
+  if (!cornerish) s += seg(px + W, by - depth, px + W, by + 1, '#a8b2b5'); else s += seg(px + W, by, px + W, by - depth + 1.2, '#5aa7bd');
   let cx = px;
   if (L === 'slider') {
-    const fp = ps.find(q => q.r === 'panel'), dp = ps.find(q => q.r === 'slide'), openLeft = ps[0] === dp;
-    s += seg(openLeft ? px + W - fp.w * sc : px, by, openLeft ? px + W : px + fp.w * sc, by, '#5aa7bd');
-    s += seg(openLeft ? px : px + W - dp.w * sc, by + 1.8, openLeft ? px + dp.w * sc : px + W, by + 1.8, '#5aa7bd');
-    s += `<text x="${openLeft ? px + 1 : px + W - 1}" y="${by + 6.5}" font-size="2.6" fill="#5d6870" text-anchor="${openLeft ? 'start' : 'end'}" font-family="Figtree,Arial,sans-serif">${openLeft ? '← slides open' : 'slides open →'}</text>`;
+    ps.forEach((q, i) => {
+      const w = q.w * sc, xa = i === 0 ? px : px + W - w, yy = q.r === 'slide' && !q.back ? by + 1.8 : by;
+      s += seg(xa, yy, xa + w, yy, '#5aa7bd');
+      if (q.r === 'slide') s += `<text x="${i === 0 ? xa + 1 : xa + w - 1}" y="${yy + 4.6}" font-size="2.5" fill="#5d6870" text-anchor="${i === 0 ? 'start' : 'end'}" font-family="Figtree,Arial,sans-serif">${i === 0 ? '← slides' : 'slides →'}</text>`;
+    });
   } else ps.forEach((q, i) => {
     const w = q.w * sc;
     if (q.r === 'door') { const hl = (L === 'door' || L === 'pdp') ? S.side === 'right' : i > 0; s += arc(hl ? cx : cx + w, by, w, hl); }
+    else if (q.r === 'open') { /* walk-in opening */ }
     else {
       s += seg(cx, by, cx + w, by, '#5aa7bd');
+      if (L === 'panel') { const fx = i === 0 ? cx + w : cx; s += seg(fx, by, fx, by - depth + 1, '#8b979b', .45); }
       if (q.notch) { const nw = q.notch.w * sc, nxx = q.notch.at === 'left' ? cx : cx + w - nw; s += S.wall === 'pony' ? `<rect x="${nxx}" y="${by - 1.6}" width="${nw}" height="3.2" fill="#d9d2c4" stroke="#a89f8e" stroke-width=".25"/>` : `<rect x="${nxx}" y="${by - Math.min(9, depth - 2)}" width="${nw}" height="${Math.min(9, depth - 2)}" fill="#ece6da" stroke="#c7bfae" stroke-width=".25"/>`; }
     }
     cx += w;
@@ -451,7 +484,8 @@ function plan(ps, py, vbW, totalW, pad) {
 function design() {
   const d = { layout: S.layout, glass: S.glass, finish: S.finish, H: S.H };
   fieldsFor(S.layout).forEach(k => { d[k] = S[k]; });
-  if (hasDoor(S.layout)) d.side = S.side;
+  d.side = S.side;
+  if (S.layout === 'slider') { d.slideType = S.slideType; if (onTub()) d.tub = true; }
   if (fixOk(S.layout)) d.fix = S.fix;
   if (S.head) d.head = S.head;
   if (S.valve) d.valve = S.valve;
@@ -471,8 +505,8 @@ function renderPrice() {
       ? `<div class="lbl">Estimated price</div><div class="big">${money(e.lo)} – ${money(e.hi)}</div><div class="small">Installed, from your rough sizes. Your exact price comes after our free measure.</div>`
       : `<div class="lbl">Price</div><div class="big" style="font-size:1.2rem;white-space:normal">We'll quote after a free measure</div><div class="small">Every shower is a little different. Send your design and we'll call you.</div>`;
   }
-  const d = design(), rows = [['Style', LAYOUTS[d.layout].t], ['Size', fieldsFor(d.layout).map(k => fmtIn(d[k])).join(' × ')]];
-  if (d.side) rows.push(['Door', (d.layout === 'slider' ? 'Slides open on the ' : 'On the ') + d.side]);
+  const d = design(), rows = [['Style', LAYOUTS[d.layout].t + (d.slideType ? ' — ' + SLIDES[d.slideType].t.toLowerCase() : '') + (d.tub ? ', on a tub' : '')], ['Size', fieldsFor(d.layout).map(k => fmtIn(d[k])).join(' × ')]];
+  if (d.side) rows.push([d.layout === 'panel' ? 'Open side' : 'Door', d.layout === 'panel' ? (d.side === 'left' ? 'Left' : 'Right') : (d.layout === 'slider' ? (d.slideType === 'bypass' ? 'Front door on the ' : 'Slides open on the ') : 'On the ') + d.side]);
   if (d.head || d.valve) rows.push(['Shower', [d.head && 'head on ' + SPOTS[d.head].toLowerCase(), d.valve && 'handle on ' + SPOTS[d.valve].toLowerCase()].filter(Boolean).join(', ')]);
   if (d.wall) rows.push([d.wall === 'pony' ? 'Pony wall' : 'Bench', fmtIn(d.wallH) + ' tall, ' + fmtIn(d.wallL) + (d.wall === 'pony' ? ' long' : ' deep')]);
   rows.push(['Glass', GLASS[d.glass].t + (d.coat ? ', easy-clean coating' : '')]);
@@ -493,23 +527,30 @@ function chips(id, opts, key, sw, opt = {}) {
   });
 }
 function cards(id, opts, key, after) {
-  $(id).innerHTML = Object.entries(opts).map(([k, o]) => `<button type="button" class="card ${S[key] === k ? 'on' : ''}" data-k="${k}" aria-pressed="${S[key] === k}">${thumb(k)}<b>${esc(o.t)}</b>${o.d ? `<small>${esc(o.d)}</small>` : ''}</button>`).join('');
+  $(id).innerHTML = Object.entries(opts).map(([k, o]) => `<button type="button" class="card ${S[key] === k ? 'on' : ''}" data-k="${k}" aria-pressed="${S[key] === k}">${thumb(key === 'slideType' ? thumbKey(k) : k)}<b>${esc(o.t)}</b>${o.d ? `<small>${esc(o.d)}</small>` : ''}</button>`).join('');
   $(id).querySelectorAll('.card').forEach(b => b.onclick = () => { S[key] = b.dataset.k; if (after) after(); renderChoices(); update(); });
 }
 function autoSide() { if (S.sideTouched) return; const a = advice(); if (a.rec) S.side = a.rec; }
 function renderChoices() {
   const L = S.layout;
   cards('layouts', LAYOUTS, 'layout', () => {
-    if (S.layout === 'tub' && S.H > 66) S.H = 60; else if (S.layout !== 'tub' && S.H < 66) S.H = 72;
+    if (onTub() && S.H > 66) S.H = 60; else if (!onTub() && S.H < 66) S.H = 72;
+    // each style starts from a width that suits it if the last one doesn't fit
+    const okW = { door: [24, 36, 30], doorpanel: [32, 120, 60], tub: [32, 120, 60], steam: [32, 120, 60], corner: [32, 120, 48], pdp: [44, 120, 66], slider: [44, 72, 60], panel: [40, 120, 60] }[S.layout];
+    if (okW && (S.W < okW[0] || S.W > okW[1])) S.W = okW[2];
+    if (S.layout === 'panel' && S.P > S.W - 20) S.P = Math.max(20, Math.min(34, S.W - 20));
     if (!spotsFor(S.layout).includes(S.head)) S.head = '';
     if (!spotsFor(S.layout).includes(S.valve)) S.valve = '';
     renderFields(); autoSide();
   });
+  $('slideBox').style.display = L === 'slider' ? '' : 'none';
+  cards('slides', SLIDES, 'slideType', () => { renderFields(); if (!spotsFor(S.layout).includes(S.head)) S.head = ''; if (!spotsFor(S.layout).includes(S.valve)) S.valve = ''; });
+  $('xTub').checked = S.onTub; $('xTub').disabled = S.slideType === 'corner'; $('xTub').closest('label').style.opacity = S.slideType === 'corner' ? .45 : 1;
   const sp = Object.fromEntries(spotsFor(L).map(k => [k, { t: L === 'neo' ? (k === 'L' ? 'Left wall' : 'Right wall') : SPOTS[k] }]));
   chips('head', sp, 'head', null, { toggle: true, after: autoSide, rerender: true });
   chips('valve', sp, 'valve', null, { toggle: true, after: autoSide, rerender: true });
   $('sideBox').style.display = hasDoor(L) ? '' : 'none';
-  $('sideLbl').textContent = L === 'slider' ? 'Door slides open on the' : (L === 'door' || L === 'pdp' || L === 'neo') ? 'Door opens from the' : 'Door on the';
+  $('sideLbl').textContent = L === 'panel' ? 'Open (walk-in) side' : L === 'slider' ? (S.slideType === 'bypass' ? 'Front door on the' : 'Door slides open on the') : (L === 'door' || L === 'pdp' || L === 'neo') ? 'Door opens from the' : 'Door on the';
   chips('sides', { left: { t: 'Left' }, right: { t: 'Right' } }, 'side', null, { after: () => { S.sideTouched = true; } });
   $('wallStep').style.display = wallOk(L) ? '' : 'none';
   cards('walls', { none: { t: 'Neither' }, pony: { t: 'Pony wall', d: 'Half wall the glass sits on' }, bench: { t: 'Bench', d: 'Seat that meets the glass' } }, 'wall');
@@ -563,6 +604,7 @@ function showDone(name) {
 $('sendBtn').onclick = send;
 $('xCoat').onchange = e => { S.coat = e.target.checked; update(); };
 $('xRemoval').onchange = e => { S.removal = e.target.checked; update(); };
+$('xTub').onchange = e => { S.onTub = e.target.checked; if (onTub() && S.H > 66) S.H = 60; else if (!onTub() && S.H < 66) S.H = 72; renderFields(); update(); };
 renderChoices(); renderFields(); update();
 // prices load after the page is usable; if they can't load, the page simply says "quote after a free measure"
 Promise.race([getDoc(doc(db, 'publicPricing', 'shower')), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))])
