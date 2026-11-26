@@ -6438,7 +6438,7 @@ function drBuildShower() {
                   : [{ x: 0, y: 0 }, { x: W2, y: 0 }, { x: W2, y: H2 - b }, { x: W2 - a, y: H2 - b }, { x: W2 - a, y: H2 }, { x: 0, y: H2 }];
       pn.shopNote = 'Notch ' + drFmt(a) + ' × ' + drFmt(b) + ' for the knee wall';
     }
-    pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (p.role !== 'door' && channel ? ', set in U-channel' : '');
+    pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (p.role !== 'door' && channel ? ', U-channel wall + bottom' : '');
     DR.cur.objects.push(pn); made.push({ p, pn });
     x += p.w + (i < front.length - 1 ? n.glassGap : 0);
   });
@@ -6509,12 +6509,23 @@ function drBuildShower() {
     const top = n.clampOff, bot = Math.max(top + 4, botY - n.clampOff);
     [top, bot].forEach(yy => mk(pn, 'standoff', pn.quad ? shEdgeX(pn, side, yy) : (onLeft ? 0 : pn.w), yy, 'wall clamp'));
   });
+  // every fixed panel also gets two bottom (curb) clamps; a notched panel gets one on top of the knee wall
+  if (!channel) made.filter(m => m.p.role === 'panel').forEach(m => {
+    const pn = m.pn, inset = Math.min(6, pn.w / 4);
+    const botAt = xx => pn.quad ? pn.pts[3].y + (pn.pts[2].y - pn.pts[3].y) * ((xx - pn.pts[3].x) / ((pn.pts[2].x - pn.pts[3].x) || 1)) : pn.h;
+    if (m.p.notch) {
+      const nb = m.p.notch, nl = right; // the knee-wall notch is on the wall side: left when the door opens right
+      const a = nb.w;
+      mk(pn, 'standoff', nl ? a + (pn.w - a) / 2 : (pn.w - a) / 2, pn.h, 'bottom clamp');
+      mk(pn, 'standoff', nl ? a / 2 : pn.w - a / 2, pn.h - nb.h, 'bottom clamp (on knee wall)');
+    } else [inset, pn.w - inset].forEach(xx => mk(pn, 'standoff', xx, botAt(xx), 'bottom clamp'));
+  });
   const ret = res.find(p => p.role === 'return');
   if (ret) {
     const pn = drNewPanel('rect', x + 14, y0); pn.w = ret.w; pn.h = ret.h; pn.label = 'Return panel'; pn.glass = glassKind;
     pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (channel ? ', set in U-channel' : ''); pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
     DR.cur.objects.push(pn);
-    if (!channel) [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', pn.w, yy, 'wall clamp'));
+    if (!channel) { [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', pn.w, yy, 'wall clamp')); [Math.min(6, pn.w / 4), pn.w - Math.min(6, pn.w / 4)].forEach(xx => mk(pn, 'standoff', xx, pn.h, 'bottom clamp')); }
     [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', 0, yy, '90° glass clamp'));
     DR.cur.objects.push({ id: uid(), type: 'label', x: pn.x, y: y0 - 3, text: 'RETURN (side view)', size: 2.5, vis: 'both' });
   }
@@ -7166,14 +7177,14 @@ const LD = { list: [], listening: false, denied: false, showClosed: false };
 const LD_LAYOUTS = { door: 'Door only', doorpanel: 'Door + panel', pdp: 'Panel + door + panel', corner: '90° corner', neo: 'Neo-angle', tub: 'Tub door + panel', steam: 'Steam unit', panel: 'Splash / walk-in panel', slider: 'Sliding door' };
 const LD_SPOT = { L: 'left wall', BL: 'back wall, left', BC: 'back wall, middle', BR: 'back wall, right', R: 'right wall' };
 const LD_SLIDE = { single: 'Single slider', bypass: 'Bypass slider', barn: 'Barn-style slider', corner: 'Corner slider' };
-const LD_EXTRA = { channel: 'U-channel instead of clamps ($ per job)', notch: 'Pony wall / bench notch ($ per job)', coat: 'Easy-clean coating ($ per sq ft)', removal: 'Remove old door ($ per job)' };
+const LD_EXTRA = { channel: 'U-channel instead of clamps ($ per job)', notch: 'Pony wall / bench notch ($ per job)', coat: 'Easy-clean coating ($ per sq ft)', sweep: 'Bottom sweep ($ per job)', seals: 'Edge seals ($ per job)' };
 const LD_GLASS = { clear: 'Clear', lowiron: 'Low-iron', frost: 'Frosted' };
 const LD_FIN = { chrome: 'Chrome', black: 'Matte black', brushed: 'Brushed nickel', gold: 'Satin brass' };
 const LD_PRICE_DEFAULT = {
   enabled: false, rangePct: 15, minJob: 0,
   rate: { clear: 0, lowiron: 0, frost: 0 },
   base: { door: 0, doorpanel: 0, pdp: 0, corner: 0, neo: 0, tub: 0, steam: 0, panel: 0, slider: 0, slider_bypass: 0, slider_barn: 0, slider_corner: 0 },
-  extra: { channel: 0, notch: 0, coat: 0, removal: 0 },
+  extra: { channel: 0, notch: 0, coat: 0, removal: 0, sweep: 0, seals: 0 },
   finish: { chrome: 0, black: 0, brushed: 0, gold: 0 },
 };
 // Same formula as builder.html — keep the two in step.
@@ -7190,7 +7201,7 @@ function ldEstimate(pr, d) {
   const bs = pr.base || {}, rate = (pr.rate || {})[d.glass] || 0, base = (d.layout === 'slider' && d.slideType && d.slideType !== 'single' ? +bs['slider_' + d.slideType] || 0 : 0) || bs[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
   if (!rate || !base) return null;
   const ex = pr.extra || {}, a = ldArea(d);
-  const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0);
+  const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0) + (d.sweep ? +ex.sweep || 0 : 0) + (d.seals ? +ex.seals || 0 : 0);
   const est = base + a * rate + fin + add, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
   const r50 = v => Math.round(v / 50) * 50;
   const lo = Math.max(r50(est * (1 - r)), +pr.minJob || 0), hi = Math.max(r50(est * (1 + r)), lo + 50);
@@ -7219,7 +7230,7 @@ function ldSummary(d) {
   size += ` × ${f(d.H)} tall`;
   if (d.layout === 'steam' && +d.ceil) size += `, ceiling ${f(d.ceil)}`;
   const style = d.layout === 'slider' && LD_SLIDE[d.slideType] ? LD_SLIDE[d.slideType] + (d.tub ? ' on a tub' : '') : (LD_LAYOUTS[d.layout] || 'Shower');
-  return `${style} · ${size} · ${LD_GLASS[d.glass] || 'Clear'} glass · ${LD_FIN[d.finish] || 'Chrome'}${d.fix === 'channel' ? ' · U-channel' : d.fix === 'clamps' ? ' · clamps' : ''}${d.side ? (d.layout === 'panel' ? ' · open on the ' : ' · door on the ') + (d.side === 'left' ? 'left' : 'right') : ''}`;
+  return `${style} · ${size} · ${LD_GLASS[d.glass] || 'Clear'} glass · ${LD_FIN[d.finish] || 'Chrome'}${d.fix === 'channel' ? ' · U-channel' : d.fix === 'clamps' ? ' · clamps' : ''}${d.side ? (d.layout === 'panel' ? ' · open on the ' : ' · door on the ') + (d.side === 'left' ? 'left' : 'right') : ''}${d.handle ? ' · handle on the ' + (d.handle === 'left' ? 'left' : 'right') : ''}${d.hinge === 'wall' ? ' (hinges on the wall)' : d.hinge === 'glass' ? ' (hinges on the panel)' : ''}`;
 }
 // Second line: site details and extras the customer picked
 function ldDetails(d) {
@@ -7228,6 +7239,7 @@ function ldDetails(d) {
   if (LD_SPOT[d.valve]) out.push('Water handle: ' + LD_SPOT[d.valve]);
   if (d.wall === 'pony' || d.wall === 'bench') out.push((d.wall === 'pony' ? 'Pony wall' : 'Bench') + (+d.wallH ? ' ' + drFmt(+d.wallH) + ' tall' : '') + (+d.wallL ? ', ' + drFmt(+d.wallL) + (d.wall === 'pony' ? ' long' : ' deep') : '') + (d.wallSide ? ' on the ' + (d.wallSide === 'left' ? 'left' : 'right') : ''));
   if (d.coat) out.push('wants easy-clean coating');
+  if (d.sweep || d.seals) out.push('wants ' + [d.sweep && 'bottom sweep', d.seals && 'edge seals'].filter(Boolean).join(' + '));
   if (d.removal) out.push('remove old door');
   const tile = { done: 'tile is done', progress: 'tile going in now', planning: 'remodel not started' }[d.tile]; if (tile) out.push(tile);
   const when = { asap: 'wants it ASAP', soon: 'in 1–3 months', later: 'just getting prices' }[d.when]; if (when) out.push(when);
@@ -7299,12 +7311,14 @@ function ldOpenDrawing(id) {
   // a pony wall or bench next to a door + panel is the knee-wall layout (notched panel)
   const knee = (d.wall === 'pony' || d.wall === 'bench') && ['doorpanel', 'steam'].includes(d.layout);
   pick('layout', knee ? 'knee' : d.layout); pick('fix', d.fix);
-  if (d.layout === 'slider') pick('slideType', d.slideType === 'corner' ? 'single' : d.slideType); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', d.side);
+  // the builder's "door opens on" = handle side for a door on its own, door + panels or neo; door position otherwise
+  const doorSide = ['door', 'pdp', 'neo'].includes(d.layout) ? (d.handle || d.side) : d.side;
+  if (d.layout === 'slider') pick('slideType', d.slideType === 'corner' ? 'single' : d.slideType); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', doorSide);
   const fill = (k, v) => { const el = document.getElementById('sh_' + k); if (el && +v) el.value = drFmtPlain(+v); };
   if (knee) { fill('kneeW', d.wallL); fill('kneeH', d.wallH); }
   fill('W', d.layout === 'panel' && +d.P ? d.P : d.W); fill('HL', d.H); fill('HR', d.H); fill('D', d.D); fill('A', d.A); fill('B', d.B); fill('C', d.A); fill('ceilH', d.ceil);
   const wt = document.getElementById('sh_WT'); if (wt) wt.value = '';
-  const extra = (d.slideType === 'corner' ? ' Corner slider: the side (return) panel isn\'t drawn — add it by hand.' : '') + (d.layout === 'panel' && +d.P ? ' Walk-in: set the panel width to ' + drFmt(+d.P) + ' after building.' : '') + (d.wall === 'pony' || d.wall === 'bench') && !knee ? ' The ' + (d.wall === 'pony' ? 'pony wall' : 'bench') + ' isn\'t drawn for this style — notch the panel by hand after building.' : '';
+  const extra = (d.hinge === 'wall' ? ' They want the handle next to the panel (door hinged off the wall) — the builder hinges the door off the panel, so change the hinges to wall-mount by hand.' : '') + (d.slideType === 'corner' ? ' Corner slider: the side (return) panel isn\'t drawn — add it by hand.' : '') + (d.layout === 'panel' && +d.P ? ' Walk-in: set the panel width to ' + drFmt(+d.P) + ' after building.' : '') + (d.wall === 'pony' || d.wall === 'bench') && !knee ? ' The ' + (d.wall === 'pony' ? 'pony wall' : 'bench') + ' isn\'t drawn for this style — notch the panel by hand after building.' : '';
   showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.' + extra);
 }
 // ── website prices ──
