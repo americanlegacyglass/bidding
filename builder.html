@@ -389,7 +389,7 @@ function draw() {
   const totalW = L === 'slider' ? S.W : ps.reduce((a, q) => a + q.w, 0), ret = isCornerish() ? S.D : 0;
   const headroom = L === 'steam' ? S.ceil - H : Math.max(12, 86 - H), tubH = onTub() ? 18 : 0;
   const pad = 6, gap = 0.4, x0 = pad + 4, y0 = pad + headroom;
-  const vbW = totalW + (ret ? ret * 0.55 + 4 : 0) + pad * 2 + 8;
+  const vbW = totalW + pad * 2 + 8;
   const k = Math.SQRT1_2, neoPlan = (2 * S.A * k + S.B / 2) + S.B + 10;
   const planSc = Math.min(1, (vbW - 2 * pad - 6) / Math.max(totalW, 1)), doorR = Math.max(0, ...ps.filter(q => q.r === 'door').map(q => q.w)) * planSc;
   const planTop = y0 + H + tubH + 16, planH = L === 'neo' ? neoPlan : (isCornerish() ? Math.min(S.D * planSc, 30) : 16) + Math.max(doorR, 10) + 10, vbH = y0 + H + tubH + 6;
@@ -411,7 +411,7 @@ function draw() {
   const floorY = tubH ? YF : YF; // shower floor level at the glass line
   // bathroom wall around the opening (paint) + the opening
   s += `<rect x="0" y="0" width="${vbW}" height="${YF + tubH + 6}" fill="#f2eee7"/>`;
-  s += `<rect x="${X0 - 1.2}" y="${wallTop - 1.2}" width="${totalW + 2.4 + (ret ? ret * .55 : 0)}" height="${YF - wallTop + 1.2}" fill="#d9d2c6"/>`;
+  s += `<rect x="${X0 - 1.2}" y="${wallTop - 1.2}" width="${totalW + 2.4}" height="${YF - wallTop + 1.2}" fill="#d9d2c6"/>`;
   const tileFill = '#ece6db', grout = '#d2c9b9';
   if (L === 'neo') {
     const aT = B(vx, wallTop), aB = B(vx, YF);
@@ -434,8 +434,9 @@ function draw() {
     };
     if (leftWall) s += sideWall(X0, bTL, .06);
     if (rightWall) s += sideWall(X1, bTR, .1);
-    if (!rightWall) { // corner: the side is glass — the floor and back wall continue a little to the right
-      s += `<polygon points="${P([[X1, wallTop], bTR, bBR, [X1, YF]])}" fill="#e6e0d5"/>`;
+    if (!rightWall) { // corner: no wall on the right — you see the bathroom through the side glass
+      s += `<polygon points="${P([[X1, wallTop], bTR, bBR, [X1, YF]])}" fill="#f2eee7"/>`;
+      s += `<line x1="${bTR[0]}" y1="${bTR[1]}" x2="${bBR[0]}" y2="${bBR[1]}" stroke="#d2c9b9" stroke-width=".4"/>`;
     }
     if (!tubH) {
       s += `<polygon points="${P([[X0, YF], [X1, YF], bBR, bBL])}" fill="#d9d3c9"/>`;
@@ -535,7 +536,18 @@ function draw() {
     });
     s += barn ? metal(x0 - .2, y0 - 2.2, totalW + .4, 1.1, .1) : metal(x0 - .2, y0 - 1.4, totalW + .4, 1.8, .9);
   }
-  if (ret) { const rx = x0 + totalW, rw = ret * 0.55; s += `<path d="M${rx},${y0} L${rx + rw},${y0 - rw * 0.35} L${rx + rw},${y0 + H - rw * 0.35} L${rx},${y0 + H} Z" fill="url(#gl)" stroke="#6f8f99" stroke-width=".35"/>`; }
+  if (ret) { // side (return) glass runs from the front corner back toward the back wall, in perspective
+    const t = Math.min(Math.max(ret / 36, .3), 1), fT = [X1, y0], fB = [X1, YF], bT = lerp(fT, B(X1, y0), t), bB = lerp(fB, B(X1, YF), t);
+    const rp = P([fT, bT, bB, fB]);
+    s += `<polygon points="${rp}" fill="url(#gl)" stroke="#94c3b6" stroke-width=".45"/><polygon points="${rp}" fill="#fff" opacity=".18"/>`;
+    s += `<line x1="${fT[0]}" y1="${fT[1]}" x2="${fB[0]}" y2="${fB[1]}" stroke="#94c3b6" stroke-width=".7"/>`;
+    // the curb turns the corner with the glass
+    s += `<polygon points="${P([fB, bB, [bB[0], bB[1] + 1.2], [fB[0], fB[1] + 3.5]])}" fill="#e4ded3"/>`;
+    if (S.fix === 'channel') s += `<polygon points="${P([[fB[0], fB[1] - 1], [bB[0], bB[1] - .8], bB, fB])}" fill="url(#mt)"/>`;
+    else [.3, .75].forEach(u => { const c = lerp(fB, bB, u); s += metal(c[0] - .9, c[1] - .7, 1.8, 1.3, .3); });
+    // glass-to-glass corner clamps where the front glass meets the side glass
+    if (L !== 'slider' && ps[ps.length - 1].r === 'panel') [y0 + 8, YF - 8].forEach(yy => { s += metal(X1 - 1, yy - .75, 2, 1.5, .3); }); // only where a fixed panel meets the side glass
+  }
   const pl = plan(ps, totalW);
   const ps2 = $('plan'); ps2.setAttribute('viewBox', `${pl.x0.toFixed(1)} ${pl.y0.toFixed(1)} ${(pl.x1 - pl.x0).toFixed(1)} ${(pl.y1 - pl.y0).toFixed(1)}`); ps2.innerHTML = pl.svg;
   s = s.replace('DEFS_EXTRA', defsExtra);
