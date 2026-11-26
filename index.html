@@ -67,6 +67,7 @@ onAuthStateChanged(auth, async user => {
     if (window._unsubscribeJobs) window._unsubscribeJobs();
     if (window._unsubscribeCustomers) window._unsubscribeCustomers();
     if (window.drReset) window.drReset();
+    if (window.ldReset) window.ldReset();
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appContainer').style.display = 'none';
   }
@@ -460,6 +461,20 @@ onAuthStateChanged(auth, async user => {
   .td-actions { grid-column:1 / -1; flex-basis:100%; display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--border); }
   .td-lab { display:flex; flex-direction:column; gap:.2rem; font-size:.7rem; color:var(--muted); font-family:'DM Mono',monospace; }
   .td-lab input, .td-lab select { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:.4rem .5rem; font-family:'DM Sans',sans-serif; font-size:.82rem; }
+
+  /* ── Website requests (Dashboard) ── */
+  #leadBox { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; margin: .2rem 0 .9rem; }
+  #leadBox:empty { display: none; }
+  .ld-head { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+  .ld-new { background: #e8c27a; color: #111; font-family: 'DM Mono', monospace; font-size: .62rem; font-weight: 700; padding: .12rem .4rem; border-radius: 4px; letter-spacing: .04em; }
+  .ld-card { border-top: 1px solid var(--border); margin-top: .6rem; padding-top: .6rem; }
+  .ld-top { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .ld-when { margin-left: auto; font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--muted); }
+  .ld-line { font-size: .8rem; color: var(--muted); margin-top: .25rem; word-break: break-word; }
+  .ld-line a { color: var(--accent); text-decoration: none; }
+  .ld-line b { color: var(--text); }
+  .ld-notes { font-style: italic; color: var(--text); }
+  .ld-acts { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .5rem; }
 
   /* ── Sketch marker toolbar ── */
   .marker-type-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; padding: 0.4rem 0.7rem; transition: all 0.15s; }
@@ -1338,6 +1353,7 @@ onAuthStateChanged(auth, async user => {
     </div>
 
     <!-- To-do widgets -->
+    <div id="leadBox"></div>
     <div class="td-widgets" id="tdWidgets"></div>
     <div id="tdNote"></div>
 
@@ -1655,6 +1671,7 @@ onAuthStateChanged(auth, async user => {
       <button class="dr-btn" data-tool="marker" data-kind="lock" onclick="drSetTool('marker','lock')"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg>Lock</button>
       <button class="dr-btn" data-tool="marker" data-kind="standoff" onclick="drSetTool('marker','standoff')">◎ Standoff</button>
       <button class="dr-btn" data-tool="marker" data-kind="notch" onclick="drSetTool('marker','notch')">▢ Notch</button>
+      <button class="dr-btn" data-tool="marker" data-kind="cutout" onclick="drSetTool('marker','cutout')" title="Outlet or switch cutout through the glass">⬚ Cutout</button>
       <span class="dr-sep"></span>
       <button class="dr-btn" data-tool="dim" onclick="drSetTool('dim')">↔ Dimension</button>
       <button class="dr-btn" data-tool="label" onclick="drSetTool('label')">T Text</button>
@@ -1666,6 +1683,9 @@ onAuthStateChanged(auth, async user => {
       <span class="dr-sep"></span>
       <label style="font-size:.7rem;color:var(--muted);display:flex;gap:.3rem;align-items:center;"><input type="checkbox" id="drSnapChk" onchange="DR.snap=this.checked;drRender()"> Snap</label>
       <select class="dr-in" id="drSnapSel" style="width:auto;" onchange="DR.snapIn=parseFloat(this.value);DR.snap=true;drRender()"><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option><option value="6">6"</option></select>
+      <span class="dr-sep"></span>
+      <label style="font-size:.7rem;color:var(--muted);display:flex;gap:.3rem;align-items:center;" title="Shaded glass and real hardware shapes. The shop sheet always prints as clean lines."><input type="checkbox" id="drRealChk" onchange="drSetReal(this.checked)"> Realistic</label>
+      <select class="dr-in" id="drFinishSel" style="width:auto;" onchange="drSetFinish(this.value)" title="Hardware finish"><option value="chrome">Chrome</option><option value="black">Matte black</option><option value="brushed">Brushed nickel</option><option value="gold">Satin brass</option></select>
       <span class="dr-sep"></span>
       <button class="dr-btn" data-view="edit" onclick="drSetView('edit')">✎ Edit</button>
       <button class="dr-btn" data-view="customer" onclick="drSetView('customer')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg>Customer preview</button>
@@ -4554,6 +4574,7 @@ function getPipelineStage(job) {
 }
 
 function renderDashboard() {
+  if (window.ldInit) { ldInit(); ldRender(); }
   const bids        = allJobs.filter(j => j.type === 'bid');
   const accepted    = bids.filter(j => j.status === 'accepted');
   const totalValue  = bids.reduce((s,j) => s + (j.total||0), 0);
@@ -5154,6 +5175,14 @@ const DR_KINDS = {
   lock:     { label: 'Lock',     code: 'L', size: 1 },
   standoff: { label: 'Standoff', code: 'S', size: 0.75 },
   notch:    { label: 'Notch',    code: 'N', size: 2 },
+  cutout:   { label: 'Cutout',   code: 'C', size: 2 },
+};
+// Hardware finishes for the realistic view (a = highlight, b = mid, c = shadow)
+const DR_FINISH = {
+  chrome:  { t: 'Chrome',         a: '#fbfcfd', b: '#a9b2b7', c: '#59626a' },
+  black:   { t: 'Matte black',    a: '#555555', b: '#2b2b2b', c: '#0c0c0c' },
+  brushed: { t: 'Brushed nickel', a: '#efede7', b: '#bebab1', c: '#7d786e' },
+  gold:    { t: 'Satin brass',    a: '#f8e7a9', b: '#c9a24a', c: '#85671e' },
 };
 const DR_SHAPES = { rect: 'Rectangle', ellipse: 'Circle / oval', arch: 'Arch top', poly: 'Polygon' };
 const DR_CORNER = { sq: 'Square', rad: 'Round', chamfer: 'Cut' };
@@ -5186,7 +5215,7 @@ function drFmtPlain(v) { return drFmt(v).replace(/"/g, ''); }
 const drEsc = s => escapeHtml(s);
 const drNum = (v, d = 0) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
 function drClone(o) { return JSON.parse(JSON.stringify(o)); }
-function drNew() { return { id: null, name: '', customer: '', job: '', shopNotes: '', objects: [] }; }
+function drNew() { return { id: null, name: '', customer: '', job: '', shopNotes: '', objects: [], real: true, finish: 'chrome' }; }
 function drObj(id) { return DR.cur && DR.cur.objects.find(o => o.id === id); }
 function drPanels() { return DR.cur.objects.filter(o => o.type === 'panel'); }
 
@@ -5272,6 +5301,8 @@ function drBounds(d, mode, customerDims) {
       add(o.x1, o.y1); add(o.x2, o.y2);
     } else if (o.type === 'label' && drShown(o, mode)) {
       add(o.x, o.y - o.size); add(o.x + Math.max(4, String(o.text || '').length * o.size * 0.6), o.y + 1);
+    } else if (o.type === 'plan' && drShown(o, mode)) {
+      const b = drPlanBounds(o); add(o.x + b.x0, o.y + b.y0 - 6); add(o.x + b.x1, o.y + b.y1 + 2 + (o.notes || []).length * 3.2); (o.notes || []).forEach(t => add(o.x + b.x0 + String(t).length * 1.15, o.y + b.y1));
     }
   });
   if (x0 === Infinity) return { x0: 0, y0: 0, x1: 100, y1: 70 };
@@ -5297,7 +5328,13 @@ function drMarkerSvg(m, p, num, opt, ink) {
   const sw = 1.3 / px, sel = opt.sel === m.id, col = sel ? '#e8c27a' : ink, attrs = opt.edit ? `data-id="${m.id}" style="cursor:move"` : '';
   const r = 7 / px, fs = 9 / px;
   let g = '';
-  if (m.kind === 'hole') {
+  if (m.kind === 'cutout') {
+    const w = Math.max(drNum(m.w, 2), 0.5), h = Math.max(drNum(m.h, 3), 0.5);
+    g = `<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${Math.min(drNum(m.r, 0), w / 2, h / 2)}" fill="${opt.dark ? '#0f0f0f' : '#fff'}" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${3 / px} ${2 / px}"/>` +
+        `<text x="${cx}" y="${cy + fs * 0.35}" font-size="${fs}" text-anchor="middle" font-family="Arial,sans-serif" fill="${col}">C</text>`;
+  } else if (opt.real && ['hinge', 'handle', 'lock', 'standoff'].includes(m.kind)) {
+    g = drMarkerReal(m, p, opt);
+  } else if (m.kind === 'hole') {
     const rr = Math.max((m.size || 0.5) / 2, 2.5 / px);
     g = `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="${opt.dark ? '#0f0f0f' : '#fff'}" stroke="${col}" stroke-width="${sw}"/>` +
         `<line x1="${cx - rr * 1.5}" y1="${cy}" x2="${cx + rr * 1.5}" y2="${cy}" stroke="${col}" stroke-width="${sw * 0.6}"/>` +
@@ -5319,12 +5356,85 @@ function drMarkerSvg(m, p, num, opt, ink) {
   return `<g ${attrs}>${g}<circle cx="${cx}" cy="${cy}" r="${Math.max(r, 8 / px)}" fill="transparent" stroke="none"/></g>${tag}`;
 }
 
+// Realistic hardware shapes, drawn at true size in inches, filled with the drawing's metal finish.
+function drMarkerReal(m, p, opt) {
+  const cx = p.x + m.xIn, cy = p.y + m.yIn, px = opt.px, sel = opt.sel === m.id;
+  const st = sel ? '#e8c27a' : 'rgba(0,0,0,0.55)', sw = (sel ? 2.2 : 0.8) / px;
+  const onL = m.xIn < 1, onR = m.xIn > p.w - 1;
+  const box = (x, y, w, h, rx) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#mtl)" stroke="${st}" stroke-width="${sw}"/>`;
+  const dot = (x, y) => `<circle cx="${x}" cy="${y}" r="0.16" fill="rgba(0,0,0,0.45)"/>`;
+  if (m.kind === 'hinge') {
+    const w = 3, h = 2.4, x = onL ? cx - 0.45 : onR ? cx - w + 0.45 : cx - w / 2;
+    const kx = onL ? cx - 0.3 : onR ? cx - 0.3 : cx - 0.3;
+    const sx = onL ? x + w * 0.62 : x + w * 0.38;
+    return box(x, cy - h / 2, w, h, 0.25) + box(kx, cy - h / 2 - 0.25, 0.6, h + 0.5, 0.25) + dot(sx, cy - h * 0.25) + dot(sx, cy + h * 0.25);
+  }
+  if (m.kind === 'standoff') {
+    if (/clamp/i.test(m.note || '')) { const w = 2, h = 1.5, x = onL ? cx - 0.35 : onR ? cx - w + 0.35 : cx - w / 2; return box(x, cy - h / 2, w, h, 0.3) + dot(x + w / 2, cy); }
+    const r = Math.max(drNum(m.size, 0.75) / 2, 0.55);
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#mtl)" stroke="${st}" stroke-width="${sw}"/><circle cx="${cx}" cy="${cy}" r="${r * 0.4}" fill="rgba(0,0,0,0.25)"/>`;
+  }
+  if (m.kind === 'handle') {
+    const L = Math.min(Math.max(drNum(m.len, 12), 4), Math.max(p.h - 2, 4)), off = (L / 2) - 1.2;
+    return box(cx - 0.3, cy - off - 0.45, 0.6, 0.9, 0.15) + box(cx - 0.3, cy + off - 0.45, 0.6, 0.9, 0.15) + box(cx - 0.42, cy - L / 2, 0.84, L, 0.42);
+  }
+  // lock / knob
+  return `<circle cx="${cx}" cy="${cy}" r="1" fill="url(#mtl)" stroke="${st}" stroke-width="${sw}"/><rect x="${cx - 0.1}" y="${cy - 0.5}" width="0.2" height="1" fill="rgba(0,0,0,0.5)"/>`;
+}
+// Glass colors for the realistic view: [edge, middle, edge] for light and dark backgrounds
+const DR_GLASS_REAL = {
+  clear:   { l: ['#cfe7ed', '#f1fafc', '#d6ecf1'], d: ['rgba(120,200,215,0.30)', 'rgba(200,240,248,0.16)', 'rgba(120,200,215,0.26)'] },
+  lowiron: { l: ['#e6f3f6', '#fbfeff', '#e9f5f8'], d: ['rgba(190,230,240,0.24)', 'rgba(230,250,255,0.12)', 'rgba(190,230,240,0.22)'] },
+  frost:   { l: ['#e9ecee', '#f7f8f9', '#e4e8ea'], d: ['rgba(235,240,242,0.40)', 'rgba(250,250,250,0.30)', 'rgba(235,240,242,0.38)'] },
+  tint:    { l: ['#b9c3c5', '#d4dbdc', '#bcc6c8'], d: ['rgba(110,120,122,0.55)', 'rgba(150,160,162,0.42)', 'rgba(110,120,122,0.52)'] },
+};
+// Plan view (top-down) object: walls, glass runs, door and its swing, in inches relative to o.x, o.y
+function drPlanBounds(o) {
+  let x0 = 0, y0 = 0, x1 = 10, y1 = 10, first = true;
+  const add = (x, y) => { if (first) { x0 = x1 = x; y0 = y1 = y; first = false; } x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  (o.walls || []).forEach(w => { add(w[0], w[1]); add(w[2], w[3]); });
+  (o.glass || []).forEach(g => { add(g.x1, g.y1); add(g.x2, g.y2); });
+  if (o.door) { const r = o.door.r; add(o.door.hx - r, o.door.hy - r); add(o.door.hx + r, o.door.hy + r); }
+  return { x0, y0, x1, y1 };
+}
+function drPlanSvg(o, opt, ink) {
+  const px = opt.px, sel = opt.sel === o.id, f = n => +(+n).toFixed(3);
+  const glassCol = opt.dark ? 'rgba(120,200,215,0.85)' : '#6fb4c6';
+  let s = `<g transform="translate(${o.x},${o.y})" ${opt.edit ? `data-id="${o.id}" style="cursor:move"` : ''}>`;
+  const b = drPlanBounds(o);
+  if (opt.edit) s += `<rect x="${b.x0 - 2}" y="${b.y0 - 2}" width="${b.x1 - b.x0 + 4}" height="${b.y1 - b.y0 + 4}" fill="transparent" stroke="${sel ? '#e8c27a' : 'none'}" stroke-width="${1.2 / px}" stroke-dasharray="${4 / px} ${3 / px}"/>`;
+  (o.walls || []).forEach(w => { s += `<line x1="${f(w[0])}" y1="${f(w[1])}" x2="${f(w[2])}" y2="${f(w[3])}" stroke="${opt.dark ? '#777' : '#8a8a8a'}" stroke-width="3" stroke-linecap="square"/>`; });
+  (o.glass || []).forEach(g => {
+    s += `<line x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}" stroke="${g.role === 'door' ? 'none' : glassCol}" stroke-width="0.9" stroke-linecap="butt"/>`;
+    if (g.role !== 'door') s += `<line x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}" stroke="${ink}" stroke-width="${0.6 / px}" />`;
+  });
+  if (o.door) {
+    const dd = o.door, ex = dd.hx + dd.r * Math.cos(dd.a0), ey = dd.hy + dd.r * Math.sin(dd.a0), ox = dd.hx + dd.r * Math.cos(dd.a1), oy = dd.hy + dd.r * Math.sin(dd.a1);
+    const sweep = ((dd.a1 - dd.a0 + Math.PI * 4) % (Math.PI * 2)) < Math.PI ? 1 : 0;
+    s += `<line x1="${f(dd.hx)}" y1="${f(dd.hy)}" x2="${f(ex)}" y2="${f(ey)}" stroke="${glassCol}" stroke-width="0.9" opacity="0.45"/>`;
+    s += `<line x1="${f(dd.hx)}" y1="${f(dd.hy)}" x2="${f(ox)}" y2="${f(oy)}" stroke="${glassCol}" stroke-width="0.9"/><line x1="${f(dd.hx)}" y1="${f(dd.hy)}" x2="${f(ox)}" y2="${f(oy)}" stroke="${ink}" stroke-width="${0.6 / px}"/>`;
+    s += `<path d="M${f(ex)},${f(ey)} A${f(dd.r)},${f(dd.r)} 0 0 ${sweep} ${f(ox)},${f(oy)}" fill="none" stroke="${ink}" stroke-width="${0.9 / px}" stroke-dasharray="${4 / px} ${3 / px}"/>`;
+    s += `<circle cx="${f(dd.hx)}" cy="${f(dd.hy)}" r="${2.5 / px}" fill="${ink}"/>`;
+  }
+  s += `<text x="${b.x0}" y="${b.y0 - 3}" font-size="${Math.max(10 / px, 2.2)}" font-family="Arial,sans-serif" fill="${ink}" font-weight="bold">${drEsc(o.title || 'PLAN VIEW (top down)')}</text>`;
+  (o.notes || []).forEach((t, i) => { s += `<text x="${b.x0}" y="${b.y1 + 4 + i * 3}" font-size="${Math.max(9 / px, 2)}" font-family="Arial,sans-serif" fill="${ink}" opacity="0.8">${drEsc(t)}</text>`; });
+  return s + '</g>';
+}
+// Edge lengths of a polygon panel (shop sheet) — so an out-of-square or notched piece can be cut without guessing.
+function drPolyEdges(p) {
+  const out = [];
+  for (let i = 0; i < p.pts.length; i++) { const a = p.pts[i], b = p.pts[(i + 1) % p.pts.length]; out.push({ a, b, len: Math.hypot(b.x - a.x, b.y - a.y) }); }
+  return out;
+}
+
 function drContent(d, opt) {
   const px = opt.px, mode = opt.mode, dark = !!opt.dark, edit = !!opt.edit;
   const ink = dark ? '#e8e8e8' : '#111';
   const rows = drMarkerRows(d), numOf = {};
   rows.forEach(r => numOf[r.m.id] = r.n);
   let out = '', defs = '';
+  const real = !!opt.real, fin = DR_FINISH[d.finish] || DR_FINISH.chrome;
+  if (real) defs += `<linearGradient id="mtl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${fin.a}"/><stop offset="0.45" stop-color="${fin.b}"/><stop offset="0.55" stop-color="${fin.a}"/><stop offset="1" stop-color="${fin.c}"/></linearGradient>`;
   const showDims = mode === 'shop' || opt.customerDims;
   d.objects.filter(o => o.type === 'panel').forEach(p => {
     const sel = opt.sel === p.id;
@@ -5334,7 +5444,22 @@ function drContent(d, opt) {
     const ft = p.frame === 'metal' ? 1.0 : p.frame === 'wood' ? 1.5 : 0;
     const fcol = p.frame === 'wood' ? '#a9794a' : '#8a8f94';
     let g = `<g transform="translate(${p.x},${p.y})">`;
-    g += `<path d="${path}" fill="${fill}" stroke="none" ${edit ? `data-id="${p.id}" style="cursor:move"` : ''}/>`;
+    let pfill = fill;
+    if (real) {
+      const gc = (DR_GLASS_REAL[p.glass] || DR_GLASS_REAL.clear)[dark ? 'd' : 'l'];
+      defs += `<linearGradient id="gl_${p.id}" x1="0" y1="0" x2="1" y2="0.35"><stop offset="0" stop-color="${gc[0]}"/><stop offset="0.5" stop-color="${gc[1]}"/><stop offset="1" stop-color="${gc[2]}"/></linearGradient>`;
+      pfill = `url(#gl_${p.id})`;
+    }
+    g += `<path d="${path}" fill="${pfill}" stroke="none" ${edit ? `data-id="${p.id}" style="cursor:move"` : ''}/>`;
+    if (real) {
+      const w = p.w, h = p.h, op = p.glass === 'frost' ? 0.25 : 0.55;
+      g += `<g clip-path="url(#clp_${p.id})" pointer-events="none"><polygon points="${w * 0.18},0 ${w * 0.34},0 ${w * 0.02},${h} ${-w * 0.14},${h}" fill="#fff" opacity="${dark ? op * 0.35 : op}"/><polygon points="${w * 0.4},0 ${w * 0.45},0 ${w * 0.13},${h} ${w * 0.08},${h}" fill="#fff" opacity="${dark ? op * 0.25 : op * 0.7}"/>` +
+        `<path d="${path}" fill="none" stroke="${dark ? 'rgba(130,200,180,0.7)' : '#8cc4b5'}" stroke-width="0.7"/></g>`;
+    }
+    if (p.swing === 'left' || p.swing === 'right') {
+      const hx = p.swing === 'left' ? 0 : p.w, lx = p.swing === 'left' ? p.w : 0;
+      g += `<path d="M${lx},0 L${hx},${p.h / 2} L${lx},${p.h}" fill="none" stroke="${ink}" stroke-width="${0.9 / px}" stroke-dasharray="${5 / px} ${4 / px}" opacity="0.6" clip-path="url(#clp_${p.id})" pointer-events="none"/>`;
+    }
     if (ft) g += `<path d="${path}" fill="none" stroke="${fcol}" stroke-width="${ft * 2}" clip-path="url(#clp_${p.id})" pointer-events="none"/>`;
     if (p.cols > 1 || p.rows > 1) {
       let ml = '';
@@ -5343,13 +5468,13 @@ function drContent(d, opt) {
       g += `<g stroke="${p.frame === 'wood' ? fcol : (dark ? '#9aa0a5' : '#666')}" stroke-width="0.75" clip-path="url(#clp_${p.id})" pointer-events="none">${ml}</g>`;
     }
     g += `<path d="${path}" fill="none" stroke="${sel ? '#e8c27a' : ink}" stroke-width="${(sel ? 2.2 : 1.6) / px}" pointer-events="none"/>`;
-    const fs = Math.min(Math.max(Math.min(p.w, p.h) / 7, 12 / px), 28 / px);
     const nm = p.label || '';
+    const fs = Math.min(Math.max(Math.min(p.w, p.h) / 7, 9 / px), 28 / px, nm ? (p.w * 0.9) / (nm.length * 0.56) : 99);
     if (nm) g += `<text x="${p.w / 2}" y="${p.h / 2 + fs * 0.35}" font-size="${fs}" font-family="Arial,sans-serif" text-anchor="middle" fill="${ink}" opacity="0.85" pointer-events="none">${drEsc(nm)}</text>`;
     g += '</g>';
     out += g;
     // auto overall dimensions
-    if (showDims) {
+    if (showDims && !p.quad) {
       const off = 4, bx = p.x, by = p.y, bw = p.w, bh = p.h;
       const ext = (xa, ya, xb, yb) => `<line x1="${xa}" y1="${ya}" x2="${xb}" y2="${yb}" stroke="${ink}" stroke-width="${0.7 / px}" stroke-dasharray="${2 / px} ${2 / px}"/>`;
       out += ext(bx, by + bh, bx, by + bh + off + 1) + ext(bx + bw, by + bh, bx + bw, by + bh + off + 1);
@@ -5361,6 +5486,17 @@ function drContent(d, opt) {
       else out += ext(bx, by, bx - off - 1, by) + ext(bx, by + bh, bx - off - 1, by + bh);
       out += drDimLine(hx, by + bh, hx, by, drFmt(bh), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
       if (p.shape === 'arch') out += `<text x="${bx + bw / 2}" y="${by - 2 / px}" font-size="${10 / px}" font-family="Arial,sans-serif" text-anchor="middle" fill="${ink}">rise ${drFmt(p.rise)}</text>`;
+      if (p.shape === 'poly' && mode === 'shop') {
+        // every edge gets its own length, written just inside the glass
+        const cxm = p.pts.reduce((a, q) => a + q.x, 0) / p.pts.length, cym = p.pts.reduce((a, q) => a + q.y, 0) / p.pts.length;
+        drPolyEdges(p).forEach(e => {
+          if (e.len < 0.5) return;
+          let mx = (e.a.x + e.b.x) / 2, my = (e.a.y + e.b.y) / 2; const vx = cxm - mx, vy = cym - my, vl = Math.hypot(vx, vy) || 1;
+          mx += vx / vl * (14 / px); my += vy / vl * (14 / px);
+          let ang = Math.atan2(e.b.y - e.a.y, e.b.x - e.a.x) * 180 / Math.PI; if (ang > 90 || ang < -90) ang += 180;
+          out += `<text x="${bx + mx}" y="${by + my}" font-size="${9 / px}" font-family="Arial,sans-serif" text-anchor="middle" fill="${dark ? '#e8c27a' : '#1a5d8f'}" transform="rotate(${ang} ${bx + mx} ${by + my})" style="paint-order:stroke;stroke:${dark ? '#0f0f0f' : '#fff'};stroke-width:${3 / px}px">${drFmt(e.len)}</text>`;
+        });
+      }
     }
   });
   // markers (after panels so they sit on top)
@@ -5377,6 +5513,8 @@ function drContent(d, opt) {
       const col = sel ? '#e8c27a' : ink;
       out += drDimLine(o.x1, o.y1, o.x2, o.y2, txt, px, col, { halo: dark ? '#0f0f0f' : '#fff', attrs: edit ? `data-id="${o.id}" style="cursor:move"` : '' });
       if (edit) out += `<line x1="${o.x1}" y1="${o.y1}" x2="${o.x2}" y2="${o.y2}" stroke="transparent" stroke-width="${10 / px}" data-id="${o.id}" style="cursor:move"/>`;
+    } else if (o.type === 'plan' && drShown(o, mode)) {
+      out += drPlanSvg(o, opt, ink);
     } else if (o.type === 'label' && drShown(o, mode)) {
       const sel = opt.sel === o.id;
       out += `<text x="${o.x}" y="${o.y}" font-size="${o.size}" font-family="Arial,sans-serif" fill="${sel ? '#e8c27a' : ink}" ${edit ? `data-id="${o.id}" style="cursor:move"` : ''}>${drEsc(o.text || 'Text')}</text>`;
@@ -5421,14 +5559,14 @@ function drSheetSvg(d, mode, customerDims) {
   const tableH = shop && nRows ? Math.min(nRows, maxRows) * lh + 40 : 0;
   const headH = 78;
   const notes = (shop ? d.shopNotes : '') || '';
-  const noteLines = notes ? notes.split(/\n/).slice(0, 4) : [];
+  const noteLines = notes ? notes.split(/\n/).filter(l => l.trim()).slice(0, 7) : [];
   const noteH = noteLines.length ? noteLines.length * 14 + 26 : 0;
   const areaY = M + headH + 6, areaH = H - M - areaY - tableH - noteH - 6, areaW = W - 2 * M;
   const b = drBounds(d, mode, customerDims), pad = 6;
   const bw = (b.x1 - b.x0) + pad * 2, bh = (b.y1 - b.y0) + pad * 2;
   const px = Math.min(areaW / bw, areaH / bh);
   const ox = M + (areaW - bw * px) / 2, oy = areaY + (areaH - bh * px) / 2;
-  const c = drContent(d, { mode, px, customerDims, dark: false });
+  const c = drContent(d, { mode, px, customerDims, dark: false, real: !shop && d.real !== false });
   const t = (x, y, s, size, extra = '') => `<text x="${x}" y="${y}" font-size="${size}" font-family="Arial,Helvetica,sans-serif" ${extra}>${drEsc(s)}</text>`;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/>`;
   s += `<rect x="${M - 10}" y="${M - 10}" width="${W - 2 * M + 20}" height="${H - 2 * M + 20}" fill="none" stroke="#111" stroke-width="1.5"/>`;
@@ -5453,7 +5591,7 @@ function drSheetSvg(d, mode, customerDims) {
     });
     rows.slice(0, maxRows).forEach((r, i) => {
       const y = hdr + (i + 1) * lh, k = DR_KINDS[r.m.kind] || DR_KINDS.hole;
-      s += t(hx, y, String(r.n), fsT) + t(hx + 22, y, k.label, fsT) + t(hx + 90, y, drFmtPlain(r.m.size || 0) + '"', fsT) + t(hx + 140, y, drFmt(r.m.xIn), fsT) + t(hx + 205, y, drFmt(r.m.yIn), fsT) + t(hx + 270, y, (drPanelName(d, r.p) + (r.m.note ? ' — ' + r.m.note : '')).slice(0, 44), fsT);
+      s += t(hx, y, String(r.n), fsT) + t(hx + 22, y, k.label, fsT) + t(hx + 90, y, r.m.kind === 'cutout' ? drFmtPlain(drNum(r.m.w, 2)) + '×' + drFmtPlain(drNum(r.m.h, 3)) : drFmtPlain(r.m.size || 0) + '"', fsT) + t(hx + 140, y, drFmt(r.m.xIn), fsT) + t(hx + 205, y, drFmt(r.m.yIn), fsT) + t(hx + 270, y, (drPanelName(d, r.p) + (r.m.note ? ' — ' + r.m.note : '')).slice(0, 44), fsT);
     });
     const hidden = Math.max(panels.length - maxRows, rows.length - maxRows);
     if (hidden > 0) s += t(M, H - M - noteH - 4, '+' + hidden + ' more rows not shown on this sheet — see the saved drawing', 9, 'fill="#b00020"');
@@ -5461,7 +5599,7 @@ function drSheetSvg(d, mode, customerDims) {
   if (noteLines.length) {
     const ny = H - M - noteH + 14;
     s += t(M, ny, 'SHOP NOTES', 10, 'font-weight="bold"');
-    noteLines.forEach((l, i) => { s += t(M, ny + 15 + i * 14, l.slice(0, 150), 10.5); });
+    noteLines.forEach((l, i) => { s += t(M, ny + 15 + i * 14, l.slice(0, 175), 10.5); });
   }
   return s + '</svg>';
 }
@@ -5547,7 +5685,8 @@ function drLoad(d) {
   DR.cur = d; DR.sel = null; DR.tool = 'select'; DR.tmp = null; DR.undo = []; DR.redo = []; DR.dirty = false;
   DR._snap = JSON.stringify(d.objects);
   // repair anything odd that came from the database
-  d.objects = (Array.isArray(d.objects) ? d.objects : []).filter(o => o && typeof o === 'object' && ['panel', 'marker', 'dim', 'label'].includes(o.type));
+  d.objects = (Array.isArray(d.objects) ? d.objects : []).filter(o => o && typeof o === 'object' && ['panel', 'marker', 'dim', 'label', 'plan'].includes(o.type));
+  if (d.real === undefined) d.real = true; if (!DR_FINISH[d.finish]) d.finish = 'chrome';
   d.objects.forEach(o => { if (!isSafeId(o.id)) o.id = uid(); });
   d.objects.forEach(o => {
     if (o.type === 'panel') {
@@ -5556,7 +5695,9 @@ function drLoad(d) {
       o.cr = Array.isArray(o.cr) && o.cr.length === 4 ? o.cr : [2, 2, 2, 2];
       if (!DR_SHAPES[o.shape]) o.shape = 'rect';
       if (o.shape === 'poly' && (!Array.isArray(o.pts) || o.pts.length < 3)) o.shape = 'rect';
+      if (!['left', 'right'].includes(o.swing)) delete o.swing;
     }
+    if (o.type === 'plan') { o.x = drNum(o.x); o.y = drNum(o.y); if (!Array.isArray(o.walls)) o.walls = []; if (!Array.isArray(o.glass)) o.glass = []; }
   });
   DR._snap = JSON.stringify(d.objects);
   drRender(); drRenderList();
@@ -5575,7 +5716,7 @@ async function drSave() {
   if (!window._db) { showToast('Not connected — use Export file instead', 'error'); return; }
   const d = DR.cur;
   if (!String(d.name || '').trim()) { showToast('Give the drawing a name first', 'error'); const n = document.getElementById('drName'); if (n) n.focus(); return; }
-  const data = drClone({ name: d.name.trim(), customer: d.customer || '', job: d.job || '', shopNotes: d.shopNotes || '', objects: d.objects, version: 1 });
+  const data = drClone({ name: d.name.trim(), customer: d.customer || '', job: d.job || '', shopNotes: d.shopNotes || '', objects: d.objects, real: d.real !== false, finish: d.finish || 'chrome', version: 2 });
   data.updatedAt = new Date().toISOString();
   try {
     if (d.id) {
@@ -5699,7 +5840,7 @@ function drRender() {
 function drRenderCanvas() {
   const wrap = document.getElementById('drCanvasWrap'); if (!wrap) return;
   const customer = DR.view === 'customer';
-  const r = drSvgDoc(DR.cur, customer ? 'customer' : 'shop', { px: DR.scale, edit: !customer, sel: customer ? null : DR.sel, grid: !customer, dark: !customer, bg: customer ? '#ffffff' : null, id: 'drSvg', customerDims: customer && DR.customerDims, pad: customer ? 8 : 0 });
+  const r = drSvgDoc(DR.cur, customer ? 'customer' : 'shop', { px: DR.scale, edit: !customer, sel: customer ? null : DR.sel, grid: !customer, dark: !customer, bg: customer ? '#ffffff' : null, id: 'drSvg', real: DR.cur.real !== false, customerDims: customer && DR.customerDims, pad: customer ? 8 : 0 });
   wrap.innerHTML = r.svg;
   const hint = document.getElementById('drHint');
   if (hint) {
@@ -5721,10 +5862,15 @@ function drRenderTools() {
   const sn = document.getElementById('drSnapChk'); if (sn) sn.checked = DR.snap;
   const ss = document.getElementById('drSnapSel'); if (ss) ss.value = String(DR.snapIn);
   const cd = document.getElementById('drCustDims'); if (cd) cd.checked = DR.customerDims;
+  const rc = document.getElementById('drRealChk'); if (rc) rc.checked = DR.cur.real !== false;
+  const fs = document.getElementById('drFinishSel'); if (fs) fs.value = DR.cur.finish || 'chrome';
   const wrap = document.getElementById('drCanvasWrap'); if (wrap) wrap.style.cursor = DR.tool === 'select' ? 'default' : 'crosshair';
 }
 function drSetTool(t, kind) { DR.tool = t; if (kind) DR.kind = kind; DR.tmp = null; if (DR.view === 'customer') DR.view = 'edit'; drRender(); }
 function drSetView(v) { DR.view = v; DR.tmp = null; drRender(); }
+function drSetReal(on) { DR.cur.real = !!on; DR.dirty = true; drRender(); }
+function drSetFinish(v) { if (!DR_FINISH[v]) return; DR.cur.finish = v; DR.dirty = true; drRender(); }
+window.drSetReal = drSetReal; window.drSetFinish = drSetFinish;
 function drAddPanel(shape) {
   if (!shape) return;
   const ps = drPanels();
@@ -5773,6 +5919,9 @@ function drRenderProps() {
       o.pts.forEach((q, i) => { h += `<div class="dr-row"><span>${i + 1}</span><span style="display:flex;gap:.3rem;flex:1;"><input class="dr-in" data-f="px${i}" data-isin="1" value="${drEsc(drFmtPlain(q.x))}" onchange="drProp('${id}',this)"><input class="dr-in" data-f="py${i}" data-isin="1" value="${drEsc(drFmtPlain(q.y))}" onchange="drProp('${id}',this)"><button class="dr-x" title="Remove point" onclick="drPolyRemove('${id}',${i})">✕</button></span></div>`; });
       h += `<button class="dr-btn" style="margin:.3rem 0 .6rem" onclick="drPolyAdd('${id}')">＋ Add point</button>`;
     }
+    h += drRow('Door swing', drSel(id, 'swing', o.swing || '', { '': 'Not a door', left: 'Hinged on the left', right: 'Hinged on the right' }));
+    h += '<div class="dr-sub">Notch a corner</div><div class="dr-row"><span>Corner</span><span style="display:flex;gap:.3rem;flex:1;"><select class="dr-in" id="drNotchCorner"><option value="BL">Bottom-left</option><option value="BR">Bottom-right</option><option value="TL">Top-left</option><option value="TR">Top-right</option></select></span></div>' +
+      `<div class="dr-row"><span>W × H</span><span style="display:flex;gap:.3rem;flex:1;align-items:center;"><input class="dr-in" id="drNotchW" placeholder="W" value="4"> × <input class="dr-in" id="drNotchH" placeholder="H" value="4"><button class="dr-btn" onclick="drAddNotch('${id}')">Cut</button></span></div>`;
     h += '<div class="dr-sub">Look</div>' + drRow('Frame', drSel(id, 'frame', o.frame, { none: 'None / frameless', metal: 'Metal', wood: 'Wood' })) +
       drRow('Glass', drSel(id, 'glass', o.glass, { clear: 'Clear', tint: 'Tinted', frost: 'Frosted' })) +
       drRow('Muntins', `<span style="display:flex;gap:.3rem;flex:1;align-items:center;"><input class="dr-in" style="max-width:60px" type="number" min="0" max="12" data-f="cols" value="${o.cols || ''}" placeholder="cols" onchange="drProp('${id}',this)">×<input class="dr-in" style="max-width:60px" type="number" min="0" max="12" data-f="rows" value="${o.rows || ''}" placeholder="rows" onchange="drProp('${id}',this)"></span>`) +
@@ -5782,13 +5931,20 @@ function drRenderProps() {
   } else if (o.type === 'marker') {
     const p = drObj(o.panelId);
     h += `<div class="dr-ptitle">${(DR_KINDS[o.kind] || {}).label || 'Marker'}</div>` + drRow('Type', drSel(id, 'kind', o.kind, Object.fromEntries(Object.entries(DR_KINDS).map(([k, v]) => [k, v.label])))) +
-      drRow(o.kind === 'hole' ? 'Diameter' : 'Size', drInIn(id, 'size', o.size)) + drRow('From left', drInIn(id, 'xIn', o.xIn)) + drRow('From top', drInIn(id, 'yIn', o.yIn)) +
+      (o.kind === 'cutout' ? drRow('Width', drInIn(id, 'w', drNum(o.w, 2))) + drRow('Height', drInIn(id, 'h', drNum(o.h, 3))) + drRow('Corner radius', drInIn(id, 'r', drNum(o.r, 0)))
+        : o.kind === 'handle' ? drRow('Pull length', drInIn(id, 'len', drNum(o.len, 12))) : drRow(o.kind === 'hole' ? 'Diameter' : 'Size', drInIn(id, 'size', o.size))) +
+      drRow(o.kind === 'cutout' ? 'Center from left' : 'From left', drInIn(id, 'xIn', o.xIn)) + drRow(o.kind === 'cutout' ? 'Center from top' : 'From top', drInIn(id, 'yIn', o.yIn)) +
+      (o.kind === 'cutout' && p ? `<div class="dr-hint">Edges: ${drFmt(o.xIn - drNum(o.w, 2) / 2)} from left, ${drFmt(p.w - o.xIn - drNum(o.w, 2) / 2)} from right, ${drFmt(o.yIn - drNum(o.h, 3) / 2)} from top, ${drFmt(p.h - o.yIn - drNum(o.h, 3) / 2)} from bottom.</div>` : '') +
       drRow('Note', drTxt(id, 'note', o.note, 'e.g. 3/8" hinge cutout')) + visSel +
       `<div class="dr-hint">Measured from the top-left corner of ${p ? drEsc(drPanelName(DR.cur, p)) : 'its panel'}.</div>` +
       `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
   } else if (o.type === 'dim') {
     h += `<div class="dr-ptitle">Dimension line</div>` + drRow('Start X', drInIn(id, 'x1', o.x1)) + drRow('Start Y', drInIn(id, 'y1', o.y1)) + drRow('End X', drInIn(id, 'x2', o.x2)) + drRow('End Y', drInIn(id, 'y2', o.y2)) +
       drRow('Text', drTxt(id, 'text', o.text, 'blank = measured: ' + drFmt(Math.hypot(o.x2 - o.x1, o.y2 - o.y1)))) + visSel +
+      `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
+  } else if (o.type === 'plan') {
+    h += `<div class="dr-ptitle">Plan view</div><div class="dr-hint" style="margin-top:0">Top-down view made by the shower builder: walls, glass and the door swing. Drag it to move it. Rebuild the shower to change it.</div>` +
+      drRow('X', drInIn(id, 'x', o.x)) + drRow('Y', drInIn(id, 'y', o.y)) + visSel +
       `<div style="display:flex;gap:.4rem;margin-top:.7rem;"><button class="dr-btn danger" onclick="drDelSel()">✕ Delete</button></div>`;
   } else if (o.type === 'label') {
     h += `<div class="dr-ptitle">Text</div>` + drRow('Text', drTxt(id, 'text', o.text)) + drRow('Size', drSel(id, 'size', String(o.size), { '2': 'Small', '3': 'Medium', '4.5': 'Large', '7': 'Extra large' })) + drRow('X', drInIn(id, 'x', o.x)) + drRow('Y', drInIn(id, 'y', o.y)) + visSel +
@@ -5815,9 +5971,11 @@ function drProp(id, input) {
     else if ((m = f.match(/^p([xy])(\d+)$/))) { o.pts[+m[2]][m[1]] = v; drNormPoly(o); }
     else if (f === 'shape') drChangeShape(o, v);
     else if (f === 'cols' || f === 'rows') o[f] = Math.max(0, Math.min(12, parseInt(v) || 0));
+    else if (f === 'swing') { if (v) o.swing = v; else delete o.swing; }
     else o[f] = v;
   } else if (o.type === 'label' && f === 'size') o.size = parseFloat(v) || 3;
-  else if (o.type === 'marker' && f === 'kind') { o.kind = v; o.size = DR_KINDS[v].size; }
+  else if (o.type === 'marker' && f === 'kind') { o.kind = v; o.size = DR_KINDS[v].size; if (v === 'cutout') { o.w = o.w || 2; o.h = o.h || 3; } }
+  else if (o.type === 'marker' && (f === 'w' || f === 'h') && v < 0.25) { showToast('Cutouts must be at least 1/4"', 'error'); drRenderProps(); return; }
   else o[f] = v;
   drCommit(); drRender();
 }
@@ -5829,6 +5987,30 @@ function drChangeShape(p, shape) {
   if (shape === 'poly') { p.pts = [{ x: 0, y: 0 }, { x: p.w, y: 0 }, { x: p.w, y: p.h }, { x: 0, y: p.h }]; }
   if (shape === 'ellipse' && old === 'rect') { /* keep size */ }
 }
+// Cuts a rectangular notch out of one corner. Works on rectangles and on polygons that still have that square corner.
+function drAddNotch(id) {
+  const p = drObj(id); if (!p) return;
+  const corner = (document.getElementById('drNotchCorner') || {}).value || 'BL';
+  const nw = drParseIn((document.getElementById('drNotchW') || {}).value), nh = drParseIn((document.getElementById('drNotchH') || {}).value);
+  if (!(nw > 0) || !(nh > 0)) { showToast('Enter the notch width and height', 'error'); return; }
+  if (nw >= p.w - 0.5 || nh >= p.h - 0.5) { showToast('The notch is as big as the panel — check the size', 'error'); return; }
+  if (p.shape === 'rect') {
+    if (p.corners.some(c => c !== 'sq')) { showToast('Set the corners back to square before notching', 'error'); return; }
+    p.shape = 'poly'; p.pts = [{ x: 0, y: 0 }, { x: p.w, y: 0 }, { x: p.w, y: p.h }, { x: 0, y: p.h }];
+  } else if (p.shape !== 'poly') { showToast('Notches work on rectangles and polygons', 'error'); return; }
+  const cx = corner[1] === 'L' ? 0 : p.w, cy = corner[0] === 'T' ? 0 : p.h;
+  const i = p.pts.findIndex(q => Math.abs(q.x - cx) < 0.01 && Math.abs(q.y - cy) < 0.01);
+  if (i < 0) { showToast('That corner is already cut — pick another corner', 'error'); return; }
+  const sx = cx === 0 ? 1 : -1, sy = cy === 0 ? 1 : -1;
+  const prev = p.pts[(i - 1 + p.pts.length) % p.pts.length];
+  // keep the points in order: the corner is replaced by three points going around it
+  const alongX = { x: cx + sx * nw, y: cy }, inner = { x: cx + sx * nw, y: cy + sy * nh }, alongY = { x: cx, y: cy + sy * nh };
+  const prevOnX = Math.abs(prev.y - cy) < 0.01;
+  p.pts.splice(i, 1, ...(prevOnX ? [alongX, inner, alongY] : [alongY, inner, alongX]));
+  p.shopNote = [p.shopNote, 'Notch ' + drFmt(nw) + ' × ' + drFmt(nh) + ' at ' + { BL: 'bottom-left', BR: 'bottom-right', TL: 'top-left', TR: 'top-right' }[corner]].filter(Boolean).join('; ').slice(0, 200);
+  drNormPoly(p); drCommit(); drRender(); showToast('✓ Notch cut');
+}
+window.drAddNotch = drAddNotch;
 function drPolyAdd(id) {
   const p = drObj(id); if (!p) return;
   const a = p.pts[p.pts.length - 1], b = p.pts[0];
@@ -5895,6 +6077,8 @@ function drDown(e) {
     if (!p) { showToast('Click inside a panel to place it', 'error'); return; }
     const sp = drSnapPt(pt, false);
     const m = { id: uid(), type: 'marker', panelId: p.id, kind: DR.kind, xIn: Math.min(Math.max(sp.x - p.x, 0), p.w), yIn: Math.min(Math.max(sp.y - p.y, 0), p.h), size: DR_KINDS[DR.kind].size, note: '', vis: 'both' };
+    if (m.kind === 'cutout') { m.w = 2; m.h = 3; m.note = 'outlet cutout'; }
+    if (m.kind === 'handle') m.len = 12;
     DR.cur.objects.push(m); DR.sel = m.id; drCommit(); drRender(); return;
   }
   if (t === 'dim') {
@@ -5937,7 +6121,7 @@ function drMove(e) {
     if (dg.h === 'p1') { const s = drSnapPt({ x: og.x1 + dx, y: og.y1 + dy }, true); o.x1 = s.x; o.y1 = s.y; }
     else if (dg.h === 'p2') { const s = drSnapPt({ x: og.x2 + dx, y: og.y2 + dy }, true); o.x2 = s.x; o.y2 = s.y; }
     else { o.x1 = Math.max(0, drSnapV(og.x1 + dx)); o.y1 = Math.max(0, drSnapV(og.y1 + dy)); o.x2 = o.x1 + (og.x2 - og.x1); o.y2 = o.y1 + (og.y2 - og.y1); }
-  } else if (o.type === 'label') { o.x = Math.max(0, drSnapV(og.x + dx)); o.y = Math.max(0, drSnapV(og.y + dy)); }
+  } else if (o.type === 'label' || o.type === 'plan') { o.x = drSnapV(og.x + dx); o.y = drSnapV(og.y + dy); }
   drRenderCanvas();
 }
 function drUp() {
@@ -5959,7 +6143,7 @@ function drKey(e) {
   else if (DR.sel && e.key.startsWith('Arrow')) {
     const o = drObj(DR.sel); if (!o) return; e.preventDefault();
     const s = DR.snap ? DR.snapIn : 0.0625, dx = e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0, dy = e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0;
-    if (o.type === 'panel' || o.type === 'label') { o.x = Math.max(0, o.x + dx); o.y = Math.max(0, o.y + dy); }
+    if (o.type === 'panel' || o.type === 'label' || o.type === 'plan') { o.x = o.type === 'plan' ? o.x + dx : Math.max(0, o.x + dx); o.y = o.type === 'plan' ? o.y + dy : Math.max(0, o.y + dy); }
     else if (o.type === 'marker') { const p = drObj(o.panelId); o.xIn = Math.min(Math.max(o.xIn + dx, 0), p ? p.w : 999); o.yIn = Math.min(Math.max(o.yIn + dy, 0), p ? p.h : 999); }
     else if (o.type === 'dim') { o.x1 += dx; o.x2 += dx; o.y1 += dy; o.y2 += dy; }
     clearTimeout(drKey._t); drCommit(); drRender();
@@ -5989,8 +6173,12 @@ const SH_LAYOUTS = {
   knee:      { t: 'Door + notched panel',   d: 'Fixed panel notched over a knee wall / bench' },
   corner:    { t: '90° corner',             d: 'Door + panel front, return panel' },
   neo:       { t: 'Neo-angle',              d: 'Two angled panels, door in the middle face' },
-  panel:     { t: 'Fixed panel',            d: 'Splash panel / walk-in' },
+  panel:     { t: 'Splash / walk-in',       d: 'One fixed panel, no door' },
+  tub:       { t: 'Tub door + panel',       d: 'Door and fixed panel on a tub deck' },
+  steam:     { t: 'Steam unit',             d: 'Door + panel, glass to the ceiling' },
 };
+const SH_STEAM_TUB = ['tub', 'steam'];
+const shIsInline = l => ['doorpanel', 'tub', 'steam'].includes(l);
 // small picture for each layout card (panels light blue, door outlined darker, walls grey)
 function shThumb(k) {
   const g = (x, w, h, door, y = 0) => `<rect x="${x}" y="${6 + y}" width="${w}" height="${h}" fill="${door ? '#cfe9f1' : '#e3f3f8'}" stroke="${door ? '#2a6f86' : '#5a8a99'}" stroke-width="${door ? 1.6 : 1}"/>` + (door ? `<line x1="${x + w - 4}" y1="${6 + y + h * 0.45}" x2="${x + w - 4}" y2="${6 + y + h * 0.6}" stroke="#2a6f86" stroke-width="1.6"/>` : '');
@@ -6003,6 +6191,8 @@ function shThumb(k) {
   if (k === 'corner') s = wall(2) + g(7, 30, 50) + g(38, 24, 50, true) + `<path d="M63,6 L76,1 L76,51 L63,56 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
   if (k === 'neo') s = `<path d="M3,10 L20,4 L20,54 L3,60 Z" fill="#e3f3f8" stroke="#5a8a99"/>` + g(21, 37, 50, true, -2) + `<path d="M59,4 L76,10 L76,60 L59,54 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
   if (k === 'panel') s = wall(2) + g(7, 36, 50);
+  if (k === 'tub') s += `<rect x="5" y="44" width="70" height="14" rx="3" fill="#ddd" stroke="#999"/>` + g(7, 36, 38, false) + g(44, 29, 38, true);
+  if (k === 'steam') s = `<rect x="2" y="1" width="76" height="3" fill="#888"/>` + wall(2) + wall(75) + g(7, 36, 50, false, 0) + g(44, 29, 50, true, 0) + `<rect x="7" y="4" width="66" height="1.5" fill="#e3f3f8" stroke="#5a8a99" stroke-width=".6"/>`;
   return `<svg viewBox="0 0 80 62" width="80" height="62">${s}</svg>`;
 }
 const SH_DEFAULTS = {
@@ -6010,6 +6200,7 @@ const SH_DEFAULTS = {
   kneeW: '18', kneeH: '36', wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
   hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right', hinge: 'beveled', fix: 'clamps',
   transom: 'no', ceilH: '96', headGap: '1/2',
+  WT: '', fit: 'square', outWall: 'left', glass: 'clear', finish: 'chrome',
 };
 function shLoad() { try { return Object.assign({}, SH_DEFAULTS, JSON.parse(localStorage.getItem('alg_shower_defaults') || '{}')); } catch (e) { return Object.assign({}, SH_DEFAULTS); } }
 function shSave(v) { try { localStorage.setItem('alg_shower_defaults', JSON.stringify(v)); } catch (e) {} }
@@ -6035,6 +6226,8 @@ function drToggleShower() {
     <div class="dr-sub" style="margin-top:0">1 · Layout</div>
     ${shCards('layout', lay, v.layout)}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:.6rem;">
+      <div><div class="dr-sub" style="margin-top:0">Glass</div>${shCards('glass', { clear: { t: 'Clear' }, lowiron: { t: 'Low-iron' }, frost: { t: 'Frosted' } }, v.glass)}</div>
+      <div><div class="dr-sub" style="margin-top:0">Hardware finish</div>${shCards('finish', Object.fromEntries(Object.entries(DR_FINISH).map(([k, f]) => [k, { t: f.t, pic: `<span style="display:block;height:10px;border-radius:5px;background:linear-gradient(135deg,${f.a},${f.b} 50%,${f.c});margin-bottom:3px"></span>` }])), v.finish)}</div>
       <div><div class="dr-sub" style="margin-top:0">Hinges</div>${shCards('hinge', { beveled: { t: 'Beveled' }, square: { t: 'Square' } }, v.hinge)}</div>
       <div id="shw_fix"><div class="dr-sub" style="margin-top:0">Fixed panels held by</div>${shCards('fix', { clamps: { t: 'Clamps' }, channel: { t: 'U-channel' } }, v.fix)}</div>
       <div id="shw_side"><div class="dr-sub" style="margin-top:0">Door opens on</div>${shCards('handleSide', { left: { t: 'Left' }, right: { t: 'Right' } }, v.handleSide)}</div>
@@ -6043,7 +6236,8 @@ function drToggleShower() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.4rem 1.2rem;margin-top:.4rem;">
       <div>
         <div class="dr-sub">2 · Measurements</div>
-        ${shField('W', 'Opening W', v.W, 'Wall to wall at the tightest point')}
+        ${shField('W', 'Opening W (bottom)', v.W, 'Wall to wall at the curb')}
+        ${shField('WT', 'Opening W (top)', v.WT, 'Wall to wall at the top of the glass. Leave blank if the walls are plumb')}
         ${shField('A', 'Left face', v.A, 'Wall to first corner, along the glass line')}
         ${shField('B', 'Center face', v.B, 'Corner to corner, along the glass line')}
         ${shField('C', 'Right face', v.C, 'Second corner to wall, along the glass line')}
@@ -6055,6 +6249,8 @@ function drToggleShower() {
         ${shField('kneeH', 'Knee wall height', v.kneeH, 'From the curb to the top of the knee wall')}
         ${shField('ceilH', 'Ceiling height', v.ceilH, 'Curb to ceiling')}
         ${shField('headGap', 'Gap at ceiling', v.headGap)}
+        <div id="shw_fit"><div class="dr-sub">Walls or curb out?</div>${shCards('fit', { square: { t: 'Cut square', d: 'To the tightest size' }, exact: { t: 'Follow the walls', d: 'Out-of-square panels' } }, v.fit)}
+        <div id="shw_out" style="margin-top:.4rem">${shCards('outWall', { left: { t: 'Left wall leans' }, right: { t: 'Right wall leans' }, both: { t: 'Both' } }, v.outWall)}</div></div>
       </div>
       <div>
         <div class="dr-sub">Your deductions (gaps)</div>
@@ -6081,20 +6277,23 @@ function drToggleShower() {
 function shShowFields() {
   const l = document.getElementById('sh_layout').value, tr = document.getElementById('sh_transom').value;
   const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; };
-  show('shr_W', l !== 'neo'); ['A', 'B', 'C'].forEach(k => show('shr_' + k, l === 'neo'));
+  show('shr_W', l !== 'neo'); show('shr_WT', l !== 'neo'); ['A', 'B', 'C'].forEach(k => show('shr_' + k, l === 'neo'));
+  const fit = document.getElementById('sh_fit') ? document.getElementById('sh_fit').value : 'square';
+  show('shw_fit', !['neo', 'door', 'knee'].includes(l)); show('shw_out', fit === 'exact');
   show('shr_D', l === 'corner'); show('shr_doorW', !['panel', 'door', 'neo'].includes(l));
   show('shr_kneeW', l === 'knee'); show('shr_kneeH', l === 'knee');
   show('shw_side', l !== 'panel'); show('shw_fix', l !== 'door');
-  const canTr = ['door', 'doorpanel', 'pdp', 'panel'].includes(l);
-  show('shw_tr', canTr); show('shr_ceilH', canTr && tr === 'fixed'); show('shr_headGap', canTr && tr === 'fixed');
+  const canTr = ['door', 'doorpanel', 'pdp', 'panel', 'tub'].includes(l);
+  show('shw_tr', canTr); show('shr_ceilH', l === 'steam' || (canTr && tr === 'fixed')); show('shr_headGap', l === 'steam' || (canTr && tr === 'fixed'));
 }
-const SH_TEXT = ['layout', 'handleSide', 'hinge', 'fix', 'transom'];
+const SH_TEXT = ['layout', 'handleSide', 'hinge', 'fix', 'transom', 'fit', 'outWall', 'glass', 'finish'];
 function shRead() {
   const raw = {}, num = {}, bad = [];
   Object.keys(SH_DEFAULTS).forEach(k => {
     const el = document.getElementById('sh_' + k); if (!el) return;
     raw[k] = el.value;
     if (SH_TEXT.includes(k)) return;
+    if (k === 'WT' && !String(el.value).trim()) return; // blank = same as the bottom
     const row = document.getElementById('shr_' + k);
     const n = drParseIn(el.value);
     if (isNaN(n) || n < 0) { if (!row || row.style.display !== 'none') bad.push(k); } else num[k] = n;
@@ -6111,7 +6310,7 @@ function shCompute(layout, n, opt = {}) {
     out.push({ role: 'door', label: 'Door', w: W - hingeGap - strikeGap, h: doorH, hinge: 'wall' });
   } else if (layout === 'panel') {
     out.push({ role: 'panel', label: 'Fixed panel', w: W - wallGap, h: H });
-  } else if (layout === 'doorpanel' || layout === 'corner' || layout === 'knee') {
+  } else if (layout === 'doorpanel' || layout === 'corner' || layout === 'knee' || layout === 'tub' || layout === 'steam') {
     const pw = W - wallGap - glassGap - doorW - strikeGap;
     const p = { role: 'panel', label: 'Fixed panel', w: pw, h: H };
     if (layout === 'knee') {
@@ -6135,10 +6334,10 @@ function shCompute(layout, n, opt = {}) {
     out.neo = true;
   }
   if (!out.length) return { error: 'Pick a layout' };
-  if (opt.transom) {
+  if (opt.transom || layout === 'steam') {
     const th = n.ceilH - H - n.headGap - glassGap;
-    if (th < 4) return { error: 'Not enough room for a transom — check the ceiling height' };
-    out.push({ role: 'transom', label: 'Transom', w: W - 2 * wallGap, h: th });
+    if (th < 4) return { error: layout === 'steam' ? 'A steam unit needs glass to the ceiling — the ceiling is too close to the glass height. Check the ceiling height.' : 'Not enough room for a transom — check the ceiling height' };
+    out.push({ role: 'transom', label: layout === 'steam' ? 'Steam transom' : 'Transom', w: W - 2 * wallGap, h: th });
   }
   const small = out.find(p => p.w < 6 || p.h < 3);
   if (small) return { error: `${small.label} would be only ${drFmt(small.w)} wide — check the measurements` };
@@ -6146,29 +6345,74 @@ function shCompute(layout, n, opt = {}) {
   return out;
 }
 
+// Plan (top-down) geometry for the builder. Inches; x along the glass line, y toward the viewer is positive (outside the shower).
+function shPlan(layout, n, front, ret, hingeLeft) {
+  const walls = [], glass = [], notes = []; let door = null; const H = Math.PI / 2;
+  if (layout === 'neo') {
+    const k = Math.SQRT1_2, a = n.A * k;
+    const P0 = { x: 0, y: -a }, P1 = { x: n.A * k, y: 0 }, P2 = { x: n.A * k + n.B, y: 0 }, P3 = { x: n.A * k + n.B + n.C * k, y: -n.C * k };
+    glass.push({ x1: P0.x, y1: P0.y, x2: P1.x, y2: P1.y, role: 'panel' }, { x1: P1.x, y1: P1.y, x2: P2.x, y2: P2.y, role: 'door' }, { x1: P2.x, y1: P2.y, x2: P3.x, y2: P3.y, role: 'panel' });
+    // walls run back from each end, square to their panels, until they meet in the corner
+    const t = (P3.x - P0.x - P3.y + P0.y) / (2 * k);
+    const tt = t > 0 && t < 200 ? t : 24, C = { x: P0.x + tt * k, y: P0.y - tt * k };
+    walls.push([P0.x, P0.y, C.x, C.y], [P3.x, P3.y, C.x, C.y]);
+    const hp = hingeLeft ? P1 : P2;
+    door = { hx: hp.x, hy: hp.y, r: n.B, a0: hingeLeft ? 0 : Math.PI, a1: H };
+    notes.push('135° corners. Door swings out of the shower.');
+    return { walls, glass, door, notes };
+  }
+  const W = n.W; let x = 0;
+  walls.push([0, layout === 'corner' ? -n.D : -14, 0, 2]);
+  if (layout === 'corner') walls.push([0, -n.D, W + 2, -n.D]); else walls.push([W, -14, W, 2]);
+  front.forEach(m => {
+    const xa = m.pn.x - 12, xb = xa + (m.p.role === 'door' ? m.p.w : m.pn.botW || m.pn.w);
+    glass.push({ x1: xa, y1: 0, x2: xb, y2: 0, role: m.p.role });
+    if (m.p.role === 'door') door = { hx: hingeLeft ? xa : xb, hy: 0, r: m.p.w, a0: hingeLeft ? 0 : Math.PI, a1: H };
+    x = xb;
+  });
+  if (ret) glass.push({ x1: W, y1: 0, x2: W, y2: -ret.w, role: 'return' });
+  if (layout !== 'corner') notes.push('Shower depth not to scale.');
+  if (door) notes.push('Door swings out — check the clearance.');
+  return { walls, glass, door, notes };
+}
+// x of a slanted side edge of a 4-point panel [TL, TR, BR, BL] at height y (panel coordinates)
+function shEdgeX(pn, side, y) {
+  const q = pn.pts, a = side === 'left' ? q[0] : q[1], b = side === 'left' ? q[3] : q[2];
+  if (Math.abs(b.y - a.y) < 0.001) return a.x;
+  return a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y);
+}
+
 function drBuildShower() {
   const r = shRead();
   document.querySelectorAll('#drShowerBox input.dr-in').forEach(e => e.style.borderColor = '');
   if (r.bad.length) { showToast('Check the highlighted numbers (use 36, 36.5 or 36 1/2)', 'error'); r.bad.forEach(k => { const e = document.getElementById('sh_' + k); if (e) e.style.borderColor = '#cc3333'; }); return; }
-  const n = r.num;
+  const n = r.num, L = r.layout;
+  const WB = n.W, WT = n.WT === undefined ? n.W : n.WT;
+  let exact = r.raw.fit === 'exact' && !['neo', 'door', 'knee'].includes(L);
+  const lean = exact ? WT - WB : 0;
+  if (exact && Math.abs(lean) > 3) { showToast('Top and bottom widths are more than 3" apart — measure again before ordering', 'error'); return; }
+  if (!exact && L !== 'neo') n.W = Math.min(WB, WT); // cut square to the tightest point
   n.H = Math.min(n.HL, n.HR);
-  const plumb = Math.abs(n.HL - n.HR);
-  const canTr = ['door', 'doorpanel', 'pdp', 'panel'].includes(r.layout);
-  if (r.layout === 'neo') n.W = n.A + n.B + n.C;
-  const res = shCompute(r.layout, n, { transom: canTr && r.raw.transom === 'fixed' });
+  const plumb = Math.abs(n.HL - n.HR), wallOut = Math.abs(WT - WB);
+  const canTr = ['door', 'doorpanel', 'pdp', 'panel', 'tub'].includes(L);
+  if (L === 'neo') n.W = n.A + n.B + n.C;
+  const res = shCompute(L, n, { transom: canTr && r.raw.transom === 'fixed' });
   if (res.error) { showToast(res.error, 'error'); return; }
   shSave(Object.assign({}, r.raw));
+  DR.cur.finish = DR_FINISH[r.raw.finish] ? r.raw.finish : 'chrome';
   const right = r.side !== 'left', channel = r.raw.fix === 'channel';
+  const glassKind = ['clear', 'lowiron', 'frost'].includes(r.raw.glass) ? r.raw.glass : 'clear';
+  const glassName = { clear: 'clear', lowiron: 'low-iron', frost: 'frosted' }[glassKind];
   const hingeName = (r.raw.hinge === 'square' ? 'square ' : 'beveled ');
   let front = res.filter(p => p.role !== 'return' && p.role !== 'transom');
-  if (!right && !['pdp', 'neo'].includes(r.layout)) front = front.slice().reverse();
+  if (!right && !['pdp', 'neo'].includes(L)) front = front.slice().reverse();
   const ex = drPanels(); const tr = res.find(p => p.role === 'transom');
-  const yTop = ex.length ? Math.max(...ex.map(p => p.y + p.h)) + 16 : 12;
+  const yTop = ex.length ? Math.max(...ex.map(p => p.y + p.h), ...DR.cur.objects.filter(o => o.type === 'plan').map(o => o.y + drPlanBounds(o).y1 + 10)) + 16 : 12;
   const y0 = yTop + (tr ? tr.h + n.glassGap + 9 : 0); // room for the transom's width dimension
-  let x = 12 + (r.layout === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
+  let x = 12 + (L === 'door' ? (right ? n.hingeGap : n.strikeGap) : n.wallGap);
   const made = [];
   front.forEach((p, i) => {
-    const pn = drNewPanel('rect', x, y0 + (n.H - p.h)); pn.w = p.w; pn.h = p.h; pn.label = p.label;
+    const pn = drNewPanel('rect', x, y0 + (n.H - p.h)); pn.w = p.w; pn.h = p.h; pn.label = p.label; pn.glass = glassKind;
     if (p.notch) {
       const nl = right; // the fixed panel is on the wall side: left when the door opens right, right when it opens left
       const W2 = p.w, H2 = p.h, a = p.notch.w, b = p.notch.h;
@@ -6177,62 +6421,103 @@ function drBuildShower() {
                   : [{ x: 0, y: 0 }, { x: W2, y: 0 }, { x: W2, y: H2 - b }, { x: W2 - a, y: H2 - b }, { x: W2 - a, y: H2 }, { x: 0, y: H2 }];
       pn.shopNote = 'Notch ' + drFmt(a) + ' × ' + drFmt(b) + ' for the knee wall';
     }
-    pn.spec = drFmtPlain(n.t) + '" tempered' + (p.role !== 'door' && channel ? ', set in U-channel' : '');
+    pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (p.role !== 'door' && channel ? ', set in U-channel' : '');
     DR.cur.objects.push(pn); made.push({ p, pn });
     x += p.w + (i < front.length - 1 ? n.glassGap : 0);
   });
-  const mk = (pn, kind, xIn, yIn, note) => DR.cur.objects.push({ id: uid(), type: 'marker', panelId: pn.id, kind, xIn, yIn, size: DR_KINDS[kind].size, note, vis: 'both' });
+  // ── follow the walls: fixed panels become out-of-square pieces that match a leaning wall and a sloped curb ──
+  const exactNotes = [];
+  if (exact && (wallOut >= 0.0625 || plumb >= 0.0625)) {
+    const dL = r.raw.outWall === 'right' ? 0 : r.raw.outWall === 'both' ? lean / 2 : lean;
+    const dR = r.raw.outWall === 'left' ? 0 : r.raw.outWall === 'both' ? lean / 2 : lean;
+    const hAt = xx => n.HL + (n.HR - n.HL) * Math.min(Math.max((xx - 12) / WB, 0), 1);
+    made.forEach((m, i) => {
+      const pn = m.pn;
+      if (m.p.role !== 'panel') {
+        if (m.p.role === 'door' && ((i === 0 && dL) || (i === made.length - 1 && dR))) exactNotes.push('Door sits against the leaning wall: it stays square, so the gap there changes by ' + drFmt(Math.abs(i === 0 ? dL : dR)) + ' from bottom to top.');
+        return;
+      }
+      const xa = pn.x, xb = pn.x + pn.w;
+      const tl = { x: i === 0 ? xa - dL : xa, y: 0 }, trp = { x: i === made.length - 1 ? xb + dR : xb, y: 0 };
+      const br = { x: xb, y: hAt(xb) }, bl = { x: xa, y: hAt(xa) };
+      const minX = Math.min(tl.x, bl.x);
+      pn.shape = 'poly'; pn.botW = pn.w;
+      pn.pts = [tl, trp, br, bl].map(q => ({ x: +(q.x - minX).toFixed(4), y: +q.y.toFixed(4) }));
+      pn.x = minX; pn.y = y0;
+      pn.w = Math.max(...pn.pts.map(q => q.x)); pn.h = Math.max(...pn.pts.map(q => q.y));
+      pn.quad = true; pn.label = m.p.label;
+      const e = { top: trp.x - tl.x, bottom: br.x - bl.x, left: Math.hypot(tl.x - bl.x, bl.y), right: Math.hypot(trp.x - br.x, br.y) };
+      pn.shopNote = 'OUT OF SQUARE — top ' + drFmt(e.top) + ', bottom ' + drFmt(e.bottom) + ', left edge ' + drFmt(e.left) + ', right edge ' + drFmt(e.right) + '. Make a template or confirm with the supplier.';
+      exactNotes.push(pn.label + ' (out of square): ' + pn.shopNote.replace('OUT OF SQUARE — ', '').replace(' Make a template or confirm with the supplier.', ''));
+    });
+  }
+  const mk = (pn, kind, xIn, yIn, note, extra) => DR.cur.objects.push(Object.assign({ id: uid(), type: 'marker', panelId: pn.id, kind, xIn, yIn, size: DR_KINDS[kind].size, note, vis: 'both' }, extra || {}));
   const door = made.find(m => m.p.role === 'door');
+  let hingeLeft = right;
   if (door) {
     const d = door.pn, idx = made.indexOf(door);
-    let hingeLeft;
-    if (r.layout === 'door') hingeLeft = right;
-    else if (r.layout === 'pdp' || r.layout === 'neo') hingeLeft = right;
+    if (L === 'door' || L === 'pdp' || L === 'neo') hingeLeft = right;
     else hingeLeft = idx > 0;
+    d.swing = hingeLeft ? 'left' : 'right';
     const hx = hingeLeft ? 0 : d.w, lx = hingeLeft ? d.w - n.handleIn : n.handleIn;
-    const note = hingeName + (door.p.hinge === 'wall' ? 'wall-mount hinge' : (r.layout === 'neo' ? '135° glass-to-glass hinge' : 'glass-to-glass hinge'));
+    const note = hingeName + (door.p.hinge === 'wall' ? 'wall-mount hinge' : (L === 'neo' ? '135° glass-to-glass hinge' : 'glass-to-glass hinge'));
     const hys = [n.hingeOff, d.h - n.hingeOff];
     hys.forEach(yy => mk(d, 'hinge', hx, yy, note));
-    mk(d, 'handle', lx, Math.max(0, d.h - n.handleH), 'handle center');
+    mk(d, 'handle', lx, Math.max(0, d.h - n.handleH), 'handle center', { len: 12 });
     if (door.p.hinge === 'glass') {
       const nb = made[hingeLeft ? idx - 1 : idx + 1];
       if (nb) hys.forEach(yy => mk(nb.pn, 'hinge', hingeLeft ? nb.pn.w : 0, yy + (d.y - nb.pn.y), note + ' (mate)'));
     }
   }
-  // fixed panels: clamps on the wall edge (none when set in U-channel)
+  // fixed panels: clamps on the wall edge (none when set in U-channel); on a slanted edge they follow the slant
   if (!channel) made.filter(m => m.p.role === 'panel').forEach(m => {
-    const pn = m.pn, idx = made.indexOf(m), onLeft = idx === 0, edgeX = onLeft ? 0 : pn.w;
-    const top = n.clampOff, bot = (m.p.notch ? pn.h - m.p.notch.h : pn.h) - n.clampOff;
-    [top, Math.max(top + 4, bot)].forEach(yy => mk(pn, 'standoff', edgeX, yy, 'wall clamp'));
+    const pn = m.pn, idx = made.indexOf(m), onLeft = idx === 0;
+    if (!onLeft && idx !== made.length - 1) return; // a middle panel touches no wall
+    const side = onLeft ? 'left' : 'right';
+    const botY = pn.quad ? pn.pts[onLeft ? 3 : 2].y : (m.p.notch ? pn.h - m.p.notch.h : pn.h);
+    const top = n.clampOff, bot = Math.max(top + 4, botY - n.clampOff);
+    [top, bot].forEach(yy => mk(pn, 'standoff', pn.quad ? shEdgeX(pn, side, yy) : (onLeft ? 0 : pn.w), yy, 'wall clamp'));
   });
   const ret = res.find(p => p.role === 'return');
   if (ret) {
-    const pn = drNewPanel('rect', x + 14, y0); pn.w = ret.w; pn.h = ret.h; pn.label = 'Return panel';
-    pn.spec = drFmtPlain(n.t) + '" tempered' + (channel ? ', set in U-channel' : ''); pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
+    const pn = drNewPanel('rect', x + 14, y0); pn.w = ret.w; pn.h = ret.h; pn.label = 'Return panel'; pn.glass = glassKind;
+    pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName + (channel ? ', set in U-channel' : ''); pn.shopNote = 'Return (side view): wall side on the right, meets the front panel on the left';
     DR.cur.objects.push(pn);
     if (!channel) [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', pn.w, yy, 'wall clamp'));
     [n.clampOff, pn.h - n.clampOff].forEach(yy => mk(pn, 'standoff', 0, yy, '90° glass clamp'));
     DR.cur.objects.push({ id: uid(), type: 'label', x: pn.x, y: y0 - 3, text: 'RETURN (side view)', size: 2.5, vis: 'both' });
   }
   if (tr) {
-    const pn = drNewPanel('rect', 12 + n.wallGap, yTop); pn.w = tr.w; pn.h = tr.h; pn.label = 'Transom';
-    pn.spec = drFmtPlain(n.t) + '" tempered'; pn.shopNote = 'Fixed transom; ' + drFmt(n.headGap) + ' gap at ceiling';
+    const pn = drNewPanel('rect', 12 + n.wallGap, yTop); pn.w = tr.w; pn.h = tr.h; pn.label = tr.label; pn.glass = glassKind;
+    pn.spec = drFmtPlain(n.t) + '" tempered ' + glassName; pn.shopNote = (L === 'steam' ? 'Steam transom, sealed to the ceiling; ' : 'Fixed transom; ') + drFmt(n.headGap) + ' gap at ceiling';
     DR.cur.objects.push(pn);
   }
-  if (r.layout === 'neo') DR.cur.objects.push({ id: uid(), type: 'label', x: 12, y: y0 + n.H + 14, text: 'Neo-angle shown unfolded flat (135° corners)', size: 2.5, vis: 'both' });
+  if (L === 'neo') DR.cur.objects.push({ id: uid(), type: 'label', x: 12, y: y0 + n.H + 14, text: 'Neo-angle shown unfolded flat (135° corners)', size: 2.5, vis: 'both' });
   const dimY = yTop - 6;
-  DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: dimY, x2: 12 + n.W, y2: dimY, text: (r.layout === 'neo' ? 'Faces total ' : 'Opening ') + drFmt(n.W), vis: 'both' });
+  DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: dimY, x2: 12 + (L === 'neo' ? n.W : WB), y2: dimY, text: (L === 'neo' ? 'Faces total ' : 'Opening ') + drFmt(L === 'neo' ? n.W : WB) + (L !== 'neo' && wallOut >= 0.0625 ? ' (top ' + drFmt(WT) + ')' : ''), vis: 'both' });
+  // plan view under the elevation
+  const plan = shPlan(L, n, made, ret, hingeLeft);
+  const po = Object.assign({ id: uid(), type: 'plan', x: 12, y: 0, vis: 'both', title: 'PLAN VIEW (top down)' }, plan);
+  const pb = drPlanBounds(po), lowest = Math.max(y0 + n.H, ...DR.cur.objects.filter(o => o.type === 'panel').map(o => o.y + o.h));
+  po.y = lowest + (L === 'neo' ? 24 : 16) - pb.y0;
+  DR.cur.objects.push(po);
   const lines = res.map(p => `${p.label}: ${drFmt(p.w)} × ${drFmt(p.h)}`).join('; ');
-  const notes = [SH_LAYOUTS[r.layout].t + ' — ' + lines,
+  const notes = [SH_LAYOUTS[L].t + ' — ' + lines,
     `Gaps used — wall ${drFmt(n.wallGap)}, hinge ${drFmt(n.hingeGap)}, strike ${drFmt(n.strikeGap)}, glass ${drFmt(n.glassGap)}, under door ${drFmt(n.doorBottom)}.`,
-    `Hardware: ${r.raw.hinge} hinges; fixed glass in ${channel ? 'U-channel' : 'clamps'}.`];
-  if (plumb >= 0.125) notes.push(`OUT OF PLUMB: left ${drFmt(n.HL)}, right ${drFmt(n.HR)} (${drFmt(plumb)} difference). Glass cut to the shorter height — check before ordering.`);
-  if (r.layout === 'neo') notes.push('Neo-angle: 135° joints — confirm the glass-thickness allowance with your supplier.');
+    `Hardware: ${r.raw.hinge} hinges, ${DR_FINISH[DR.cur.finish].t.toLowerCase()}; fixed glass in ${channel ? 'U-channel' : 'clamps'}. Glass: ${glassName}.`];
+  if (exact && exactNotes.length) { notes.push('FOLLOWING THE WALLS — make a template or confirm sizes with the supplier before ordering.'); exactNotes.forEach(t => notes.push(t)); }
+  else {
+    if (plumb >= 0.125) notes.push(`CURB OUT OF LEVEL: left ${drFmt(n.HL)}, right ${drFmt(n.HR)} (${drFmt(plumb)} difference). Glass cut to the shorter height — check before ordering.`);
+    if (wallOut >= 0.125 && L !== 'neo') notes.push(`WALLS OUT OF PLUMB: bottom ${drFmt(WB)}, top ${drFmt(WT)}. Glass sized to the tightest (${drFmt(Math.min(WB, WT))}) — the gap at the wall grows by ${drFmt(wallOut)}.`);
+  }
+  if (L === 'neo') notes.push('Neo-angle: 135° joints — confirm the glass-thickness allowance with your supplier.');
+  if (L === 'steam') notes.push('Steam unit: glass to the ceiling, seals on every door edge, 1/2" glass recommended. Check the steam generator maker\'s vent requirement before ordering the transom.');
+  if (L === 'tub') notes.push('Tub: check the tub deck is level; use a bottom sweep and drip rail on the door.');
   DR.cur.shopNotes = [DR.cur.shopNotes].concat(notes).filter(Boolean).join('\n');
   if (!DR.cur.name) DR.cur.name = 'Shower ' + drFmt(n.W) + ' × ' + drFmt(n.H);
   document.getElementById('drShowerBox').style.display = 'none';
   DR.sel = null; DR.tool = 'select'; drCommit(); drRender(); drFit();
-  const warn = res.warn || (plumb >= 0.125 ? 'Walls out of plumb by ' + drFmt(plumb) + ' — glass cut to the shorter height.' : '');
+  const warn = res.warn || (!exact && plumb >= 0.125 ? 'Curb out of level by ' + drFmt(plumb) + ' — glass cut to the shorter height.' : '') || (!exact && wallOut >= 0.125 ? 'Walls out of plumb by ' + drFmt(wallOut) + ' — glass cut to the tightest width.' : '') || (exact && exactNotes.length ? 'Out-of-square panels made — get a template or confirm sizes with the supplier.' : '');
   showToast(warn ? '' + warn : '✓ Shower built — check sizes, then adjust anything by hand', warn ? 'error' : 'success');
 }
 
@@ -6314,6 +6599,7 @@ function drRenderTplSel() {
   const list = shTpls();
   el.innerHTML = `<option value="">My templates (${list.length})…</option>` + list.map((t, i) => `<option value="${i}">${drEsc(t.name)}</option>`).join('');
 }
+window.shCompute = shCompute; window.shPlan = shPlan;
 window.drToggleShower = drToggleShower; window.shShowFields = shShowFields; window.shPick = shPick; window.drBuildShower = drBuildShower; window.drSendToBid = drSendToBid;
 window.drSaveTemplate = drSaveTemplate; window.drUseTemplate = drUseTemplate; window.drDeleteTemplate = drDeleteTemplate;
 const _drOnShowOrig = drOnShow;
@@ -6838,6 +7124,175 @@ async function coRetryInvoice(jobId, coId) {
 }
 window.coOpenDecline = coOpenDecline; window.coSaveDecline = coSaveDecline; window.coReopen = coReopen; window.coOpenNew = coOpenNew;
 window.coSync = coSync; window.coCreate = coCreate; window.coCopyLink = coCopyLink; window.coCancel = coCancel; window.coRetryInvoice = coRetryInvoice;
+
+// ═════════════════════════════════════════════════
+// WEBSITE REQUESTS (from builder.html on the public website) + WEBSITE PRICES
+// leads/{id}: { name, phone, email, place, notes, design{layout,W,H,D,A,B,ceil,side,glass,finish}, lo, hi, status:'new'|'contacted'|'closed', createdAt, src:'web' }
+// publicPricing/shower: the numbers the website price range is built from. Anyone can read it; only the owner login can change it.
+// ═════════════════════════════════════════════════
+const LD = { list: [], listening: false, denied: false, showClosed: false };
+const LD_LAYOUTS = { door: 'Door only', doorpanel: 'Door + panel', pdp: 'Panel + door + panel', corner: '90° corner', neo: 'Neo-angle', tub: 'Tub door + panel', steam: 'Steam unit', panel: 'Splash / walk-in panel' };
+const LD_GLASS = { clear: 'Clear', lowiron: 'Low-iron', frost: 'Frosted' };
+const LD_FIN = { chrome: 'Chrome', black: 'Matte black', brushed: 'Brushed nickel', gold: 'Satin brass' };
+const LD_PRICE_DEFAULT = {
+  enabled: false, rangePct: 15, minJob: 0,
+  rate: { clear: 0, lowiron: 0, frost: 0 },
+  base: { door: 0, doorpanel: 0, pdp: 0, corner: 0, neo: 0, tub: 0, steam: 0, panel: 0 },
+  finish: { chrome: 0, black: 0, brushed: 0, gold: 0 },
+};
+// Same formula as builder.html — keep the two in step.
+function ldArea(d) {
+  const H = +d.H || 0, W = +d.W || 0;
+  if (d.layout === 'corner') return (W + (+d.D || 0)) * H / 144;
+  if (d.layout === 'neo') return (2 * (+d.A || 0) + (+d.B || 0)) * H / 144;
+  if (d.layout === 'steam') return W * (+d.ceil || H) / 144;
+  return W * H / 144;
+}
+function ldEstimate(pr, d) {
+  if (!pr || !pr.enabled) return null;
+  const rate = (pr.rate || {})[d.glass] || 0, base = (pr.base || {})[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
+  if (!rate || !base) return null;
+  const est = base + ldArea(d) * rate + fin, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
+  const r50 = v => Math.round(v / 50) * 50;
+  const lo = Math.max(r50(est * (1 - r)), +pr.minJob || 0), hi = Math.max(r50(est * (1 + r)), lo + 50);
+  return { lo, hi };
+}
+function ldDate(c) { const d = c && c.toDate ? c.toDate() : (c ? new Date(c) : null); return d && !isNaN(d) ? d : null; }
+function ldInit() {
+  if (LD.listening || !window._db) return;
+  LD.listening = true;
+  try {
+    window._unsubscribeLeads = window._onSnapshot(window._collection(window._db, 'leads'), snap => {
+      LD.denied = false;
+      LD.list = snap.docs.filter(x => isSafeId(x.id)).map(x => ({ id: x.id, ...x.data() }))
+        .sort((a, b) => ((ldDate(b.createdAt) || 0) - (ldDate(a.createdAt) || 0)));
+      ldRender();
+    }, err => { console.error('Leads listener error:', err); LD.denied = true; LD.listening = false; ldRender(); });
+  } catch (e) { LD.denied = true; LD.listening = false; ldRender(); }
+}
+function ldReset() { if (window._unsubscribeLeads) { try { window._unsubscribeLeads(); } catch (e) {} } LD.listening = false; LD.list = []; }
+function ldSummary(d) {
+  d = d || {};
+  const f = v => (+v ? drFmt(+v) : '?');
+  let size = d.layout === 'neo' ? `sides ${f(d.A)}, front ${f(d.B)}` : `${f(d.W)} wide`;
+  if (d.layout === 'corner') size += `, ${f(d.D)} deep`;
+  size += ` × ${f(d.H)} tall`;
+  if (d.layout === 'steam' && +d.ceil) size += `, ceiling ${f(d.ceil)}`;
+  return `${LD_LAYOUTS[d.layout] || 'Shower'} · ${size} · ${LD_GLASS[d.glass] || 'Clear'} glass · ${LD_FIN[d.finish] || 'Chrome'}${d.side ? ' · opens ' + (d.side === 'left' ? 'left' : 'right') : ''}`;
+}
+function ldRender() {
+  const box = document.getElementById('leadBox'); if (!box) return;
+  const owner = window._currentUserRole !== 'employee';
+  if (LD.denied) { box.innerHTML = `<div class="ld-head"><b>🌐 Website requests</b></div><div class="dr-hint" style="margin:.3rem 0 0">Can't read website requests yet — publish the new Firestore rules (v4).</div>`; return; }
+  const open = LD.list.filter(l => l.status !== 'closed'), nNew = LD.list.filter(l => l.status === 'new').length;
+  const shown = LD.showClosed ? LD.list : open;
+  const b = (label, fn, title, extra = '') => `<button class="btn-job-open" ${extra} onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
+  let h = `<div class="ld-head"><b>🌐 Website requests</b>${nNew ? `<span class="ld-new">${nNew} new</span>` : ''}<span style="flex:1"></span>` +
+    (LD.list.length > open.length ? b(LD.showClosed ? 'Hide closed' : 'Show closed (' + (LD.list.length - open.length) + ')', 'LD.showClosed=!LD.showClosed;ldRender()', 'Closed requests') : '') +
+    (owner ? b('⚙ Website prices', 'ldOpenPricing()', 'Set the numbers the website price range is built from') : '') + '</div>';
+  if (!shown.length) h += `<div class="dr-hint" style="margin:.3rem 0 0">No open requests. When someone designs a shower on the website and sends it, it shows up here.</div>`;
+  shown.forEach(l => {
+    if (!isSafeId(l.id)) return;
+    const dt = ldDate(l.createdAt), when = dt ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+    const st = l.status === 'new' ? '<span class="ld-new">NEW</span>' : l.status === 'contacted' ? '<span class="job-status-badge">Contacted</span>' : '<span class="job-status-badge">Closed</span>';
+    const tel = String(l.phone || '').replace(/[^0-9+]/g, '');
+    h += `<div class="ld-card"><div class="ld-top"><b>${escapeHtml(l.name || 'No name')}</b> ${st}<span class="ld-when">${escapeHtml(when)}</span></div>
+      <div class="ld-line">${tel ? `<a href="tel:${escapeHtml(tel)}">📞 ${escapeHtml(l.phone)}</a>` : ''}${l.email ? ` · <a href="mailto:${escapeHtml(l.email)}">${escapeHtml(l.email)}</a>` : ''}${l.place ? ' · 📍 ' + escapeHtml(l.place) : ''}</div>
+      <div class="ld-line">${escapeHtml(ldSummary(l.design))}</div>
+      <div class="ld-line">${+l.lo ? `Website showed <b>${escapeHtml(fmt(+l.lo))} – ${escapeHtml(fmt(+l.hi))}</b> (their measurements)` : 'No price shown on the website'}</div>
+      ${l.notes ? `<div class="ld-line ld-notes">“${escapeHtml(l.notes)}”</div>` : ''}
+      <div class="ld-acts">${b('＋ Start bid', `ldStartBid('${l.id}')`, 'Open a new bid with their contact details filled in')}${b('<svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Open in Drawing', `ldOpenDrawing('${l.id}')`, 'Open the shower builder with their sizes filled in')}` +
+      (l.status === 'new' ? b('✓ Contacted', `ldSet('${l.id}','contacted')`, 'Mark that you called them') : '') +
+      (l.status !== 'closed' ? b('✕ Close', `ldSet('${l.id}','closed')`, 'Done with this request (won, lost, or spam)') : b('↺ Reopen', `ldSet('${l.id}','contacted')`, 'Reopen')) +
+      (owner ? b('🗑', `ldDelete('${l.id}')`, 'Delete permanently', 'style="color:#e08080"') : '') + `</div></div>`;
+  });
+  box.innerHTML = h;
+}
+async function ldSet(id, status) {
+  if (!isSafeId(id) || !['new', 'contacted', 'closed'].includes(status)) return;
+  try { await window._updateDoc(window._doc(window._db, 'leads', id), { status, statusAt: new Date().toISOString() }); }
+  catch (e) { console.error(e); showToast('Could not update the request', 'error'); }
+}
+async function ldDelete(id) {
+  if (!isSafeId(id) || window._currentUserRole === 'employee') return;
+  if (!confirm('Delete this website request permanently?')) return;
+  try { await window._deleteDoc(window._doc(window._db, 'leads', id)); showToast('Request deleted'); }
+  catch (e) { console.error(e); showToast('Delete failed', 'error'); }
+}
+function ldStartBid(id) {
+  const l = LD.list.find(x => x.id === id); if (!l) return;
+  if (!confirm('Start a new bid for ' + (l.name || 'this customer') + '? Anything unsaved on the Bid tab will be cleared.')) return;
+  switchTab('bid');
+  if (typeof resetBid === 'function') { const c = window.confirm; window.confirm = () => true; try { resetBid(); } finally { window.confirm = c; } }
+  const set = (fid, v) => { const el = document.getElementById(fid); if (el && v) el.value = String(v).slice(0, 200); };
+  set('customerName', l.name); set('customerPhone', l.phone); set('customerEmail', l.email); set('jobLocation', l.place);
+  set('jobDesc', ldSummary(l.design).split(' · ')[0] + ' (website request)');
+  const bn = document.getElementById('bidNotes');
+  if (bn) bn.value = 'From the website: ' + ldSummary(l.design) + '.' + (+l.lo ? ` Website range ${fmt(+l.lo)}–${fmt(+l.hi)} from the customer's own measurements; final price after our field measure.` : ' Final price after our field measure.') + (l.notes ? '\nCustomer note: ' + l.notes : '');
+  if (typeof calculate === 'function') calculate();
+  if (l.status === 'new') ldSet(id, 'contacted');
+  showToast('✓ Bid started from the website request — measure before you price it');
+}
+function ldOpenDrawing(id) {
+  const l = LD.list.find(x => x.id === id); if (!l) return;
+  const d = l.design || {};
+  switchTab('drawing');
+  if (typeof drConfirmDiscard === 'function' && !drConfirmDiscard()) return;
+  drLoad(drNew()); DR.cur.name = (l.name || 'Website') + ' shower'; DR.cur.customer = l.name || ''; DR.cur.job = l.place || ''; drRender();
+  const box = document.getElementById('drShowerBox'); if (box) box.style.display = 'none';
+  drToggleShower();
+  const pick = (k, v) => { if (v && document.querySelector(`.sh-cards[data-name="${k}"] [data-v="${v}"]`)) shPick(k, v); };
+  pick('layout', d.layout); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', d.side);
+  const fill = (k, v) => { const el = document.getElementById('sh_' + k); if (el && +v) el.value = drFmtPlain(+v); };
+  fill('W', d.W); fill('HL', d.H); fill('HR', d.H); fill('D', d.D); fill('A', d.A); fill('B', d.B); fill('C', d.A); fill('ceilH', d.ceil);
+  const wt = document.getElementById('sh_WT'); if (wt) wt.value = '';
+  showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.');
+}
+// ── website prices ──
+async function ldOpenPricing() {
+  if (window._currentUserRole === 'employee') { showToast('Only the owner login can change website prices', 'error'); return; }
+  let pr = JSON.parse(JSON.stringify(LD_PRICE_DEFAULT));
+  try { const snap = await window._getDoc(window._doc(window._db, 'publicPricing', 'shower')); if (snap.exists()) pr = Object.assign(pr, snap.data()); } catch (e) { console.error(e); }
+  ['rate', 'base', 'finish'].forEach(k => { pr[k] = Object.assign({}, LD_PRICE_DEFAULT[k], pr[k] || {}); });
+  const inp = (grp, k, v, ph) => `<input class="dr-in" style="max-width:110px" data-grp="${grp}" data-k="${k}" value="${v ? escapeHtml(String(v)) : ''}" placeholder="${ph}" inputmode="decimal">`;
+  const row = (label, html) => `<label class="dr-row"><span>${label}</span>${html}</label>`;
+  hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Website prices</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div class="dr-hint">The website shows a <b>price range</b>, never one number: (layout base + glass area × glass rate + finish extra) ± the range %. Customers see these numbers as a range only. A layout or glass with no number shows "price after we measure" instead.</div>
+    <label style="display:flex;gap:.4rem;align-items:center;margin:.4rem 0 .6rem;font-size:.8rem"><input type="checkbox" id="ldEnabled" ${pr.enabled ? 'checked' : ''}> Show price ranges on the website</label>
+    <div class="dr-sub">Layout base (hardware + install, $)</div>${Object.entries(LD_LAYOUTS).map(([k, t]) => row(t, inp('base', k, pr.base[k], 'e.g. 900'))).join('')}
+    <div class="dr-sub">Glass, $ per square foot</div>${Object.entries(LD_GLASS).map(([k, t]) => row(t, inp('rate', k, pr.rate[k], 'e.g. 28'))).join('')}
+    <div class="dr-sub">Finish extra (per job, $)</div>${Object.entries(LD_FIN).map(([k, t]) => row(t, inp('finish', k, pr.finish[k], '0'))).join('')}
+    <div class="dr-sub">Range</div>${row('± percent', inp('top', 'rangePct', pr.rangePct, '15'))}${row('Lowest price shown', inp('top', 'minJob', pr.minJob, '0'))}
+    <div class="dr-hint" id="ldExample"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem"><button class="dr-btn" onclick="hwClose()">Cancel</button><button class="dr-btn on" onclick="ldSavePricing()">Publish to website</button></div>`);
+  document.querySelectorAll('#hwModal [data-grp]').forEach(el => el.addEventListener('input', ldExample)); ldExample();
+}
+function ldReadPricing() {
+  const pr = { enabled: !!(document.getElementById('ldEnabled') || {}).checked, rate: {}, base: {}, finish: {}, rangePct: 15, minJob: 0 };
+  let bad = false;
+  document.querySelectorAll('#hwModal [data-grp]').forEach(el => {
+    const raw = el.value.trim().replace(/[$,]/g, ''), v = raw === '' ? 0 : parseFloat(raw);
+    if (isNaN(v) || v < 0 || v > 100000) { bad = true; el.style.borderColor = '#cc3333'; return; } el.style.borderColor = '';
+    if (el.dataset.grp === 'top') pr[el.dataset.k] = v; else pr[el.dataset.grp][el.dataset.k] = v;
+  });
+  if (!pr.rangePct) pr.rangePct = 15;
+  pr.rangePct = Math.min(Math.max(pr.rangePct, 5), 40);
+  return bad ? null : pr;
+}
+function ldExample() {
+  const el = document.getElementById('ldExample'); if (!el) return;
+  const pr = ldReadPricing(); if (!pr) { el.textContent = 'Fix the red numbers.'; return; }
+  const e = ldEstimate(Object.assign({}, pr, { enabled: true }), { layout: 'doorpanel', W: 60, H: 72, glass: 'clear', finish: 'chrome' });
+  el.innerHTML = e ? `Example — 60" × 72" door + panel, clear, chrome: the website would show <b>${fmt(e.lo)} – ${fmt(e.hi)}</b>.` : 'Example: fill in the door + panel base and the clear glass rate to see what the website would show.';
+}
+async function ldSavePricing() {
+  const pr = ldReadPricing(); if (!pr) { showToast('Fix the highlighted numbers', 'error'); return; }
+  if (pr.enabled && !Object.values(pr.base).some(v => v > 0)) { showToast('Fill in at least one layout base, or untick "Show price ranges"', 'error'); return; }
+  pr.updatedAt = new Date().toISOString();
+  try { await window._setDoc(window._doc(window._db, 'publicPricing', 'shower'), pr); hwClose(); showToast(pr.enabled ? '✓ Website prices published' : '✓ Saved — the website shows no prices'); }
+  catch (e) { console.error(e); showToast(/permission/i.test(e.message || '') ? 'Blocked — publish the new Firestore rules (v4) first' : 'Could not save — try again', 'error'); }
+}
+window.ldSet = ldSet; window.ldDelete = ldDelete; window.ldStartBid = ldStartBid; window.ldOpenDrawing = ldOpenDrawing; window.ldOpenPricing = ldOpenPricing; window.ldSavePricing = ldSavePricing; window.ldRender = ldRender; window.ldInit = ldInit; window.ldReset = ldReset; window.ldEstimate = ldEstimate; window.LD = LD;
 
 </script>
 
