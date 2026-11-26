@@ -44,6 +44,13 @@
     padding: 1rem; transition: all 0.15s;
   }
   .btn-approve:hover { background: #8fe0b3; }
+  .sign-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: 1rem; }
+  .sign-box label.lbl { display:block; font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.45rem; }
+  .sign-box input[type=text] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 1.1rem; padding: 0.8rem 0.9rem; }
+  .sign-box input[type=text]:focus { outline: none; border-color: var(--green); }
+  .sign-agree { display: flex; gap: 0.65rem; align-items: flex-start; margin-top: 0.9rem; font-size: 0.88rem; line-height: 1.4; cursor: pointer; }
+  .sign-agree input { width: 22px; height: 22px; flex: none; margin-top: 0.05rem; accent-color: var(--green); }
+
   .btn-approve:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
   .status-msg { text-align: center; padding: 2rem 1rem; }
   .status-msg .icon { font-size: 3rem; margin-bottom: 0.75rem; }
@@ -144,8 +151,25 @@
         <div class="icon">✓</div>
         <div class="title" style="color:var(--green);">Bid Approved</div>
         ${chosenLine}
+        ${view.signedName ? `<div class="sub" style="margin-bottom:0.6rem;">Signed by <b style="color:var(--text);">${escapeHtml(view.signedName)}</b>${view.signedAt ? ' on ' + escapeHtml(new Date(view.signedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })) : ''}</div>` : ''}
         <div class="sub">Thanks${view.customer ? ', ' + escapeHtml(view.customer) : ''}! ${depositLines}Once fabrication is complete our office will contact you to schedule installation.</div>
       </div>`;
+  }
+
+  // Typed signature: full name plus an "I approve" box. Both are checked again by the server.
+  const SIGN_WORDING = 'I approve this bid and authorize American Legacy Glass to do the work described at the price shown.';
+  function signBoxHtml() {
+    return `<div class="sign-box">
+      <label class="lbl" for="signName">Type your full name to sign</label>
+      <input type="text" id="signName" autocomplete="name" maxlength="80" placeholder="Full name">
+      <label class="sign-agree"><input type="checkbox" id="signAgree"><span>${SIGN_WORDING}</span></label>
+    </div>`;
+  }
+  function signValues() {
+    const n = (document.getElementById('signName') || {}).value || '';
+    const name = n.replace(/\s+/g, ' ').trim();
+    const agreed = !!(document.getElementById('signAgree') || {}).checked;
+    return { name, agreed, ok: name.length >= 2 && /[A-Za-z\u00C0-\u024F]/.test(name) && agreed };
   }
 
   function chosenOf(view) {
@@ -180,10 +204,15 @@
           </div>
           ${view.depositRequired !== false ? `<div class="row" style="color:var(--muted);font-size:0.8rem;">50% deposit required to begin production</div>` : ''}
         </div>
-        <button class="btn-approve" id="approveBtn">✓ Approve Bid Now</button>
-        <div class="fine-print">By approving, you authorize American Legacy Glass to proceed with the work described above at the price quoted.</div>
+        ${signBoxHtml()}
+        <button class="btn-approve" id="approveBtn" disabled>Type your name and tick the box</button>
+        <div class="fine-print">Your typed name, the date and time, and your internet address are saved with this approval as your signature.</div>
       `;
-      document.getElementById('approveBtn').addEventListener('click', () => approveBid(view, null));
+      const btn1 = document.getElementById('approveBtn');
+      const refresh1 = () => { const sv = signValues(); btn1.disabled = !sv.ok; btn1.textContent = sv.ok ? '✓ Approve Bid Now' : 'Type your name and tick the box'; };
+      document.getElementById('signName').addEventListener('input', refresh1);
+      document.getElementById('signAgree').addEventListener('change', refresh1);
+      btn1.addEventListener('click', () => { if (signValues().ok) approveBid(view, null); });
     } catch (err) {
       console.error('Bid load error:', err);
       showError('Could not load this bid — please check your connection and try again, or call us.');
@@ -214,11 +243,19 @@
           </button>`;
         }).join('')}
       </div>
+      ${signBoxHtml()}
       <button class="btn-approve" id="approveBtn" disabled>Choose an option above</button>
-      <div class="fine-print">By approving, you authorize American Legacy Glass to proceed with the option you chose, at the price quoted.</div>
+      <div class="fine-print">Your typed name, the date and time, and your internet address are saved with this approval as your signature.</div>
     `;
     let chosen = null;
     const btn = document.getElementById('approveBtn');
+    const refresh = () => {
+      const sv = signValues();
+      btn.disabled = !(chosen && sv.ok);
+      btn.textContent = !chosen ? 'Choose an option above' : !sv.ok ? 'Type your name and tick the box' : '✓ Approve ' + chosen.label + ' — ' + fmt(chosen.total || 0);
+    };
+    document.getElementById('signName').addEventListener('input', refresh);
+    document.getElementById('signAgree').addEventListener('change', refresh);
     content.querySelectorAll('.opt-card').forEach(card => {
       card.addEventListener('click', () => {
         chosen = opts.find(o => o.id === card.dataset.id) || null;
@@ -227,11 +264,11 @@
           c.classList.toggle('selected', on);
           c.querySelector('.opt-pick').textContent = on ? '✓ Selected' : 'Tap to choose';
         });
-        if (chosen) { btn.disabled = false; btn.textContent = '✓ Approve ' + chosen.label + ' — ' + fmt(chosen.total || 0); }
+        refresh();
       });
     });
     btn.addEventListener('click', () => {
-      if (!chosen) return;
+      if (!chosen || !signValues().ok) return;
       // Approval is permanent and creates an invoice, so confirm the exact option and price first.
       if (!confirm('Approve "' + chosen.label + '" for ' + fmt(chosen.total || 0) + '?')) return;
       approveBid(view, chosen);
@@ -248,7 +285,7 @@
       const res = await fetchWithTimeout(WORKER + '/approve-bid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: bidId, optionId: chosenOption ? chosenOption.id : undefined }),
+        body: JSON.stringify({ jobId: bidId, optionId: chosenOption ? chosenOption.id : undefined, signerName: signValues().name, agreed: signValues().agreed }),
       }, 20000);
       let data = null;
       try { data = await res.json(); } catch (e) { /* handled below */ }
@@ -275,6 +312,7 @@
                 'Customer: ' + (fresh.customer || 'Unknown') + '\n' +
                 'Job: ' + (fresh.jobDesc || '') + '\n' +
                 (chosenOption ? 'Option chosen: ' + chosenOption.label + '\n' : '') +
+                'Signed by: ' + (fresh.signedName || signValues().name) + '\n' +
                 'Total: ' + fmt(total) + '\n' +
                 'Bid ID: ' + bidId + '\n\n' +
                 'Reach out to schedule the work.',
@@ -305,7 +343,7 @@
       showApproved(fresh, chosenOf(fresh) || chosenOption || null);
     } catch (err) {
       console.error(err);
-      btn.disabled = false;
+      btn.disabled = !signValues().ok;
       btn.textContent = chosenOption ? ('✓ Approve ' + chosenOption.label + ' — ' + fmt(chosenOption.total || 0)) : '✓ Approve Bid Now';
       alert(err.userMessage || 'Something went wrong approving this bid. Please try again or call us directly.');
     }
