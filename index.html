@@ -6694,6 +6694,11 @@ function coCopy(text, okMsg) {
   else prompt('Copy this link:', text);
 }
 function coWho() { try { return (window._auth && window._auth.currentUser && window._auth.currentUser.email) || ''; } catch (e) { return ''; } }
+// Latest copy of the job straight from the database (the screen can be a second behind a customer's action).
+async function coFreshJob(id) {
+  try { const snap = await window._getDoc(window._doc(window._db, 'jobs', id)); return snap.exists() ? snap.data() : null; }
+  catch (e) { console.error('Could not re-read job', e); return null; }
+}
 async function coUpdateJob(id, fields, okMsg) {
   const job = allJobs.find(j => j.id === id); if (!job) return false;
   const prev = {}; Object.keys(fields).forEach(k => prev[k] = job[k]);
@@ -6731,7 +6736,7 @@ function coJobActions(job) {
   if (!['accepted', 'invoiced', 'done'].includes(stage)) return '';
   let h = b('＋ Change order', `coOpenNew('${job.id}')`, 'Add work to this approved job and send it for the customer to sign');
   (Array.isArray(job.changeOrders) ? job.changeOrders : []).forEach(c => {
-    if (!c || c.status === 'cancelled') return;
+    if (!c || c.status === 'cancelled' || !isSafeId(c.id)) return;
     if (c.status === 'sent') {
       h += b('<svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>CO #' + c.n + ' link', `coCopyLink('${job.id}','${c.id}')`, 'Copy the link to send the customer');
       h += b('✕ Cancel CO #' + c.n, `coCancel('${job.id}','${c.id}')`, 'Withdraw this change order');
@@ -6804,7 +6809,9 @@ async function coCreate() {
     lines.push({ desc, amount: amt });
   }
   if (!lines.length) { showToast('Add at least one line', 'error'); return; }
-  const list = Array.isArray(job.changeOrders) ? job.changeOrders.slice() : [];
+  const fresh = await coFreshJob(job.id);
+  if (!fresh) { showToast('Could not reach the database — try again', 'error'); return; }
+  const list = Array.isArray(fresh.changeOrders) ? fresh.changeOrders.slice() : [];
   const id = 'co' + Math.random().toString(36).slice(2, 10);
   const co = { id, n: list.length + 1, title: String(d.title || '').trim().slice(0, 80), lines, total: Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100, status: 'sent', createdAt: new Date().toISOString(), createdBy: coWho() };
   list.push(co);
@@ -6812,10 +6819,13 @@ async function coCreate() {
   if (await coUpdateJob(job.id, { changeOrders: list })) coCopy(coLinkBase() + job.id + '&co=' + id, '✓ Change order #' + co.n + ' created — link copied, send it to the customer');
 }
 function coCopyLink(jobId, coId) { coCopy(coLinkBase() + jobId + '&co=' + coId, '✓ Link copied'); }
-function coCancel(jobId, coId) {
-  const job = allJobs.find(j => j.id === jobId); if (!job) return;
-  const list = (job.changeOrders || []).map(c => c && c.id === coId && c.status === 'sent' ? Object.assign({}, c, { status: 'cancelled', cancelledAt: new Date().toISOString() }) : c);
+async function coCancel(jobId, coId) {
   if (!confirm('Cancel this change order? Its link will stop working.')) return;
+  const fresh = await coFreshJob(jobId);
+  if (!fresh) { showToast('Could not reach the database — try again', 'error'); return; }
+  const cur = (fresh.changeOrders || []).find(c => c && c.id === coId);
+  if (!cur || cur.status !== 'sent') { showToast('The customer already responded to this change order — it was not cancelled', 'error'); return; }
+  const list = (fresh.changeOrders || []).map(c => c && c.id === coId ? Object.assign({}, c, { status: 'cancelled', cancelledAt: new Date().toISOString() }) : c);
   coUpdateJob(jobId, { changeOrders: list }, 'Change order cancelled');
 }
 async function coRetryInvoice(jobId, coId) {
