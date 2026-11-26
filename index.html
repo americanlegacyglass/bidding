@@ -1247,9 +1247,30 @@ onAuthStateChanged(auth, async user => {
   .glass-sel:focus { border-color: var(--accent); }
   .glass-sel option { background: #242424; color: var(--text); }
   .glass-sel-type { flex: 2; min-width: 160px; }
+
+  /* ── Visual polish (v17): icons, contrast, one button style, phone header ── */
+  :root { --muted: #a0a0a0; }
+  .ic { width: 1.1em; height: 1.1em; vertical-align: -0.18em; margin-right: 0.35em; flex: none; }
+  .dash-empty-icon .ic { width: 2.2rem; height: 2.2rem; margin: 0; opacity: .7; }
+  .tab-btn .ic { width: 1.05em; height: 1.05em; margin-right: .3em; }
+  /* one shape for small action buttons */
+  .btn-job-open, .btn-job-del, .filter-btn, #tab-drawing .dr-btn, .btn-print, .btn-remove {
+    border-radius: 8px !important; font-size: .76rem !important; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: .1rem; }
+  .btn-job-open:hover, .filter-btn:hover, #tab-drawing .dr-btn:hover:not(:disabled) { border-color: var(--accent2) !important; color: var(--text) !important; }
+  .btn-job-del { min-width: 34px; }
+  .job-status-badge { font-size: .7rem !important; }
+  .card-label, .td-lab, .dr-sub, #tab-drawing .dr-row > span:first-child { font-size: .74rem !important; }
+  .job-desc, .stat-label { font-size: .78rem; }
+  @media (max-width: 560px) {
+    header { flex-wrap: wrap; align-items: center; gap: .6rem; padding-bottom: 1rem; }
+    header img { width: 54px !important; height: 54px !important; }
+    header h1 { font-size: 1.9rem; }
+    header > div:last-child { margin-left: 0 !important; width: 100%; justify-content: flex-end; }
+  }
 </style>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="ic-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol><symbol id="ic-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 11h7M8.5 15h5"/></symbol><symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol><symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .7 3.5 2.4 3.5 5.2"/></symbol><symbol id="ic-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4 11-11 3 3-11 11z"/><path d="M14 7l3 3"/></symbol><symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></symbol><symbol id="ic-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l-2 4H9z"/><path d="M12 7v14"/><path d="M9 11h6M9 15h6"/></symbol><symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></symbol><symbol id="ic-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3"/><rect x="8" y="13" width="8" height="6"/></symbol><symbol id="ic-shower" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V8a4 4 0 018 0"/><path d="M10 8h6"/><path d="M12 12v1M15 12v1M18 12v1M13.5 15v1M16.5 15v1M15 18v1"/></symbol><symbol id="ic-ruler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></symbol><symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol><symbol id="ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></symbol><symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h6l2 2h10v11H3z"/></symbol><symbol id="ic-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></symbol><symbol id="ic-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol><symbol id="ic-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 005 5L13 18a2.1 2.1 0 01-3-3z"/><path d="M14.5 6.5L17 4a4 4 0 00-5 5"/></symbol><symbol id="ic-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></symbol><symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol><symbol id="ic-sign" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-6 6-6s1 5 3 5 2-3 4-3 2 2 5 2"/><path d="M3 21h18"/></symbol><symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></symbol></svg>
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none;">
@@ -1286,15 +1307,15 @@ onAuthStateChanged(auth, async user => {
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab-btn" data-tab="dashboard" onclick="switchTab('dashboard')">🏠 Dashboard</button>
+    <button class="tab-btn" data-tab="dashboard" onclick="switchTab('dashboard')"><svg class="ic" aria-hidden="true"><use href="#ic-home"/></svg>Dashboard</button>
 
-    <button class="tab-btn active" data-tab="bid" onclick="switchTab('bid')">📋 Bid Estimate</button>
+    <button class="tab-btn active" data-tab="bid" onclick="switchTab('bid')"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Bid Estimate</button>
 
-    <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')">👤 Customers</button>
+    <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg>Customers</button>
 
-    <button class="tab-btn" data-tab="drawing" onclick="switchTab('drawing')">✏ Drawing</button>
+    <button class="tab-btn" data-tab="drawing" onclick="switchTab('drawing')"><svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Drawing</button>
 
-    <button class="tab-btn" data-tab="tutorial" onclick="switchTab('tutorial')">📖 Tutorial</button>
+    <button class="tab-btn" data-tab="tutorial" onclick="switchTab('tutorial')"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg>Tutorial</button>
   </div>
 
   <!-- DASHBOARD TAB -->
@@ -1331,7 +1352,7 @@ onAuthStateChanged(auth, async user => {
         style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;padding:0.32rem 0.75rem;outline:none;transition:border-color 0.2s;width:200px;"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <button onclick="exportAllData()" title="Download every job and customer as a backup file" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">⬇ Backup</button>
-      <button id="btnManageStaff" onclick="toggleStaffPanel()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">👥 Manage Staff</button>
+      <button id="btnManageStaff" onclick="toggleStaffPanel()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg>Manage Staff</button>
     </div>
 
     <div id="staffPanel" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.85rem;margin:0.5rem 0;">
@@ -1345,7 +1366,7 @@ onAuthStateChanged(auth, async user => {
 
     <!-- Job list -->
     <div class="job-list" id="jobList">
-      <div class="dash-empty"><div class="dash-empty-icon">📋</div>No jobs yet. Save a bid or invoice to see it here.</div>
+      <div class="dash-empty"><div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg></div>No jobs yet. Save a bid or invoice to see it here.</div>
     </div>
 
   </div>
@@ -1438,7 +1459,7 @@ onAuthStateChanged(auth, async user => {
         </div>
         <div class="collapsible-body" id="hw-body">
           <div id="hwList"></div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;"><button class="btn-add" style="flex:1 1 200px" onclick="hwOpenPicker()">🔩 Pick hardware (from your price list)</button><button class="btn-add" style="flex:1 1 200px" onclick="addHardware()">+ Type a hardware item</button></div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;"><button class="btn-add" style="flex:1 1 200px" onclick="hwOpenPicker()"><svg class="ic" aria-hidden="true"><use href="#ic-bolt"/></svg>Pick hardware (from your price list)</button><button class="btn-add" style="flex:1 1 200px" onclick="addHardware()">+ Type a hardware item</button></div>
         </div>
       </div>
 
@@ -1516,13 +1537,13 @@ onAuthStateChanged(auth, async user => {
         </div>
         <div id="bidSaveActions">
           <button class="btn-print" onclick="saveBidPDF()">⬇ Save Bid as PDF</button>
-          <button class="btn-print" onclick="tdOrderSheetFromBid()" title="Glass sizes, glass type, edges, holes and hardware for your supplier. No prices.">📄 Glass Order Sheet</button>
-          <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;margin-top:0.35rem;">⚠ Save the bid first — otherwise the PDF won't include the online approval link</div>
+          <button class="btn-print" onclick="tdOrderSheetFromBid()" title="Glass sizes, glass type, edges, holes and hardware for your supplier. No prices."><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Glass Order Sheet</button>
+          <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;margin-top:0.35rem;"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>Save the bid first — otherwise the PDF won't include the online approval link</div>
           <div class="save-bar" style="margin-top:0.75rem;margin-bottom:0;">
-            <div class="save-bar-text" id="bidSaveStatus">💾 Save this bid to the dashboard</div>
+            <div class="save-bar-text" id="bidSaveStatus"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg>Save this bid to the dashboard</div>
             <button class="btn-save-job" id="btnSaveBid" onclick="saveJobToFirebase()">Save Bid</button>
           </div>
-          <button id="btnCopyBidLink" onclick="copyBidLink()" style="width:100%;margin-top:0.6rem;background:rgba(126,212,160,0.12);border:1px solid rgba(126,212,160,0.35);border-radius:8px;color:#7ed4a0;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.78rem;padding:0.65rem;transition:all 0.15s;" disabled title="Save the bid first to generate its link">🔗 Copy Approval Link</button>
+          <button id="btnCopyBidLink" onclick="copyBidLink()" style="width:100%;margin-top:0.6rem;background:rgba(126,212,160,0.12);border:1px solid rgba(126,212,160,0.35);border-radius:8px;color:#7ed4a0;cursor:pointer;font-family:'DM Mono',monospace;font-size:0.78rem;padding:0.65rem;transition:all 0.15s;" disabled title="Save the bid first to generate its link"><svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>Copy Approval Link</button>
         </div>
       </div>
 
@@ -1578,7 +1599,7 @@ onAuthStateChanged(auth, async user => {
           style="width:100%;margin-bottom:1rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;padding:0.6rem 0.85rem;outline:none;transition:border-color 0.2s;"
           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         <div id="customerList">
-          <div class="dash-empty"><div class="dash-empty-icon">👤</div>No customers yet. Add one above.</div>
+          <div class="dash-empty"><div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></div>No customers yet. Add one above.</div>
         </div>
       </div>
 
@@ -1593,19 +1614,19 @@ onAuthStateChanged(auth, async user => {
     <div class="dr-bar">
       <select id="drListSel" class="dr-in" style="max-width:280px;" onchange="drOpen(this.value)"></select>
       <button class="dr-btn" onclick="drNewDrawing()">＋ New</button>
-      <button class="dr-btn on" onclick="drSave()">💾 Save</button>
+      <button class="dr-btn on" onclick="drSave()"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg>Save</button>
       <button class="dr-btn" onclick="drDuplicate()">⧉ Copy</button>
       <button class="dr-btn danger" onclick="drDelete()">✕ Delete</button>
       <span class="dr-sep"></span>
       <button class="dr-btn" onclick="drExportFile()" title="Download this drawing as a file you can keep or send to another computer">⬇ Save file</button>
       <button class="dr-btn" onclick="document.getElementById('drFileIn').click()">⬆ Open file</button>
       <input type="file" id="drFileIn" accept=".json,application/json" style="display:none" onchange="drImportFile(this)">
-      <button class="dr-btn on" onclick="drToggleShower()" title="Enter the opening and get sized glass with hinges, handle and clamps placed">🚿 Shower layout</button>
+      <button class="dr-btn on" onclick="drToggleShower()" title="Enter the opening and get sized glass with hinges, handle and clamps placed"><svg class="ic" aria-hidden="true"><use href="#ic-shower"/></svg>Shower layout</button>
       <button class="dr-btn" onclick="drSendToBid()" title="Copy this drawing's glass sizes and hardware into the bid open on the Bid tab">➜ Send to bid</button>
       <select id="drTplSel" class="dr-in" style="width:auto;" onchange="drUseTemplate(this)"></select>
       <button class="dr-btn" onclick="drSaveTemplate()" title="Save this drawing as a reusable template on this computer">☆ Save as template</button>
       <button class="dr-btn" onclick="drDeleteTemplate()" title="Delete one of your templates">✕ Template</button>
-      <button class="dr-btn" onclick="drToggleImport()" title="Copy the glass pieces from a bid into this drawing (sizes only, no prices)">📋 Copy from a bid</button>
+      <button class="dr-btn" onclick="drToggleImport()" title="Copy the glass pieces from a bid into this drawing (sizes only, no prices)"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Copy from a bid</button>
       <span id="drDirty" style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);"></span>
     </div>
     <div id="drImportBox"></div>
@@ -1627,7 +1648,7 @@ onAuthStateChanged(auth, async user => {
       <button class="dr-btn" data-tool="marker" data-kind="hole" onclick="drSetTool('marker','hole')">⊙ Hole</button>
       <button class="dr-btn" data-tool="marker" data-kind="hinge" onclick="drSetTool('marker','hinge')">▭ Hinge</button>
       <button class="dr-btn" data-tool="marker" data-kind="handle" onclick="drSetTool('marker','handle')">| Handle</button>
-      <button class="dr-btn" data-tool="marker" data-kind="lock" onclick="drSetTool('marker','lock')">🔒 Lock</button>
+      <button class="dr-btn" data-tool="marker" data-kind="lock" onclick="drSetTool('marker','lock')"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg>Lock</button>
       <button class="dr-btn" data-tool="marker" data-kind="standoff" onclick="drSetTool('marker','standoff')">◎ Standoff</button>
       <button class="dr-btn" data-tool="marker" data-kind="notch" onclick="drSetTool('marker','notch')">▢ Notch</button>
       <span class="dr-sep"></span>
@@ -1643,7 +1664,7 @@ onAuthStateChanged(auth, async user => {
       <select class="dr-in" id="drSnapSel" style="width:auto;" onchange="DR.snapIn=parseFloat(this.value);DR.snap=true;drRender()"><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option><option value="6">6"</option></select>
       <span class="dr-sep"></span>
       <button class="dr-btn" data-view="edit" onclick="drSetView('edit')">✎ Edit</button>
-      <button class="dr-btn" data-view="customer" onclick="drSetView('customer')">👁 Customer preview</button>
+      <button class="dr-btn" data-view="customer" onclick="drSetView('customer')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg>Customer preview</button>
     </div>
     <div class="dr-main">
       <div class="dr-canvasbox"><div id="drCanvasWrap"></div></div>
@@ -1692,7 +1713,7 @@ onAuthStateChanged(auth, async user => {
           <ol>
             <li><b>Bid Estimate tab:</b> enter the customer, add the glass or items, check the total.</li>
             <li>Press <b>Save Bid</b>. The bid now shows on the Dashboard.</li>
-            <li>Press <b>🔗 Copy Approval Link</b> and text or email it to the customer, or press <b>⬇ Save Bid as PDF</b> to send a document. Save first, or the PDF won't carry the approval link.</li>
+            <li>Press <b><svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>Copy Approval Link</b> and text or email it to the customer, or press <b>⬇ Save Bid as PDF</b> to send a document. Save first, or the PDF won't carry the approval link.</li>
             <li>The customer opens the link, sees the total, and presses <b>Approve Bid Now</b>.</li>
             <li>The shop gets an email, the bid turns <b>Accepted</b> on the Dashboard, and a <b>draft</b> invoice is created in Xero automatically. Nothing is sent to the customer from Xero until someone approves that draft.</li>
             <li>When the draft is approved in Xero the job moves to <b>Invoiced</b>. When the invoice is paid in full it moves to <b>Done</b>.</li>
@@ -1706,12 +1727,12 @@ onAuthStateChanged(auth, async user => {
           <p>Every line on a bid is priced one of two ways. The app is <b>not</b> only for jobs priced by square foot.</p>
           <div class="tut-cols">
             <div class="tut-col">
-              <h4>📐 Glass piece</h4>
+              <h4><svg class="ic" aria-hidden="true"><use href="#ic-ruler"/></svg>Glass piece</h4>
               <p>You enter the <b>size</b> and pick the glass. The app multiplies square feet by the glass rate, then adds edge work and fabrication.</p>
               <p><b>Use it for:</b> shower doors, table tops, mirrors, replacement panes: glass cut to a size.</p>
             </div>
             <div class="tut-col flat">
-              <h4>📋 Flat-price item</h4>
+              <h4><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Flat-price item</h4>
               <p>You <b>type a description and your own price.</b> Nothing is calculated from size, and there is no glass to pick.</p>
               <p><b>Use it for:</b> a pre-built window or door, a manufacturer's unit, a one-off item: anything you quote as one price.</p>
             </div>
@@ -1738,7 +1759,7 @@ onAuthStateChanged(auth, async user => {
             <li>Tap the arrow at the left of a line to open its details. <b>GLASS:</b> pick thickness, flat or insulated, treatment and type. The price per square foot fills in and you can type over it.</li>
             <li><b>EDGE:</b> pick an edge finish. The price per inch is editable.</li>
             <li><b>FABRICATION:</b> open the section and use + and &minus; on each item (holes, cutouts and so on). The price of each is shown.</li>
-            <li>A <b>⚠</b> on a line means no glass price is set. Pick the glass, or type a $/ft&sup2; rate.</li>
+            <li>A <b><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg></b> on a line means no glass price is set. Pick the glass, or type a $/ft&sup2; rate.</li>
             <li>The <b>⋯</b> menu on each line has: Flat Price Item, Duplicate and Remove.</li>
             <li><b>≈ Round ft&sup2;</b> (top right of the card) rounds each piece up to the next whole square foot.</li>
           </ul>
@@ -1759,7 +1780,7 @@ onAuthStateChanged(auth, async user => {
         <summary>4 &middot; Hardware, labor, extras and how the price is built</summary>
         <div class="tut-body">
           <ul>
-            <li><b>Hardware/Extra:</b> press <b>🔩 Pick hardware</b> to choose an item and finish from your own price list (pictures; the price fills in), or <b>+ Type a hardware item</b> to type a name and cost. <b>✎ Edit price list</b> (owner login) sets the items, their prices and any extra % for a finish. No prices are built in.</li>
+            <li><b>Hardware/Extra:</b> press <b><svg class="ic" aria-hidden="true"><use href="#ic-bolt"/></svg>Pick hardware</b> to choose an item and finish from your own price list (pictures; the price fills in), or <b>+ Type a hardware item</b> to type a name and cost. <b>✎ Edit price list</b> (owner login) sets the items, their prices and any extra % for a finish. No prices are built in.</li>
             <li><b>Labor Costs:</b> a name and a cost. Marked tax free.</li>
             <li><b>Additional Costs:</b> a name and either a dollar amount or a percentage of the materials.</li>
           </ul>
@@ -1819,23 +1840,23 @@ onAuthStateChanged(auth, async user => {
       <details class="tut-sec">
         <summary>8 &middot; The Drawing tab</summary>
         <div class="tut-body">
-          <p>The <b>✏ Drawing</b> tab makes shop drawings. It is separate from the bid: nothing in it has a price, and nothing in it is added to a bid, the PDF or the customer's approval page. The customer only sees a drawing if you send them the customer version.</p>
+          <p>The <b><svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Drawing</b> tab makes shop drawings. It is separate from the bid: nothing in it has a price, and nothing in it is added to a bid, the PDF or the customer's approval page. The customer only sees a drawing if you send them the customer version.</p>
           <h4>Start a drawing</h4>
           <ul>
             <li>Type a <b>Drawing name</b> (required to save), and a customer and job if you want them on the printout.</li>
             <li><b>＋ Add panel</b> adds a piece of glass: Rectangle, Circle / oval, Arch top, or Polygon (any shape, with as many corners as you need).</li>
-            <li><b>📋 Copy from a bid</b> brings in the glass pieces you already entered (sizes only, plus any holes and notes from the old sketch). The bid is not changed.</li>
+            <li><b><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Copy from a bid</b> brings in the glass pieces you already entered (sizes only, plus any holes and notes from the old sketch). The bid is not changed.</li>
           </ul>
           <h4>Shower layout (fastest way)</h4>
           <ul>
-            <li>Press <b>🚿 Shower layout</b>, pick the layout (door only, door + panel, panel + door + panel, 90° corner with a return, or a fixed panel), and type the opening width, glass height and door width.</li>
+            <li>Press <b><svg class="ic" aria-hidden="true"><use href="#ic-shower"/></svg>Shower layout</b>, pick the layout (door only, door + panel, panel + door + panel, 90° corner with a return, or a fixed panel), and type the opening width, glass height and door width.</li>
             <li>The app takes off your gaps (wall, hinge, strike, glass-to-glass, under the door) and draws every piece at its glass size, with hinges, the handle and wall clamps already placed. The opening is dimensioned and the sizes and gaps used are written into the shop notes.</li>
             <li><b>Set your own gap and hardware numbers once.</b> The starting numbers are not a supplier spec. Whatever you type is remembered on that computer for next time.</li>
             <li>Pick the layout from the pictures: door only, door + panel, panel + door + panel, door + notched panel (knee wall), 90° corner with a return, neo-angle, or a fixed panel. Also pick beveled or square hinges, clamps or U-channel for the fixed glass, which way the door opens, and an optional fixed transom.</li>
             <li>Enter the <b>left and right wall heights</b>. If they differ, the glass is cut to the shorter one and the shop notes flag it as out of plumb.</li>
             <li>Everything it draws is normal panels and markers, so you can fix anything by hand afterwards.</li>
             <li><b>➜ Send to bid</b> copies the drawing's glass sizes and hardware counts into the bid open on the Bid tab. It asks first, it only adds lines, and the drawing stays separate. Glass type and edge copy from the bid's last piece; hardware takes its price from your price list or is left for you to fill in.</li>
-            <li><b>☆ Save as template</b> keeps a drawing you reuse; pick it later from <b>📁 My templates</b>. Templates are saved on that computer only.</li>
+            <li><b>☆ Save as template</b> keeps a drawing you reuse; pick it later from <b><svg class="ic" aria-hidden="true"><use href="#ic-folder"/></svg>My templates</b>. Templates are saved on that computer only.</li>
           </ul>
           <h4>Shape it</h4>
           <ul>
@@ -1857,11 +1878,11 @@ onAuthStateChanged(auth, async user => {
           <h4>Two versions</h4>
           <ul>
             <li><b>Shop sheet</b>: dimensions, numbered holes, a panel list, a holes-and-hardware schedule and your shop notes. Download as PDF, PNG or SVG.</li>
-            <li><b>Customer version</b>: a clean picture. No hole numbers, no shop notes and no shop-only items. Overall sizes appear only if you tick <b>Show overall sizes</b>. Use <b>👁 Customer preview</b> to see it before you send it.</li>
+            <li><b>Customer version</b>: a clean picture. No hole numbers, no shop notes and no shop-only items. Overall sizes appear only if you tick <b>Show overall sizes</b>. Use <b><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg>Customer preview</b> to see it before you send it.</li>
           </ul>
           <h4>Saving</h4>
           <ul>
-            <li><b>💾 Save</b> stores the drawing in the app so everyone can open it from the list at the top. The app warns before you open another drawing with unsaved changes.</li>
+            <li><b><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg>Save</b> stores the drawing in the app so everyone can open it from the list at the top. The app warns before you open another drawing with unsaved changes.</li>
             <li><b>⬇ Save file</b> / <b>⬆ Open file</b> keep a copy as a file. <b>⬇ Backup</b> on the Dashboard includes saved drawings.</li>
             <li>Handy extras: <b>↶ ↷</b> undo and redo (or Ctrl+Z / Ctrl+Y), zoom and <b>Fit</b>, and <b>Snap</b> to a grid (1/8" to 6"). Delete removes the selected item and the arrow keys nudge it.</li>
             <li>Only the owner login can delete a saved drawing.</li>
@@ -1874,9 +1895,9 @@ onAuthStateChanged(auth, async user => {
         <div class="tut-body">
           <ul>
             <li><b>Save Bid</b> stores the bid on the Dashboard. To change a saved bid, press <b>Open</b> on the Dashboard, make your changes, and press Save Bid again.</li>
-            <li><b>🔗 Copy Approval Link</b> is greyed out until the bid is saved. Send the copied link to the customer.</li>
+            <li><b><svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>Copy Approval Link</b> is greyed out until the bid is saved. Send the copied link to the customer.</li>
             <li><b>⬇ Save Bid as PDF</b> makes the customer document: descriptions and the total, with the approval link if the bid was saved first. With options, one PDF covers all of them.</li>
-            <li><b>📄 Glass Order Sheet</b> makes a PDF for your supplier from the bid. First you pick the <b>supplier</b> (Oldcastle, Trulite, Wright Brothers and your other suppliers are in the list; type a new one and it's remembered), your <b>PO #</b>, the <b>needed-by</b> date, <b>pickup or delivery</b> to the job site, and who ordered it with a call-back phone. Untick pieces going to a different supplier and make a second sheet for them. Each piece has a note line for the supplier (IGU makeup and spacer colour, hole size, pattern). The sheet lists quantity, size, glass, edge, holes and notes, plus the hardware list. No prices. With options, it uses the option you're on.</li>
+            <li><b><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Glass Order Sheet</b> makes a PDF for your supplier from the bid. First you pick the <b>supplier</b> (Oldcastle, Trulite, Wright Brothers and your other suppliers are in the list; type a new one and it's remembered), your <b>PO #</b>, the <b>needed-by</b> date, <b>pickup or delivery</b> to the job site, and who ordered it with a call-back phone. Untick pieces going to a different supplier and make a second sheet for them. Each piece has a note line for the supplier (IGU makeup and spacer colour, hole size, pattern). The sheet lists quantity, size, glass, edge, holes and notes, plus the hardware list. No prices. With options, it uses the option you're on.</li>
             <li><b>↺ NEW BID</b> (top right) clears the form to start over. It asks first.</li>
             <li>If you try to leave a bid that has unsaved changes, the app asks before you go.</li>
             <li>If you change the price of a bid that's <b>already approved</b>, the app warns you: the Xero invoice does not change, so you would have to fix it in Xero yourself.</li>
@@ -1891,10 +1912,10 @@ onAuthStateChanged(auth, async user => {
           <ul>
             <li><b>Open</b> loads a bid back into the Bid tab.</li>
             <li><b>✓ Approve Manually</b> is for a customer who agreed in person or by phone. Don't use it for a bid the customer can still approve through the link. It asks you to confirm, asks which option if the bid has options, then creates the Xero invoice right away.</li>
-            <li>A red <b>⚠ Stage may be stale</b> badge means an invoice was voided in Xero. Check the job, then click the badge to dismiss it.</li>
+            <li>A red <b><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>Stage may be stale</b> badge means an invoice was voided in Xero. Check the job, then click the badge to dismiss it.</li>
             <li><b>⬇ Backup</b> downloads every job and customer as a backup file.</li>
-            <li><b>To-do cards</b> at the top count what needs doing next: <b>⏳ Waiting on customer</b> (sent 3+ days, not approved — call them), <b>📦 Approved — order glass</b>, <b>📅 Ordered — schedule install</b>, <b>🔧 Install date passed</b>, and <b>🧾 Installed — finish invoice</b> (approve the Xero draft). Click a card to list just those jobs; click it again to show all.</li>
-            <li>On approved jobs, use <b>📦 Ordered</b>, <b>📅 Install date</b> and <b>🔧 Installed</b> to move a job along, and <b>📄 Order sheet</b> to download its glass order (it can also mark the job ordered and save the supplier and PO on it). Each has an ↺ to undo.</li>
+            <li><b>To-do cards</b> at the top count what needs doing next: <b><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>Waiting on customer</b> (sent 3+ days, not approved — call them), <b><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Approved — order glass</b>, <b><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Ordered — schedule install</b>, <b><svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Install date passed</b>, and <b><svg class="ic" aria-hidden="true"><use href="#ic-receipt"/></svg>Installed — finish invoice</b> (approve the Xero draft). Click a card to list just those jobs; click it again to show all.</li>
+            <li>On approved jobs, use <b><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered</b>, <b><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Install date</b> and <b><svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed</b> to move a job along, and <b><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Order sheet</b> to download its glass order (it can also mark the job ordered and save the supplier and PO on it). Each has an ↺ to undo.</li>
           </ul>
           <h4>Who can do what</h4>
           <p>Everyone can create and edit bids and approve them. <b>Undo</b> (voids the Xero invoice and reopens the bid), the <b>✕</b> delete button and <b>Manage Staff</b> are for the owner login only.</p>
@@ -1906,7 +1927,7 @@ onAuthStateChanged(auth, async user => {
         <div class="tut-body">
           <ul>
             <li><b>How do I log in?</b> Owner: leave the email blank and enter the PIN. Employees: type your email, then the PIN.</li>
-            <li><b>The total is missing a line.</b> A glass piece with no rate (⚠) adds nothing until you pick the glass or type a rate. A flat-price item adds nothing until you type its price.</li>
+            <li><b>The total is missing a line.</b> A glass piece with no rate (<svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>) adds nothing until you pick the glass or type a rate. A flat-price item adds nothing until you type its price.</li>
             <li><b>The link button won't click.</b> Save the bid first.</li>
             <li><b>I can't find Undo or Delete.</b> Those are owner-only. Employee logins don't show them.</li>
             <li><b>Why does it say draft in Xero?</b> Invoices are created as drafts on purpose. Nothing reaches the customer until someone approves the draft in Xero.</li>
@@ -3096,7 +3117,7 @@ function renderPieces() {
     const showDecimal = (p.wFrac > 0 || p.hFrac > 0) && w && h;
     const isExpanded = _expandedPieces.has(p.id);
     const glassLabel = p.flatPrice
-      ? '📋 ' + (p.flatPriceDesc || 'Flat price item — no description yet')
+      ? '' + (p.flatPriceDesc || 'Flat price item — no description yet')
       : ([p.thickness, p.glassTypeName].filter(Boolean).join(' · ') || (w&&h ? 'Glass not set' : ''));
     const fabCount = p.fabrications ? Object.keys(p.fabrications).length : 0;
 
@@ -3124,13 +3145,13 @@ function renderPieces() {
           oninput="pieces[${i}].qty=this.value;updatePieceSqft('${p.id}');calculate()" style="max-width:52px;flex-shrink:0;">
         <div class="piece-sqft" id="sqft_${p.id}">${getSqft(p)}</div>
         ${showDecimal ? `<span class="piece-info-icon" title="${wDec} × ${hDec}">ⓘ</span>` : ''}
-        ${noRate ? `<span class="piece-info-icon" title="No glass rate set" style="color:#e0a060;">⚠</span>` : ''}
+        ${noRate ? `<span class="piece-info-icon" title="No glass rate set" style="color:#e0a060;"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg></span>` : ''}
         ${glassLabel ? `<span style="font-size:0.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">${escapeHtml(glassLabel)}${fabCount?' · '+fabCount+' fab':''}</span>` : ''}
         <div class="piece-summary-total">${combinedTotal > 0 ? fmt(combinedTotal) : ''}</div>
         <div class="piece-menu-wrap" onclick="event.stopPropagation()">
           <button class="piece-menu-btn" onclick="togglePieceMenu('${p.id}', event)">⋯</button>
           <div class="piece-menu-dropdown" id="pmenu_${p.id}">
-            <div class="piece-menu-item" onclick="togglePieceFlatPrice('${p.id}')">${p.flatPrice ? '↩ Use Glass Formula' : '📋 Flat Price Item'}</div>
+            <div class="piece-menu-item" onclick="togglePieceFlatPrice('${p.id}')">${p.flatPrice ? '↩ Use Glass Formula' : '<svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Flat Price Item'}</div>
             <div class="piece-menu-item" onclick="duplicatePiece('${p.id}')">⧉ Duplicate</div>
             <div class="piece-menu-item danger" onclick="removePiece('${p.id}')">✕ Remove</div>
           </div>
@@ -3139,8 +3160,8 @@ function renderPieces() {
       <div class="piece-details ${isExpanded?'open':''}">
       <div class="price-mode" onclick="event.stopPropagation()">
         <span class="edge-label">PRICED BY:</span>
-        <button class="pm-btn${p.flatPrice ? '' : ' active'}" onclick="setPieceMode('${p.id}', false)">📐 Size &times; glass rate</button>
-        <button class="pm-btn flat${p.flatPrice ? ' active' : ''}" onclick="setPieceMode('${p.id}', true)">📋 Flat price &mdash; description + price</button>
+        <button class="pm-btn${p.flatPrice ? '' : ' active'}" onclick="setPieceMode('${p.id}', false)"><svg class="ic" aria-hidden="true"><use href="#ic-ruler"/></svg>Size &times; glass rate</button>
+        <button class="pm-btn flat${p.flatPrice ? ' active' : ''}" onclick="setPieceMode('${p.id}', true)"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Flat price &mdash; description + price</button>
       </div>
       ${p.flatPrice ? buildFlatPricePieceDetails(p, i) : buildStandardPieceDetails(p, i, perim, edgeTotal, showEdge, glassTotal, showGlass)}
       </div>`;
@@ -3354,7 +3375,7 @@ function resetBid() {
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('bidDate').valueAsDate = new Date();
-  document.getElementById('bidSaveStatus').textContent = '💾 Save this bid to the dashboard';
+  document.getElementById('bidSaveStatus').textContent = 'Save this bid to the dashboard';
 
   const marginEl = document.getElementById('bidMargin'); if (marginEl) marginEl.value='';
   const surchargeEl = document.getElementById('bidSurcharge'); if (surchargeEl) surchargeEl.value='';
@@ -4168,7 +4189,7 @@ function renderCustomerList() {
     (c.company || '').toLowerCase().includes(q)
   );
   if (!filtered.length) {
-    list.innerHTML = '<div class="dash-empty"><div class="dash-empty-icon">👤</div>' + (q ? 'No customers match your search.' : 'No customers yet. Add one above.') + '</div>';
+    list.innerHTML = '<div class="dash-empty"><div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></div>' + (q ? 'No customers match your search.' : 'No customers yet. Add one above.') + '</div>';
     return;
   }
   list.innerHTML = '';
@@ -4551,11 +4572,11 @@ function renderDashboard() {
   if (!filtered.length) {
     let msg;
     if (q) {
-      msg = `<div class="dash-empty-icon">🔍</div>No jobs match "${q}".`;
+      msg = `<div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></div>No jobs match "${q}".`;
     } else if (!allJobs.length) {
-      msg = `<div class="dash-empty-icon">📋</div><div style="font-weight:600;margin-bottom:0.3rem;">No jobs yet</div><div style="font-size:0.8rem;color:var(--muted);">Save a bid and it will show up here.</div>`;
+      msg = `<div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg></div><div style="font-weight:600;margin-bottom:0.3rem;">No jobs yet</div><div style="font-size:0.8rem;color:var(--muted);">Save a bid and it will show up here.</div>`;
     } else {
-      msg = `<div class="dash-empty-icon">📋</div>No jobs match this filter.`;
+      msg = `<div class="dash-empty-icon"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg></div>No jobs match this filter.`;
     }
     list.innerHTML = `<div class="dash-empty">${msg}</div>`;
     return;
@@ -4568,7 +4589,7 @@ function renderDashboard() {
     const dateStr = job.date ? new Date(job.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
     const isAcceptedBid = job.type === 'bid' && job.status === 'accepted';
     const isPendingBid = job.type === 'bid' && job.status !== 'accepted';
-    const stageLabels = { bid: 'Bid', accepted: '✓ Accepted', invoiced: '🧾 Invoiced', done: '✓ Done' };
+    const stageLabels = { bid: 'Bid', accepted: '✓ Accepted', invoiced: 'Invoiced', done: '✓ Done' };
     const statusLabel = job.type === 'bid' ? stageLabels[getPipelineStage(job)] : (job.status||'draft');
     const amountColor = isAcceptedBid ? 'var(--green)' : job.type==='invoice'&&job.status==='paid' ? 'var(--green)' : job.type==='invoice'&&job.status==='overdue' ? '#e06060' : job.type==='invoice' ? 'var(--invoice-accent)' : 'var(--text)';
     const _opts = getJobOptions(job), _chosen = jobChosenOption(job);
@@ -4578,7 +4599,7 @@ function renderDashboard() {
     const optionBadge = _opts
       ? `<span class="job-status-badge" style="background:rgba(126,212,160,0.12);border-color:rgba(126,212,160,0.35);color:#7ed4a0;">${_chosen ? 'Chose: ' + escapeHtml(_chosen.label) : _opts.length + ' options'}</span>`
       : '';
-    const typeIcon = job.type === 'bid' ? '📋' : '🧾';
+    const typeIcon = job.type === 'bid' ? '<svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>' : '<svg class="ic" aria-hidden="true"><use href="#ic-receipt"/></svg>';
     const desc = job.jobDesc || job.invNumber || '';
     row.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:0.65rem;flex:1;min-width:0;">
@@ -4587,7 +4608,7 @@ function renderDashboard() {
           <div class="job-name">${escapeHtml(job.customer)}</div>
           ${desc ? `<div class="job-desc">${escapeHtml(desc)}</div>` : ''}
           <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);margin-top:0.15rem;">${dateStr}</div>
-          ${isAcceptedBid ? `<div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:0.1rem;">${job.approvedVia === 'staff' ? '✓ Approved by ' + escapeHtml(job.approvedByEmail || 'staff') : '✓ Approved online by customer'}</div>` : ''}
+          ${isAcceptedBid ? `<div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:0.1rem;">${job.approvedVia === 'staff' ? '✓ Approved by ' + escapeHtml(job.approvedByEmail || 'staff') : (job.approvalSignature && job.approvalSignature.name ? `<span title="${escapeHtml('Signed ' + new Date(job.approvalSignature.at).toLocaleString('en-US') + ' · IP ' + (job.approvalSignature.ip || 'unknown') + ' · ' + (job.approvalSignature.userAgent || ''))}"><svg class="ic" aria-hidden="true"><use href="#ic-sign"/></svg>Signed online by ${escapeHtml(job.approvalSignature.name)}, ${escapeHtml(new Date(job.approvalSignature.at).toLocaleDateString('en-US'))}</span>` : '✓ Approved online by customer')}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0;">
@@ -4596,7 +4617,7 @@ function renderDashboard() {
         ${optionBadge}
         ${typeof tdJobBadges === 'function' ? tdJobBadges(job) : ''}
         ${job.xeroInvoiceId ? `<span class="job-status-badge paid" title="Created in Xero">✓ Invoiced${job.xeroInvoiceNumber ? ' — '+escapeHtml(job.xeroInvoiceNumber) : ''}</span>` : ''}
-        ${job.pipelineDrift ? `<span class="job-status-badge" style="background:rgba(224,96,96,0.15);border-color:rgba(224,96,96,0.4);color:#e06060;cursor:pointer;" title="${escapeHtml(job.pipelineDriftNote || 'This job pipeline stage may be stale')} — click to dismiss once reviewed" onclick="dismissPipelineDrift(event,'${job.id}')">⚠ Stage may be stale</span>` : ''}
+        ${job.pipelineDrift ? `<span class="job-status-badge" style="background:rgba(224,96,96,0.15);border-color:rgba(224,96,96,0.4);color:#e06060;cursor:pointer;" title="${escapeHtml(job.pipelineDriftNote || 'This job pipeline stage may be stale')} — click to dismiss once reviewed" onclick="dismissPipelineDrift(event,'${job.id}')"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>Stage may be stale</span>` : ''}
       </div>
       <div class="job-actions">
         <button class="btn-job-open" onclick="openJob('${job.id}')">Open</button>
@@ -6196,7 +6217,7 @@ function drBuildShower() {
   document.getElementById('drShowerBox').style.display = 'none';
   DR.sel = null; DR.tool = 'select'; drCommit(); drRender(); drFit();
   const warn = res.warn || (plumb >= 0.125 ? 'Walls out of plumb by ' + drFmt(plumb) + ' — glass cut to the shorter height.' : '');
-  showToast(warn ? '⚠ ' + warn : '✓ Shower built — check sizes, then adjust anything by hand', warn ? 'error' : 'success');
+  showToast(warn ? '' + warn : '✓ Shower built — check sizes, then adjust anything by hand', warn ? 'error' : 'success');
 }
 
 // ── send a drawing's glass to the open bid (button press only; the drawing itself stays separate) ──
@@ -6275,7 +6296,7 @@ function drDeleteTemplate() {
 function drRenderTplSel() {
   const el = document.getElementById('drTplSel'); if (!el) return;
   const list = shTpls();
-  el.innerHTML = `<option value="">📁 My templates (${list.length})…</option>` + list.map((t, i) => `<option value="${i}">${drEsc(t.name)}</option>`).join('');
+  el.innerHTML = `<option value="">My templates (${list.length})…</option>` + list.map((t, i) => `<option value="${i}">${drEsc(t.name)}</option>`).join('');
 }
 window.drToggleShower = drToggleShower; window.shShowFields = shShowFields; window.shPick = shPick; window.drBuildShower = drBuildShower; window.drSendToBid = drSendToBid;
 window.drSaveTemplate = drSaveTemplate; window.drUseTemplate = drUseTemplate; window.drDeleteTemplate = drDeleteTemplate;
@@ -6430,15 +6451,15 @@ function tdToday() { const d = new Date(); return d.getFullYear() + '-' + String
 function tdStage(job) { return typeof getPipelineStage === 'function' ? getPipelineStage(job) : ''; }
 // Each bucket: which jobs belong, and the one next step for them.
 const TD_BUCKETS = [
-  { key: 'wait', icon: '⏳', title: 'Waiting on customer', hint: `Sent ${TD_WAIT_DAYS}+ days ago, not approved — call them`,
+  { key: 'wait', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>', title: 'Waiting on customer', hint: `Sent ${TD_WAIT_DAYS}+ days ago, not approved — call them`,
     test: j => j.type === 'bid' && tdStage(j) === 'bid' && (tdDaysSince(j.savedAt) ?? 0) >= TD_WAIT_DAYS },
-  { key: 'order', icon: '📦', title: 'Approved — order glass', hint: 'Approved and no glass order marked yet',
+  { key: 'order', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>', title: 'Approved — order glass', hint: 'Approved and no glass order marked yet',
     test: j => j.type === 'bid' && ['accepted', 'invoiced'].includes(tdStage(j)) && !j.glassOrderedAt && !j.installDoneAt },
-  { key: 'schedule', icon: '📅', title: 'Ordered — schedule install', hint: 'Glass ordered, no install date set',
+  { key: 'schedule', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>', title: 'Ordered — schedule install', hint: 'Glass ordered, no install date set',
     test: j => j.type === 'bid' && j.glassOrderedAt && !j.installDate && !j.installDoneAt && tdStage(j) !== 'done' },
-  { key: 'install', icon: '🔧', title: 'Install date passed', hint: 'Mark it installed once the job is done',
+  { key: 'install', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>', title: 'Install date passed', hint: 'Mark it installed once the job is done',
     test: j => j.type === 'bid' && j.installDate && j.installDate <= tdToday() && !j.installDoneAt && tdStage(j) !== 'done' },
-  { key: 'invoice', icon: '🧾', title: 'Installed — finish invoice', hint: 'Approve the Xero draft so the invoice goes out',
+  { key: 'invoice', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-receipt"/></svg>', title: 'Installed — finish invoice', hint: 'Approve the Xero draft so the invoice goes out',
     test: j => j.type === 'bid' && j.installDoneAt && tdStage(j) === 'accepted' },
 ];
 function tdRender() {
@@ -6457,19 +6478,19 @@ function tdSetFilter(k) { tdFilter = tdFilter === k ? null : k; renderDashboard(
 function tdJobBadges(job) {
   if (job.type !== 'bid') return '';
   const out = [];
-  if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)">⏳ ${d} days</span>`); }
-  if (job.glassOrderedAt) out.push(`<span class="job-status-badge" title="Glass ordered ${escapeHtml(new Date(job.glassOrderedAt).toLocaleDateString('en-US'))}">📦 Ordered</span>`);
-  if (job.installDate) out.push(`<span class="job-status-badge">📅 ${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`);
-  if (job.installDoneAt) out.push(`<span class="job-status-badge paid">🔧 Installed</span>`);
+  if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>${d} days</span>`); }
+  if (job.glassOrderedAt) out.push(`<span class="job-status-badge" title="Glass ordered ${escapeHtml(new Date(job.glassOrderedAt).toLocaleDateString('en-US'))}"><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered</span>`);
+  if (job.installDate) out.push(`<span class="job-status-badge"><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`);
+  if (job.installDoneAt) out.push(`<span class="job-status-badge paid"><svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed</span>`);
   return out.join('');
 }
 function tdJobActions(job) {
   if (job.type !== 'bid' || !['accepted', 'invoiced', 'done'].includes(tdStage(job))) return '';
   const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
-  let h = b('📄 Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
-  h += job.glassOrderedAt ? b('↺ Ordered', `tdSet('${job.id}','glassOrderedAt',null)`, 'Un-mark the glass order') : b('📦 Ordered', `tdSet('${job.id}','glassOrderedAt','now')`, 'Mark the glass as ordered');
-  h += b(job.installDate ? '📅 Change date' : '📅 Install date', `tdPickDate('${job.id}')`, 'Set the install date');
-  if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b('🔧 Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
+  let h = b('<svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
+  h += job.glassOrderedAt ? b('↺ Ordered', `tdSet('${job.id}','glassOrderedAt',null)`, 'Un-mark the glass order') : b('<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered', `tdSet('${job.id}','glassOrderedAt','now')`, 'Mark the glass as ordered');
+  h += b(job.installDate ? '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Change date' : '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Install date', `tdPickDate('${job.id}')`, 'Set the install date');
+  if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b('<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
   return h;
 }
 async function tdSet(id, field, val) {
