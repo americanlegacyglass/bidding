@@ -1411,6 +1411,10 @@ onAuthStateChanged(auth, async user => {
             <label>Date</label>
             <input type="date" id="bidDate">
           </div>
+          <div class="field" style="width:170px;margin-bottom:0;" title="After this date the customer can't approve the link and is asked to contact you for an updated price. Leave blank for no expiry.">
+            <label>Price valid until</label>
+            <input type="date" id="bidValidUntil">
+          </div>
           <div class="field" style="margin-bottom:0;display:flex;flex-direction:column;justify-content:flex-end;">
             <label>Pricing Person</label>
             <div style="display:flex;gap:0.4rem;">
@@ -1900,6 +1904,9 @@ onAuthStateChanged(auth, async user => {
             <li><b><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Glass Order Sheet</b> makes a PDF for your supplier from the bid. First you pick the <b>supplier</b> (Oldcastle, Trulite, Wright Brothers and your other suppliers are in the list; type a new one and it's remembered), your <b>PO #</b>, the <b>needed-by</b> date, <b>pickup or delivery</b> to the job site, and who ordered it with a call-back phone. Untick pieces going to a different supplier and make a second sheet for them. Each piece has a note line for the supplier (IGU makeup and spacer colour, hole size, pattern). The sheet lists quantity, size, glass, edge, holes and notes, plus the hardware list. No prices. With options, it uses the option you're on.</li>
             <li><b>↺ NEW BID</b> (top right) clears the form to start over. It asks first.</li>
             <li>If you try to leave a bid that has unsaved changes, the app asks before you go.</li>
+            <li><b>Price valid until</b> (next to the date) is filled in 30 days ahead on new bids. After that date the customer can't approve the link; they're asked to contact you for an updated price. Change the date, or clear it for no expiry. It also prints on the PDF.</li>
+            <li>On the approval page the customer can also <b>Request changes</b> (you get an email, and the bid shows <b>✎ Changes requested</b> and a to-do card) or <b>Decline</b> with a reason. Saving the revised bid clears the change request; send the link again. A declined bid can't be approved until you press <b>↺ Reopen</b>. If a customer says no by phone, use <b>✕ Mark declined</b> on the Dashboard.</li>
+            <li><b>Change orders:</b> on an approved job press <b>＋ Change order</b>, add the extra work with the price the customer pays, and press <b>Create &amp; copy link</b>. Send the link. The customer signs it like the bid. Once approved it goes to Xero by itself: added as a line to the job's invoice while that invoice is still a draft, or as a new draft invoice if the first one was already approved. A waiting change order can be cancelled; if the Xero step fails, use <b>↻ Send to Xero</b>.</li>
             <li>If you change the price of a bid that's <b>already approved</b>, the app warns you: the Xero invoice does not change, so you would have to fix it in Xero yourself.</li>
           </ul>
         </div>
@@ -3375,6 +3382,7 @@ function resetBid() {
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('bidDate').valueAsDate = new Date();
+  document.getElementById('bidValidUntil').value = coDefaultValidUntil();
   document.getElementById('bidSaveStatus').textContent = 'Save this bid to the dashboard';
 
   const marginEl = document.getElementById('bidMargin'); if (marginEl) marginEl.value='';
@@ -3594,6 +3602,8 @@ function renderBidPdfPage(doc, opt) {
       doc.text('Deposit Amount:',M,y);
       gray(20);doc.text(fmt(deposit),R,y,{align:'right'});y+=18;
     }
+    { const vu = (document.getElementById('bidValidUntil') || {}).value;
+      if (vu) { doc.setFontSize(9);doc.setFont('helvetica','normal');gray(80);doc.text('This price is valid until ' + coFmtDate(vu) + '.',M,y+4);y+=16; } }
     doc.setDrawColor(180,180,180);doc.setLineWidth(0.5);doc.line(M,y,R,y);y+=10;
     y+=20;
     doc.setFontSize(8);doc.setFont('helvetica','normal');
@@ -4368,6 +4378,7 @@ function buildSnapshotCore() {
     margin:   parseFloat(document.getElementById('bidMargin')?.value) || 0,
     surcharge:parseFloat(document.getElementById('bidSurcharge')?.value) || 0,
     depositRequired,
+    validUntil: (document.getElementById('bidValidUntil') || {}).value || null,
     person:   activePerson,
     pieces:   JSON.parse(JSON.stringify(pieces)),
     hardware: JSON.parse(JSON.stringify(hardware)),
@@ -4412,6 +4423,8 @@ async function saveJobToFirebase() {
       // Update existing. `status` is deliberately left out: the snapshot always says 'bid', and
       // writing it here quietly un-approved any bid that was edited after the customer accepted.
       const { status: _keepExistingStatus, ...updateData } = data;
+      // Saving a revised bid answers the customer's "request changes", so clear it (a decline stays until Reopen).
+      { const ex = allJobs.find(j => j.id === currentJobId); if (ex && ex.customerResponse && ex.customerResponse.type === 'changes') updateData.customerResponse = null; }
       await window._updateDoc(window._doc(db, 'jobs', currentJobId), updateData);
       showToast('✓ Job updated!');
     } else {
@@ -4621,7 +4634,7 @@ function renderDashboard() {
       </div>
       <div class="job-actions">
         <button class="btn-job-open" onclick="openJob('${job.id}')">Open</button>
-        ${isPendingBid ? `<button class="btn-job-open" style="color:#7ed4a0;border-color:rgba(126,212,160,0.35);" onclick="manuallyApproveBid('${job.id}')" title="Use only when the customer agreed in person or by phone — not through the online approval link">✓ Approve Manually</button>` : ''}
+        ${isPendingBid && !(job.customerResponse && job.customerResponse.type === 'declined') ? `<button class="btn-job-open" style="color:#7ed4a0;border-color:rgba(126,212,160,0.35);" onclick="manuallyApproveBid('${job.id}')" title="Use only when the customer agreed in person or by phone — not through the online approval link">✓ Approve Manually</button>` : ''}
         ${isAcceptedBid && window._currentUserRole !== 'employee' ? `<button class="btn-job-open" style="color:#e0a060;border-color:rgba(224,160,96,0.35);" onclick="undoApproval('${job.id}')" title="Voids the Xero invoice (if any) and resets this bid to pending">Undo</button>` : ''}
         ${window._currentUserRole !== 'employee' ? `<button class="btn-job-del" onclick="deleteJob(event,'${job.id}')">✕</button>` : ''}
       </div>
@@ -4858,6 +4871,7 @@ function openJob(id) {
       if (el) el.value = job[map[id]] || '';
     });
     if (job.date) document.getElementById('bidDate').value = job.date;
+    document.getElementById('bidValidUntil').value = job.validUntil || '';
     if (job.margin)    document.getElementById('bidMargin').value    = job.margin;
     if (job.surcharge) document.getElementById('bidSurcharge').value = job.surcharge;
     setActivePerson(job.person || 'chris');
@@ -4937,6 +4951,8 @@ setTimeout(() => { if (window.loadJobs && window._db) window.loadJobs(); }, 1000
 // ─────────────────────────────────────────────────
 calculate();
 document.getElementById('bidDate').valueAsDate  = new Date();
+// Default "price valid until" for a brand-new bid: 30 days ahead (computed here because this runs before the later script loads).
+(() => { const v = document.getElementById('bidValidUntil'); if (v && !v.value) { const d = new Date(); d.setDate(d.getDate() + 30); v.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); } })();
 
 // Event delegation for fabrication buttons (avoids string escaping issues)
 document.getElementById('piecesList').addEventListener('click', function(e) {
@@ -6452,7 +6468,9 @@ function tdStage(job) { return typeof getPipelineStage === 'function' ? getPipel
 // Each bucket: which jobs belong, and the one next step for them.
 const TD_BUCKETS = [
   { key: 'wait', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>', title: 'Waiting on customer', hint: `Sent ${TD_WAIT_DAYS}+ days ago, not approved — call them`,
-    test: j => j.type === 'bid' && tdStage(j) === 'bid' && (tdDaysSince(j.savedAt) ?? 0) >= TD_WAIT_DAYS },
+    test: j => j.type === 'bid' && tdStage(j) === 'bid' && (tdDaysSince(j.savedAt) ?? 0) >= TD_WAIT_DAYS && !(j.customerResponse && j.customerResponse.type) },
+  { key: 'changes', icon: '✎', title: 'Changes requested', hint: 'The customer asked for changes — revise the bid, save it and send the link again',
+    test: j => j.type === 'bid' && tdStage(j) === 'bid' && j.customerResponse && j.customerResponse.type === 'changes' },
   { key: 'order', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>', title: 'Approved — order glass', hint: 'Approved and no glass order marked yet',
     test: j => j.type === 'bid' && ['accepted', 'invoiced'].includes(tdStage(j)) && !j.glassOrderedAt && !j.installDoneAt },
   { key: 'schedule', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>', title: 'Ordered — schedule install', hint: 'Glass ordered, no install date set',
@@ -6478,6 +6496,7 @@ function tdSetFilter(k) { tdFilter = tdFilter === k ? null : k; renderDashboard(
 function tdJobBadges(job) {
   if (job.type !== 'bid') return '';
   const out = [];
+  if (typeof coJobBadges === 'function') out.push(coJobBadges(job));
   if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>${d} days</span>`); }
   if (job.glassOrderedAt) out.push(`<span class="job-status-badge" title="Glass ordered ${escapeHtml(new Date(job.glassOrderedAt).toLocaleDateString('en-US'))}"><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered</span>`);
   if (job.installDate) out.push(`<span class="job-status-badge"><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`);
@@ -6485,11 +6504,13 @@ function tdJobBadges(job) {
   return out.join('');
 }
 function tdJobActions(job) {
-  if (job.type !== 'bid' || !['accepted', 'invoiced', 'done'].includes(tdStage(job))) return '';
+  const coA = typeof coJobActions === 'function' ? coJobActions(job) : '';
+  if (job.type !== 'bid' || !['accepted', 'invoiced', 'done'].includes(tdStage(job))) return coA;
   const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
   let h = b('<svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
   h += job.glassOrderedAt ? b('↺ Ordered', `tdSet('${job.id}','glassOrderedAt',null)`, 'Un-mark the glass order') : b('<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered', `tdSet('${job.id}','glassOrderedAt','now')`, 'Mark the glass as ordered');
   h += b(job.installDate ? '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Change date' : '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Install date', `tdPickDate('${job.id}')`, 'Set the install date');
+  h += coA;
   if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b('<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
   return h;
 }
@@ -6655,6 +6676,158 @@ function tdOrderSheetFromBid() {
   tdOpenOrder({ customer: v('customerName'), location: v('jobLocation'), ref: (typeof currentJobId !== 'undefined' && currentJobId) || 'not saved yet', option: opt, rows: tdOrderRows(pieces), hw: hardware }, 'ORDER-' + tdSafeName(v('customerName')), null);
 }
 window.tdOrderSheetForJob = tdOrderSheetForJob; window.tdOrderSheetFromBid = tdOrderSheetFromBid;
+
+// ═════════════════════════════════════════════════
+// BID EXPIRY, DECLINE / CHANGES REQUESTED, CHANGE ORDERS (staff side)
+// Job fields written here (updateDoc only, so saving a bid never erases them):
+//   customerResponse {type:'declined'|'changes', reason, comment, at, by}, declinedAt, changeOrders[]
+// ═════════════════════════════════════════════════
+const WORKER_URL_FOR_CO = 'https://morning-frost-ce94.rdenmyers1201.workers.dev';
+const CO_DECLINE_REASONS = ['Price too high', 'Timing does not work', 'Going with another company', 'No longer doing the project', 'Other'];
+function coLocalDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function coDefaultValidUntil() { const d = new Date(); d.setDate(d.getDate() + 30); return coLocalDate(d); }
+function coJobExpired(job) { return job && job.status !== 'accepted' && typeof job.validUntil === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(job.validUntil) && coLocalDate(new Date()) > job.validUntil; }
+function coFmtDate(s) { try { return new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return s; } }
+function coLinkBase() { return window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + 'view-bid.html?id='; }
+function coCopy(text, okMsg) {
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => showToast(okMsg)).catch(() => prompt('Copy this link:', text));
+  else prompt('Copy this link:', text);
+}
+function coWho() { try { return (window._auth && window._auth.currentUser && window._auth.currentUser.email) || ''; } catch (e) { return ''; } }
+async function coUpdateJob(id, fields, okMsg) {
+  const job = allJobs.find(j => j.id === id); if (!job) return false;
+  const prev = {}; Object.keys(fields).forEach(k => prev[k] = job[k]);
+  Object.assign(job, fields); renderDashboard();
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), fields); if (okMsg) showToast(okMsg); return true; }
+  catch (e) { console.error('Update failed:', e); Object.assign(job, prev); renderDashboard(); showToast('Could not save — try again', 'error'); return false; }
+}
+
+// ── Dashboard badges and buttons ──
+function coJobBadges(job) {
+  if (job.type !== 'bid') return '';
+  const out = [];
+  const cr = job.customerResponse;
+  const tip = (s) => escapeHtml(s || '');
+  if (cr && cr.type === 'declined') out.push(`<span class="job-status-badge" style="color:#e06060;border-color:rgba(224,96,96,.45);background:rgba(224,96,96,.1)" title="${tip((cr.by === 'staff' ? 'Marked by staff' : 'Declined online') + ' ' + coFmtDate(cr.at || '') + (cr.comment ? ' — ' + cr.comment : ''))}">✕ Declined — ${escapeHtml(cr.reason || '')}</span>`);
+  else if (cr && cr.type === 'changes' && job.status !== 'accepted') out.push(`<span class="job-status-badge" style="color:#e8c27a;border-color:rgba(232,194,122,.45)" title="${tip('Requested ' + coFmtDate(cr.at || '') + ': ' + (cr.comment || ''))}">✎ Changes requested</span>`);
+  if (coJobExpired(job) && !(cr && cr.type === 'declined')) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)" title="Price was valid until ${tip(coFmtDate(job.validUntil))}">Expired</span>`);
+  (Array.isArray(job.changeOrders) ? job.changeOrders : []).filter(c => c && c.status !== 'cancelled').forEach(c => {
+    const col = c.status === 'approved' ? 'paid' : '';
+    const label = c.status === 'approved' ? '✓ CO #' + c.n + ' ' + fmt(c.total || 0) + (c.xeroInvoiceId ? '' : ' (not in Xero yet)') : c.status === 'declined' ? '✕ CO #' + c.n + ' declined' : 'CO #' + c.n + ' waiting';
+    const t = c.status === 'approved' && c.signature ? 'Signed by ' + c.signature.name + ' ' + coFmtDate(c.signature.at || '') + (c.xeroMode === 'added' ? ' · added to the draft invoice' : c.xeroMode === 'separate' ? ' · separate draft invoice' : '') : (c.title || '') + (c.declineComment ? ' — ' + c.declineComment : '');
+    out.push(`<span class="job-status-badge ${col}" title="${tip(t)}">${escapeHtml(label)}</span>`);
+  });
+  return out.join('');
+}
+function coJobActions(job) {
+  if (job.type !== 'bid') return '';
+  const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
+  const stage = typeof getPipelineStage === 'function' ? getPipelineStage(job) : '';
+  const cr = job.customerResponse;
+  if (stage === 'bid') {
+    if (cr && cr.type === 'declined') return b('↺ Reopen', `coReopen('${job.id}')`, 'Undo the decline so the bid can be approved again');
+    return b('✕ Mark declined', `coOpenDecline('${job.id}')`, 'Customer said no by phone or in person');
+  }
+  if (!['accepted', 'invoiced', 'done'].includes(stage)) return '';
+  let h = b('＋ Change order', `coOpenNew('${job.id}')`, 'Add work to this approved job and send it for the customer to sign');
+  (Array.isArray(job.changeOrders) ? job.changeOrders : []).forEach(c => {
+    if (!c || c.status === 'cancelled') return;
+    if (c.status === 'sent') {
+      h += b('<svg class="ic" aria-hidden="true"><use href="#ic-link"/></svg>CO #' + c.n + ' link', `coCopyLink('${job.id}','${c.id}')`, 'Copy the link to send the customer');
+      h += b('✕ Cancel CO #' + c.n, `coCancel('${job.id}','${c.id}')`, 'Withdraw this change order');
+    } else if (c.status === 'approved' && !c.xeroInvoiceId) {
+      h += b('↻ Send CO #' + c.n + ' to Xero', `coRetryInvoice('${job.id}','${c.id}')`, 'The automatic Xero step did not finish — try again');
+    }
+  });
+  return h;
+}
+
+// ── Mark declined / reopen ──
+function coOpenDecline(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Mark declined — ${escapeHtml(job.customer || '')}</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div class="dr-hint">Use this when the customer says no by phone or in person. Their reason helps you see why jobs are lost.</div>
+    <div style="display:flex;flex-direction:column;gap:.3rem;margin:.5rem 0;">${CO_DECLINE_REASONS.map(r => `<label style="display:flex;gap:.5rem;align-items:center;font-size:.85rem;"><input type="radio" name="coDecR" value="${escapeHtml(r)}"> ${escapeHtml(r)}</label>`).join('')}</div>
+    <label class="td-lab">Comment (optional)<input id="coDecC" maxlength="1000" placeholder="e.g. Went with a cheaper quote"></label>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="coSaveDecline('${id}')">Mark declined</button></div>`);
+}
+function coSaveDecline(id) {
+  const r = document.querySelector('input[name="coDecR"]:checked');
+  if (!r) { showToast('Pick a reason', 'error'); return; }
+  const c = (document.getElementById('coDecC').value || '').trim().slice(0, 1000);
+  if (r.value === 'Other' && c.length < 3) { showToast('Add a short comment for "Other"', 'error'); return; }
+  const now = new Date().toISOString();
+  hwClose();
+  coUpdateJob(id, { customerResponse: { type: 'declined', reason: r.value, comment: c, at: now, by: 'staff', staffEmail: coWho() }, declinedAt: now }, 'Marked declined');
+}
+function coReopen(id) {
+  if (!confirm('Reopen this bid? The customer will be able to approve it again (if it has not expired).')) return;
+  coUpdateJob(id, { customerResponse: null, declinedAt: null }, '✓ Bid reopened');
+}
+
+// ── Change orders ──
+let CO_DRAFT = null;
+function coOpenNew(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  CO_DRAFT = { jobId: id, title: '', lines: [{ desc: '', amount: '' }] };
+  coRender();
+}
+function coRender() {
+  const d = CO_DRAFT, job = allJobs.find(j => j.id === d.jobId); if (!job) return;
+  const n = (Array.isArray(job.changeOrders) ? job.changeOrders.length : 0) + 1;
+  const total = d.lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
+  hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Change order #${n} — ${escapeHtml(job.customer || '')}</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div class="dr-hint">Added work on an approved job. The customer sees each line and its price, signs it like the bid, and it goes to Xero automatically (added to the draft invoice, or as a new draft invoice if the first one is already approved). Type the price the customer pays — margin and surcharge are not added.</div>
+    <label class="td-lab" style="margin-top:.4rem;">Title<input id="coTitle" maxlength="80" value="${escapeHtml(d.title)}" placeholder="e.g. Add transom"></label>
+    <div class="dr-sub">Lines</div>
+    ${d.lines.map((l, i) => `<div class="hw-erow"><input data-co="desc" data-i="${i}" maxlength="200" value="${escapeHtml(l.desc)}" placeholder="Description" style="flex:1"><input data-co="amount" data-i="${i}" type="number" min="0" step="0.01" value="${escapeHtml(String(l.amount))}" placeholder="$" style="max-width:110px"><button class="btn-remove" onclick="coSync();CO_DRAFT.lines.splice(${i},1);if(!CO_DRAFT.lines.length)CO_DRAFT.lines.push({desc:'',amount:''});coRender()">✕</button></div>`).join('')}
+    <button class="btn-add" style="width:auto" onclick="coSync();CO_DRAFT.lines.push({desc:'',amount:''});coRender()">+ Line</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;font-size:.95rem;"><span>Change order total</span><b id="coTot">${fmt(total)}</b></div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="coCreate()">Create &amp; copy link</button></div>`);
+  document.querySelectorAll('#hwModal [data-co]').forEach(el => el.addEventListener('input', () => { coSync(); const t = CO_DRAFT.lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0); document.getElementById('coTot').textContent = fmt(t); }));
+}
+function coSync() {
+  if (!CO_DRAFT) return;
+  const t = document.getElementById('coTitle'); if (t) CO_DRAFT.title = t.value;
+  document.querySelectorAll('#hwModal [data-co]').forEach(el => { CO_DRAFT.lines[+el.dataset.i][el.dataset.co] = el.value; });
+}
+async function coCreate() {
+  coSync();
+  const d = CO_DRAFT, job = allJobs.find(j => j.id === d.jobId); if (!job) return;
+  const lines = [];
+  for (const l of d.lines) {
+    const desc = String(l.desc || '').trim().slice(0, 200), raw = String(l.amount).trim();
+    if (!desc && !raw) continue;
+    const amt = Math.round((parseFloat(raw) || 0) * 100) / 100;
+    if (!desc) { showToast('Every line needs a description', 'error'); return; }
+    if (!(amt > 0)) { showToast('Every line needs a price above $0', 'error'); return; }
+    lines.push({ desc, amount: amt });
+  }
+  if (!lines.length) { showToast('Add at least one line', 'error'); return; }
+  const list = Array.isArray(job.changeOrders) ? job.changeOrders.slice() : [];
+  const id = 'co' + Math.random().toString(36).slice(2, 10);
+  const co = { id, n: list.length + 1, title: String(d.title || '').trim().slice(0, 80), lines, total: Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100, status: 'sent', createdAt: new Date().toISOString(), createdBy: coWho() };
+  list.push(co);
+  hwClose();
+  if (await coUpdateJob(job.id, { changeOrders: list })) coCopy(coLinkBase() + job.id + '&co=' + id, '✓ Change order #' + co.n + ' created — link copied, send it to the customer');
+}
+function coCopyLink(jobId, coId) { coCopy(coLinkBase() + jobId + '&co=' + coId, '✓ Link copied'); }
+function coCancel(jobId, coId) {
+  const job = allJobs.find(j => j.id === jobId); if (!job) return;
+  const list = (job.changeOrders || []).map(c => c && c.id === coId && c.status === 'sent' ? Object.assign({}, c, { status: 'cancelled', cancelledAt: new Date().toISOString() }) : c);
+  if (!confirm('Cancel this change order? Its link will stop working.')) return;
+  coUpdateJob(jobId, { changeOrders: list }, 'Change order cancelled');
+}
+async function coRetryInvoice(jobId, coId) {
+  try {
+    const res = await fetch(WORKER_URL_FOR_CO + '/invoice-change-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId, coId }) });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) showToast(data.alreadyInvoiced ? 'Already in Xero' : data.mode === 'added' ? '✓ Added to the draft invoice in Xero' : '✓ New draft invoice created in Xero');
+    else showToast('Xero: ' + (data.error || 'failed'), 'error');
+  } catch (e) { showToast('Could not reach the Worker — try again', 'error'); }
+}
+window.coOpenDecline = coOpenDecline; window.coSaveDecline = coSaveDecline; window.coReopen = coReopen; window.coOpenNew = coOpenNew;
+window.coSync = coSync; window.coCreate = coCreate; window.coCopyLink = coCopyLink; window.coCancel = coCancel; window.coRetryInvoice = coRetryInvoice;
 
 </script>
 
