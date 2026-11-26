@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Your Shower — American Legacy Glass</title>
+<meta name="description" content="Design your frameless glass shower, see an estimated price range, and request a free measure from American Legacy Glass.">
+<style>
+  :root { --ink: #1c2226; --muted: #5d6870; --line: #dde3e6; --bg: #ffffff; --soft: #f4f7f8; --accent: #1f6f8b; --accent2: #155a72; --ok: #2e7d4f; --err: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.45; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 1.2rem 1rem 2.5rem; }
+  header h1 { font-size: 1.6rem; margin: 0 0 .2rem; letter-spacing: -.01em; }
+  header p { margin: 0 0 1.1rem; color: var(--muted); }
+  body.embed header { display: none; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 1.4rem; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } .preview { position: static !important; order: -1; } }
+  h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 1.1rem 0 .5rem; font-weight: 700; }
+  h2:first-child { margin-top: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .5rem; }
+  .card { border: 1.5px solid var(--line); background: #fff; border-radius: 10px; padding: .45rem .4rem .5rem; cursor: pointer; text-align: center; font: inherit; color: inherit; transition: border-color .15s, box-shadow .15s; }
+  .card:hover { border-color: #9fb9c3; }
+  .card.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,111,139,.14); }
+  .card svg { display: block; margin: 0 auto .25rem; }
+  .card b { display: block; font-size: .8rem; }
+  .card small { display: block; font-size: .7rem; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: .38rem .8rem; cursor: pointer; font: inherit; font-size: .85rem; color: inherit; display: inline-flex; gap: .4rem; align-items: center; }
+  .chip.on { border-color: var(--accent); background: #eaf4f7; }
+  .sw { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,.15); }
+  .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+  label.f { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--muted); }
+  label.f span.u { position: relative; }
+  input, textarea { font: inherit; font-size: 1rem; color: var(--ink); border: 1.5px solid var(--line); border-radius: 8px; padding: .55rem .65rem; width: 100%; background: #fff; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input.bad, textarea.bad { border-color: var(--err); }
+  textarea { min-height: 80px; resize: vertical; }
+  .hint { font-size: .78rem; color: var(--muted); margin: .4rem 0 0; }
+  .preview { position: sticky; top: .8rem; background: var(--soft); border: 1px solid var(--line); border-radius: 14px; padding: .8rem; }
+  #pic { width: 100%; height: auto; display: block; background: #fff; border-radius: 10px; }
+  .price { margin-top: .8rem; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: .7rem .8rem; }
+  .price .big { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
+  .price .small { font-size: .78rem; color: var(--muted); }
+  .err { color: var(--err); font-size: .85rem; margin-top: .5rem; min-height: 1.1em; }
+  button.go { margin-top: .9rem; width: 100%; background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: .85rem 1rem; font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  button.go:hover { background: var(--accent2); }
+  button.go:disabled { opacity: .6; cursor: default; }
+  .done { background: #edf7f1; border: 1px solid #b9dcc6; border-radius: 12px; padding: 1rem 1.1rem; }
+  .done h3 { margin: 0 0 .3rem; color: var(--ok); }
+  .hp { position: absolute; left: -5000px; width: 1px; height: 1px; overflow: hidden; }
+  .steps { display: flex; gap: .4rem; flex-wrap: wrap; font-size: .75rem; color: var(--muted); margin-top: .6rem; }
+  .steps span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: .2rem .55rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Design your shower</h1>
+    <p>Pick a style, enter rough sizes and see an estimated price. We'll come out to measure for free before anything is ordered.</p>
+  </header>
+  <div class="grid">
+    <div id="form">
+      <h2>1 · Style</h2>
+      <div class="cards" id="layouts"></div>
+      <h2>2 · Rough size (inches)</h2>
+      <div class="fields" id="sizeFields"></div>
+      <p class="hint">A tape measure is fine — we re-measure on site, so you don't need to be exact.</p>
+      <h2 id="sideH">Door opens on the</h2>
+      <div class="chips" id="sides"></div>
+      <h2>3 · Glass</h2>
+      <div class="chips" id="glass"></div>
+      <h2>4 · Hardware finish</h2>
+      <div class="chips" id="finish"></div>
+      <h2>5 · Your details</h2>
+      <div id="contact">
+        <div class="fields">
+          <label class="f">Name *<input id="cName" autocomplete="name" maxlength="80"></label>
+          <label class="f">Phone *<input id="cPhone" type="tel" autocomplete="tel" maxlength="30"></label>
+          <label class="f">Email<input id="cEmail" type="email" autocomplete="email" maxlength="120"></label>
+          <label class="f">City or ZIP *<input id="cPlace" autocomplete="postal-code" maxlength="120"></label>
+        </div>
+        <label class="f" style="margin-top:.6rem">Anything else? (optional)<textarea id="cNotes" maxlength="1000" placeholder="Best time to call, tile still going in, etc."></textarea></label>
+        <div class="hp" aria-hidden="true"><label>Company<input id="cCompany" tabindex="-1" autocomplete="off"></label></div>
+        <p class="hint">We only use this to contact you about your shower.</p>
+        <div class="err" id="err"></div>
+        <button class="go" id="sendBtn" type="button">Request my free measure</button>
+      </div>
+      <div class="done" id="done" style="display:none"></div>
+    </div>
+    <div class="preview">
+      <svg id="pic" viewBox="0 0 100 100" role="img" aria-label="Preview of your shower design"></svg>
+      <div class="price" id="price"></div>
+      <div class="steps"><span>1. You send your design</span><span>2. We call you</span><span>3. Free measure</span><span>4. Exact quote</span></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
+import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+// Public config — safe to publish. What the website may do is limited by the Firestore rules (read prices, create a request; nothing else).
+const app = initializeApp({
+  apiKey: "AIzaSyCA4Fk7aLGnrd5U2T0-dmbrr6BimVC1TK8",
+  authDomain: "glass-bidding-and-invoicing.firebaseapp.com",
+  projectId: "glass-bidding-and-invoicing",
+  storageBucket: "glass-bidding-and-invoicing.firebasestorage.app",
+  messagingSenderId: "849136314530",
+  appId: "1:849136314530:web:91f69219a4096a61428ffb"
+});
+const db = getFirestore(app);
+const WEB3FORMS_ACCESS_KEY = 'cc74c432-5567-46e2-9c05-56b505e5b126'; // public by design
+const SHOP_EMAIL = 'americanlegacyglass@gmail.com';
+
+if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embed');
+
+const LAYOUTS = {
+  doorpanel: { t: 'Door + panel', d: 'Most popular' },
+  door:      { t: 'Door only',    d: 'Small openings' },
+  pdp:       { t: 'Panel + door + panel', d: 'Wide openings' },
+  corner:    { t: '90° corner',   d: 'Front + side glass' },
+  neo:       { t: 'Neo-angle',    d: 'Corner, angled front' },
+  tub:       { t: 'Tub door',     d: 'On a bathtub' },
+  steam:     { t: 'Steam shower', d: 'Glass to the ceiling' },
+  panel:     { t: 'Splash panel', d: 'Walk-in, no door' },
+};
+const GLASS = { clear: { t: 'Clear', c: ['#cfe7ed', '#f1fafc', '#d6ecf1'] }, lowiron: { t: 'Low-iron (extra clear)', c: ['#e6f3f6', '#fbfeff', '#e9f5f8'] }, frost: { t: 'Frosted', c: ['#e3e7e9', '#f4f6f7', '#dfe4e6'] } };
+const FIN = { chrome: { t: 'Chrome', a: '#fbfcfd', b: '#a9b2b7', c: '#59626a' }, black: { t: 'Matte black', a: '#555', b: '#2b2b2b', c: '#0c0c0c' }, brushed: { t: 'Brushed nickel', a: '#efede7', b: '#bebab1', c: '#7d786e' }, gold: { t: 'Satin brass', a: '#f8e7a9', b: '#c9a24a', c: '#85671e' } };
+const S = { layout: 'doorpanel', side: 'right', glass: 'clear', finish: 'chrome', W: 60, H: 72, D: 36, A: 18, B: 26, ceil: 96 };
+let PRICING = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '$' + Math.round(n).toLocaleString('en-US');
+
+// ── same price formula as the staff app (leads.js) ──
+function area(d) {
+  if (d.layout === 'corner') return (d.W + d.D) * d.H / 144;
+  if (d.layout === 'neo') return (2 * d.A + d.B) * d.H / 144;
+  if (d.layout === 'steam') return d.W * d.ceil / 144;
+  return d.W * d.H / 144;
+}
+function estimate(pr, d) {
+  if (!pr || !pr.enabled) return null;
+  const rate = (pr.rate || {})[d.glass] || 0, base = (pr.base || {})[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
+  if (!rate || !base) return null;
+  const est = base + area(d) * rate + fin, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
+  const r50 = v => Math.round(v / 50) * 50;
+  const lo = Math.max(r50(est * (1 - r)), +pr.minJob || 0), hi = Math.max(r50(est * (1 + r)), lo + 50);
+  return { lo, hi };
+}
+
+// ── size fields per style ──
+const FIELDS = {
+  W: { l: 'Opening width', min: 20, max: 120, h: 'Wall to wall' },
+  H: { l: 'Glass height', min: 48, max: 96, h: 'Usually 72"–80"' },
+  D: { l: 'Side depth', min: 20, max: 72, h: 'Back wall to the front glass' },
+  A: { l: 'Each angled side', min: 10, max: 36, h: 'Wall to the front corner' },
+  B: { l: 'Front (door) width', min: 20, max: 36, h: 'Corner to corner' },
+  ceil: { l: 'Ceiling height', min: 76, max: 120, h: 'Floor/curb to ceiling' },
+};
+function fieldsFor(l) { return l === 'neo' ? ['A', 'B', 'H'] : l === 'corner' ? ['W', 'D', 'H'] : l === 'steam' ? ['W', 'H', 'ceil'] : ['W', 'H']; }
+function renderFields() {
+  $('sizeFields').innerHTML = fieldsFor(S.layout).map(k => `<label class="f">${FIELDS[k].l}<input id="f_${k}" inputmode="decimal" value="${S[k]}" title="${esc(FIELDS[k].h)}"><span style="font-size:.7rem">${esc(FIELDS[k].h)}</span></label>`).join('');
+  fieldsFor(S.layout).forEach(k => $('f_' + k).addEventListener('input', e => { const v = parseNum(e.target.value); if (v) S[k] = v; draw(); }));
+  const hasDoor = S.layout !== 'panel'; $('sideH').style.display = hasDoor ? '' : 'none'; $('sides').style.display = hasDoor ? '' : 'none';
+}
+function parseNum(s) {
+  s = String(s || '').trim().replace(/["”]/g, '').replace(/-/g, ' ');
+  let t = 0, any = false;
+  for (const p of s.split(/\s+/)) { let m; if ((m = p.match(/^(\d+)\/(\d+)$/)) && +m[2]) { t += m[1] / m[2]; any = true; } else if (/^\d*\.?\d+$/.test(p)) { t += parseFloat(p); any = true; } else if (p) return 0; }
+  return any ? t : 0;
+}
+function sizeProblem() {
+  for (const k of fieldsFor(S.layout)) {
+    const el = $('f_' + k), v = parseNum(el.value), f = FIELDS[k];
+    const bad = !(v >= f.min && v <= f.max); el.classList.toggle('bad', bad);
+    if (bad) return `${f.l} should be between ${f.min}" and ${f.max}".`;
+  }
+  if (S.layout === 'steam' && S.ceil < S.H + 4) return 'The ceiling needs to be at least 4" above the glass height.';
+  if (['doorpanel', 'tub', 'steam', 'corner'].includes(S.layout) && S.W < 32) return 'That opening is too narrow for a door and a panel — try "Door only".';
+  if (S.layout === 'pdp' && S.W < 44) return 'That opening is too narrow for two panels and a door — try "Door + panel".';
+  if (S.layout === 'door' && S.W > 36) return 'A door alone can be up to 36" wide — try "Door + panel" for this opening.';
+  return '';
+}
+
+// ── picture ──
+function thumb(k) {
+  const g = (x, w, h, door, y = 6) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${door ? '#d4ecf3' : '#e7f4f8'}" stroke="${door ? '#2a6f86' : '#6a97a5'}" stroke-width="${door ? 1.6 : 1}"/>` + (door ? `<line x1="${x + w - 4}" y1="${y + h * .42}" x2="${x + w - 4}" y2="${y + h * .62}" stroke="#2a6f86" stroke-width="1.8"/>` : '');
+  const wall = x => `<rect x="${x}" y="2" width="3" height="56" fill="#9aa"/>`;
+  let s = wall(2) + wall(75);
+  if (k === 'door') s += g(7, 66, 50, true);
+  if (k === 'doorpanel') s += g(7, 36, 50) + g(44, 29, 50, true);
+  if (k === 'pdp') s += g(7, 20, 50) + g(28, 24, 50, true) + g(53, 20, 50);
+  if (k === 'corner') s = wall(2) + g(7, 30, 50) + g(38, 24, 50, true) + `<path d="M63,6 L76,1 L76,51 L63,56 Z" fill="#e7f4f8" stroke="#6a97a5"/>`;
+  if (k === 'neo') s = `<path d="M3,10 L20,4 L20,54 L3,60 Z" fill="#e7f4f8" stroke="#6a97a5"/>` + g(21, 37, 50, true, 4) + `<path d="M59,4 L76,10 L76,60 L59,54 Z" fill="#e7f4f8" stroke="#6a97a5"/>`;
+  if (k === 'tub') s += `<rect x="5" y="44" width="70" height="14" rx="3" fill="#e2e2e2" stroke="#aaa"/>` + g(7, 36, 38) + g(44, 29, 38, true);
+  if (k === 'steam') s = `<rect x="2" y="1" width="76" height="3" fill="#9aa"/>` + wall(2) + wall(75) + `<rect x="7" y="4" width="66" height="2" fill="#e7f4f8" stroke="#6a97a5" stroke-width=".6"/>` + g(7, 36, 50) + g(44, 29, 50, true);
+  if (k === 'panel') s = wall(2) + g(7, 36, 50);
+  return `<svg viewBox="0 0 80 62" width="72" height="56" aria-hidden="true">${s}</svg>`;
+}
+function pieces() {
+  const L = S.layout, W = S.W, DOOR = Math.min(26, Math.max(22, W * 0.4));
+  let p = [];
+  if (L === 'door') p = [{ r: 'door', w: W }];
+  else if (L === 'panel') p = [{ r: 'panel', w: W }];
+  else if (L === 'pdp') { const e = (W - DOOR) / 2; p = [{ r: 'panel', w: e }, { r: 'door', w: DOOR }, { r: 'panel', w: e }]; }
+  else if (L === 'neo') p = [{ r: 'panel', w: S.A }, { r: 'door', w: S.B }, { r: 'panel', w: S.A }];
+  else p = [{ r: 'panel', w: W - DOOR }, { r: 'door', w: DOOR }];
+  if (S.side === 'left' && !['pdp', 'neo', 'door', 'panel'].includes(L)) p.reverse();
+  return p;
+}
+function draw() {
+  const L = S.layout, H = S.H, f = FIN[S.finish], gc = GLASS[S.glass].c, ps = pieces();
+  const totalW = ps.reduce((a, q) => a + q.w, 0), ret = L === 'corner' ? S.D : 0;
+  const top = L === 'steam' ? S.ceil - H : 0, tubH = L === 'tub' ? 18 : 0;
+  const pad = 8, gap = 0.4, vbW = totalW + (ret ? ret * 0.55 + 6 : 0) + pad * 2 + 6;
+  const planH = L === 'neo' ? (2 * S.A * Math.SQRT1_2 + S.B / 2) + S.B + 8 : 34;
+  const vbH = top + H + tubH + pad * 2 + 10 + planH;
+  let s = `<defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2=".35"><stop offset="0" stop-color="${gc[0]}"/><stop offset=".5" stop-color="${gc[1]}"/><stop offset="1" stop-color="${gc[2]}"/></linearGradient>` +
+    `<linearGradient id="mt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${f.a}"/><stop offset=".45" stop-color="${f.b}"/><stop offset=".55" stop-color="${f.a}"/><stop offset="1" stop-color="${f.c}"/></linearGradient>` +
+    `<pattern id="tile" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#f3f1ec"/><path d="M6,0 L0,0 L0,6" fill="none" stroke="#e2ddd3" stroke-width=".25"/></pattern></defs>`;
+  const x0 = pad + 3, y0 = pad + top;
+  // back wall tile + side walls + floor/curb
+  s += `<rect x="${x0 - 3}" y="${pad - 2}" width="${totalW + 6}" height="${top + H + tubH + 2}" fill="url(#tile)"/>`;
+  if (L !== 'neo') { s += `<rect x="${x0 - 3}" y="${pad - 2}" width="3" height="${top + H + tubH + 2}" fill="#b9b4aa"/>`; if (L !== 'corner') s += `<rect x="${x0 + totalW}" y="${pad - 2}" width="3" height="${top + H + tubH + 2}" fill="#b9b4aa"/>`; }
+  if (L === 'steam') s += `<rect x="${x0 - 3}" y="${pad - 2}" width="${totalW + 6}" height="2" fill="#b9b4aa"/>`;
+  if (tubH) s += `<rect x="${x0 - 2}" y="${y0 + H}" width="${totalW + 4}" height="${tubH}" rx="2" fill="#fbfbfb" stroke="#c9c9c9" stroke-width=".4"/>`;
+  else s += `<rect x="${x0 - 3}" y="${y0 + H}" width="${totalW + 6}" height="1.6" fill="#cfcac0"/>`;
+  const panel = (x, y, w, h, isDoor, hingeLeft) => {
+    let g = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#gl)" stroke="#6f8f99" stroke-width=".35"/>` +
+      `<clipPath id="c${x | 0}${y | 0}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#c${x | 0}${y | 0})" opacity="${S.glass === 'frost' ? .3 : .6}"><polygon points="${x + w * .18},${y} ${x + w * .34},${y} ${x + w * .02},${y + h} ${x - w * .14},${y + h}" fill="#fff"/><polygon points="${x + w * .42},${y} ${x + w * .47},${y} ${x + w * .15},${y + h} ${x + w * .1},${y + h}" fill="#fff" opacity=".7"/></g>`;
+    if (isDoor) {
+      const hx = hingeLeft ? x : x + w, lx = hingeLeft ? x + w - 3 : x + 3;
+      [y + 9, y + h - 9].forEach(yy => { g += `<rect x="${hingeLeft ? hx - .5 : hx - 2.5}" y="${yy - 1.2}" width="3" height="2.4" rx=".25" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`; });
+      g += `<rect x="${lx - .42}" y="${y + h - 36 - 6}" width=".84" height="12" rx=".42" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`;
+    }
+    return g;
+  };
+  const clamp = (x, y) => `<rect x="${x - 1}" y="${y - .75}" width="2" height="1.5" rx=".3" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".15"/>`;
+  if (top) s += panel(x0, pad, totalW, top - gap, false);
+  let x = x0;
+  ps.forEach((q, i) => {
+    const isDoor = q.r === 'door';
+    const hl = isDoor ? (L === 'door' || L === 'pdp' || L === 'neo' ? S.side === 'right' : i > 0) : false;
+    const h = isDoor ? H - 0.5 : H;
+    s += panel(x + gap / 2, y0, q.w - gap, h, isDoor, hl);
+    if (!isDoor && (i === 0 || i === ps.length - 1) && L !== 'neo') { const ex = i === 0 ? x + gap / 2 : x + q.w - gap / 2; s += clamp(ex, y0 + 8) + clamp(ex, y0 + H - 8); }
+    x += q.w;
+  });
+  if (ret) { // side return, drawn foreshortened
+    const rx = x0 + totalW, rw = ret * 0.55;
+    s += `<path d="M${rx},${y0} L${rx + rw},${y0 - rw * 0.35} L${rx + rw},${y0 + H - rw * 0.35} L${rx},${y0 + H} Z" fill="url(#gl)" stroke="#6f8f99" stroke-width=".35" opacity=".9"/>`;
+  }
+  // plan view
+  const py = y0 + H + tubH + 12, sc = Math.min(1, (vbW - 2 * pad) / Math.max(totalW, 1));
+  s += `<text x="${pad}" y="${py - 3}" font-size="3" fill="#5d6870" font-family="Arial,sans-serif">From above</text>`;
+  const px = pad + 3; let cx = px;
+  const seg = (x1, y1, x2, y2, c, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${c === '#9aa' ? 2 : .9}" ${dash ? 'stroke-dasharray="1.5 1"' : ''}/>`;
+  if (L === 'neo') {
+    const k = Math.SQRT1_2, a = S.A * k * sc, b = S.B * sc, by = py + 2 + a + (a + b / 2);
+    s += seg(px, by - a, px + a, by, '#5aa7bd') + seg(px + a + b, by, px + 2 * a + b, by - a, '#5aa7bd');
+    s += seg(px, by - a, px + a + b / 2, by - a - (a + b / 2), '#9aa') + seg(px + 2 * a + b, by - a, px + a + b / 2, by - a - (a + b / 2), '#9aa');
+    const hx = S.side === 'right' ? px + a : px + a + b, r = b;
+    s += seg(hx, by, hx, by + r * 0.9, '#5aa7bd') + `<path d="M${S.side === 'right' ? hx + r : hx - r},${by} A${r},${r} 0 0 ${S.side === 'right' ? 1 : 0} ${hx},${by + r}" fill="none" stroke="#5d6870" stroke-width=".3" stroke-dasharray="1.2 1"/>`;
+  } else {
+    const by = py + 10;
+    s += seg(px, by - 10, px, by + 1, '#9aa'); if (L !== 'corner') s += seg(px + totalW * sc, by - 10, px + totalW * sc, by + 1, '#9aa'); else s += seg(px, by - 10, px + totalW * sc + 1, by - 10, '#9aa') + seg(px + totalW * sc, by, px + totalW * sc, by - 9, '#5aa7bd');
+    ps.forEach((q, i) => {
+      const w = q.w * sc;
+      if (q.r === 'door') {
+        const hl = (L === 'door' || L === 'pdp') ? S.side === 'right' : i > 0, hx = hl ? cx : cx + w;
+        s += seg(hx, by, hx, by + w * 0.95, '#5aa7bd') + `<path d="M${hl ? cx + w : cx},${by} A${w},${w} 0 0 ${hl ? 1 : 0} ${hx},${by + w}" fill="none" stroke="#5d6870" stroke-width=".3" stroke-dasharray="1.2 1"/>`;
+      } else s += seg(cx, by, cx + w, by, '#5aa7bd');
+      cx += w;
+    });
+  }
+  const svg = $('pic'); svg.setAttribute('viewBox', `0 0 ${vbW.toFixed(1)} ${(vbH + 6).toFixed(1)}`); svg.innerHTML = s;
+  renderPrice();
+}
+function design() {
+  const d = { layout: S.layout, glass: S.glass, finish: S.finish, H: S.H };
+  if (S.layout !== 'panel') d.side = S.side;
+  fieldsFor(S.layout).forEach(k => { d[k] = S[k]; });
+  return d;
+}
+function renderPrice() {
+  const prob = sizeProblem();
+  if (prob) { $('price').innerHTML = `<div class="small" style="color:var(--err)">${esc(prob)}</div>`; return; }
+  const e = estimate(PRICING, design());
+  $('price').innerHTML = e
+    ? `<div class="small">Estimated price</div><div class="big">${money(e.lo)} – ${money(e.hi)}</div><div class="small">Installed, based on your rough sizes. Your exact price comes after our free measure.</div>`
+    : `<div class="small">Price</div><div class="big" style="font-size:1.15rem">We'll quote after a free measure</div><div class="small">Every shower is a little different. Send your design and we'll call you.</div>`;
+}
+function chips(id, opts, key, sw) {
+  $(id).innerHTML = Object.entries(opts).map(([k, o]) => `<button type="button" class="chip ${S[key] === k ? 'on' : ''}" data-k="${k}">${sw ? sw(o) : ''}${esc(o.t)}</button>`).join('');
+  $(id).querySelectorAll('.chip').forEach(b => b.onclick = () => { S[key] = b.dataset.k; chips(id, opts, key, sw); draw(); });
+}
+function renderLayouts() {
+  $('layouts').innerHTML = Object.entries(LAYOUTS).map(([k, o]) => `<button type="button" class="card ${S.layout === k ? 'on' : ''}" data-k="${k}">${thumb(k)}<b>${esc(o.t)}</b><small>${esc(o.d)}</small></button>`).join('');
+  $('layouts').querySelectorAll('.card').forEach(b => b.onclick = () => {
+    S.layout = b.dataset.k;
+    if (S.layout === 'tub' && S.H > 66) S.H = 60; else if (S.layout !== 'tub' && S.H < 66) S.H = 72;
+    renderLayouts(); renderFields(); draw();
+  });
+}
+// ── send ──
+async function send() {
+  const err = $('err'); err.textContent = '';
+  const prob = sizeProblem(); if (prob) { err.textContent = prob; return; }
+  const v = id => $(id).value.trim();
+  const name = v('cName'), phone = v('cPhone'), email = v('cEmail'), place = v('cPlace'), notes = v('cNotes');
+  ['cName', 'cPhone', 'cEmail', 'cPlace'].forEach(id => $(id).classList.remove('bad'));
+  if (!name) { $('cName').classList.add('bad'); err.textContent = 'Please enter your name.'; return; }
+  if (phone.replace(/\D/g, '').length < 7) { $('cPhone').classList.add('bad'); err.textContent = 'Please enter a phone number we can call.'; return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('cEmail').classList.add('bad'); err.textContent = 'That email doesn\'t look right.'; return; }
+  if (!place) { $('cPlace').classList.add('bad'); err.textContent = 'Please enter your city or ZIP so we know you\'re in our area.'; return; }
+  if (v('cCompany')) { showDone(name); return; } // bots fill hidden fields — pretend it worked, save nothing
+  try { const last = +localStorage.getItem('alg_lead_at') || 0; if (Date.now() - last < 60000) { err.textContent = 'You just sent a request — we\'ll be in touch soon.'; return; } } catch (e) {}
+  const d = design(), e = estimate(PRICING, d);
+  const lead = { name: name.slice(0, 80), phone: phone.slice(0, 30), email: email.slice(0, 120), place: place.slice(0, 120), notes: notes.slice(0, 1000),
+    design: d, lo: e ? e.lo : 0, hi: e ? e.hi : 0, status: 'new', src: 'web', createdAt: serverTimestamp() };
+  const btn = $('sendBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await addDoc(collection(db, 'leads'), lead);
+    try { localStorage.setItem('alg_lead_at', String(Date.now())); } catch (x) {}
+    // shop email — best effort; the request is already saved even if this fails
+    const sizes = fieldsFor(d.layout).map(k => FIELDS[k].l + ' ' + d[k] + '"').join(', ');
+    fetch('https://api.web3forms.com/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      access_key: WEB3FORMS_ACCESS_KEY, subject: '🚿 Website shower request — ' + name, email: SHOP_EMAIL, from_name: 'ALG website',
+      message: `New shower design from the website.\n\nName: ${name}\nPhone: ${phone}\nEmail: ${email || '—'}\nCity/ZIP: ${place}\n\nStyle: ${LAYOUTS[d.layout].t}\nSizes: ${sizes}\nGlass: ${GLASS[d.glass].t}\nFinish: ${FIN[d.finish].t}${d.side ? '\nDoor opens: ' + d.side : ''}\nWebsite range shown: ${e ? money(e.lo) + ' – ' + money(e.hi) : 'none'}\n\nNotes: ${notes || '—'}\n\nIt's also in the staff app under Dashboard → Website requests.` }) }).catch(() => {});
+    showDone(name);
+  } catch (x) {
+    console.error(x); btn.disabled = false; btn.textContent = 'Request my free measure';
+    err.innerHTML = `Sorry — that didn't go through. Please try again, or call or email us at <a href="mailto:${SHOP_EMAIL}">${SHOP_EMAIL}</a>.`;
+  }
+}
+function showDone(name) {
+  $('contact').style.display = 'none';
+  $('done').style.display = 'block';
+  $('done').innerHTML = `<h3>Thanks, ${esc(name.split(' ')[0])}!</h3><p style="margin:.2rem 0 0">We've got your design. We'll call you to set up a free measure — your exact price comes after that. Nothing is ordered until you approve a quote.</p>`;
+  $('done').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+$('sendBtn').onclick = send;
+renderLayouts(); renderFields();
+chips('sides', { right: { t: 'Right' }, left: { t: 'Left' } }, 'side');
+chips('glass', GLASS, 'glass');
+chips('finish', FIN, 'finish', o => `<span class="sw" style="background:linear-gradient(135deg,${o.a},${o.b} 50%,${o.c})"></span>`);
+draw();
+// prices load after the page is usable; if they can't load, the page simply says "quote after a free measure"
+Promise.race([getDoc(doc(db, 'publicPricing', 'shower')), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))])
+  .then(snap => { if (snap.exists()) { PRICING = snap.data(); renderPrice(); } }).catch(e => console.warn('Prices not loaded:', e.message));
+</script>
+</body>
+</html>
