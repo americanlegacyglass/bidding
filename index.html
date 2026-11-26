@@ -5480,7 +5480,7 @@ function drContent(d, opt) {
       out += ext(bx, by + bh, bx, by + bh + off + 1) + ext(bx + bw, by + bh, bx + bw, by + bh + off + 1);
       out += drDimLine(bx, by + bh + off, bx + bw, by + bh + off, drFmt(bw), px, ink, { halo: dark ? '#0f0f0f' : '#fff' });
       // height goes on the left unless another panel sits right against that side; then on the right
-      const crowded = d.objects.some(q => q.type === 'panel' && q !== p && q.x + q.w <= bx + 0.01 && q.x + q.w > bx - 10 && q.y < by + bh && q.y + q.h > by);
+      const crowded = d.objects.some(q => q.type === 'panel' && q !== p && q.x < bx && q.x + q.w > bx - 10 && q.y < by + bh && q.y + q.h > by);
       const hx = crowded ? bx + bw + off : bx - off;
       if (crowded) out += ext(bx + bw, by, bx + bw + off + 1, by) + ext(bx + bw, by + bh, bx + bw + off + 1, by + bh);
       else out += ext(bx, by, bx - off - 1, by) + ext(bx, by + bh, bx - off - 1, by + bh);
@@ -6176,6 +6176,7 @@ const SH_LAYOUTS = {
   panel:     { t: 'Splash / walk-in',       d: 'One fixed panel, no door' },
   tub:       { t: 'Tub door + panel',       d: 'Door and fixed panel on a tub deck' },
   steam:     { t: 'Steam unit',             d: 'Door + panel, glass to the ceiling' },
+  slider:    { t: 'Sliding door',           d: 'Bypass slider on a header track' },
 };
 const SH_STEAM_TUB = ['tub', 'steam'];
 const shIsInline = l => ['doorpanel', 'tub', 'steam'].includes(l);
@@ -6191,6 +6192,7 @@ function shThumb(k) {
   if (k === 'corner') s = wall(2) + g(7, 30, 50) + g(38, 24, 50, true) + `<path d="M63,6 L76,1 L76,51 L63,56 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
   if (k === 'neo') s = `<path d="M3,10 L20,4 L20,54 L3,60 Z" fill="#e3f3f8" stroke="#5a8a99"/>` + g(21, 37, 50, true, -2) + `<path d="M59,4 L76,10 L76,60 L59,54 Z" fill="#e3f3f8" stroke="#5a8a99"/>`;
   if (k === 'panel') s = wall(2) + g(7, 36, 50);
+  if (k === 'slider') s += `<rect x="5" y="3" width="70" height="2.5" fill="#888"/>` + g(7, 38, 50) + `<rect x="35" y="8" width="38" height="49" fill="#cfe9f1" stroke="#2a6f86" stroke-width="1.6" opacity=".9"/><line x1="40" y1="25" x2="40" y2="40" stroke="#2a6f86" stroke-width="1.6"/>`;
   if (k === 'tub') s += `<rect x="5" y="44" width="70" height="14" rx="3" fill="#ddd" stroke="#999"/>` + g(7, 36, 38, false) + g(44, 29, 38, true);
   if (k === 'steam') s = `<rect x="2" y="1" width="76" height="3" fill="#888"/>` + wall(2) + wall(75) + g(7, 36, 50, false, 0) + g(44, 29, 50, true, 0) + `<rect x="7" y="4" width="66" height="1.5" fill="#e3f3f8" stroke="#5a8a99" stroke-width=".6"/>`;
   return `<svg viewBox="0 0 80 62" width="80" height="62">${s}</svg>`;
@@ -6199,7 +6201,7 @@ const SH_DEFAULTS = {
   layout: 'doorpanel', W: '60', HL: '72', HR: '72', D: '36', doorW: '24', A: '18', B: '24', C: '18',
   kneeW: '18', kneeH: '36', wallGap: '3/16', hingeGap: '3/16', strikeGap: '3/16', glassGap: '3/16', doorBottom: '1/2', t: '3/8',
   hingeOff: '10', handleH: '36', handleIn: '3', clampOff: '8', handleSide: 'right', hinge: 'beveled', fix: 'clamps',
-  transom: 'no', ceilH: '96', headGap: '1/2',
+  transom: 'no', ceilH: '96', headGap: '1/2', overlap: '2',
   WT: '', fit: 'square', outWall: 'left', glass: 'clear', finish: 'chrome',
 };
 function shLoad() { try { return Object.assign({}, SH_DEFAULTS, JSON.parse(localStorage.getItem('alg_shower_defaults') || '{}')); } catch (e) { return Object.assign({}, SH_DEFAULTS); } }
@@ -6245,6 +6247,7 @@ function drToggleShower() {
         ${shField('HR', 'Height — right wall', v.HR, 'If the walls or curb are out of level, the glass is cut to the shorter height')}
         ${shField('D', 'Return depth', v.D, 'Back wall to outside face of the front glass')}
         ${shField('doorW', 'Door width', v.doorW)}
+        ${shField('overlap', 'Slider overlap', v.overlap, 'How far the sliding door overlaps the fixed panel when closed')}
         ${shField('kneeW', 'Knee wall width', v.kneeW, 'From the wall to the end of the knee wall')}
         ${shField('kneeH', 'Knee wall height', v.kneeH, 'From the curb to the top of the knee wall')}
         ${shField('ceilH', 'Ceiling height', v.ceilH, 'Curb to ceiling')}
@@ -6279,8 +6282,8 @@ function shShowFields() {
   const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; };
   show('shr_W', l !== 'neo'); show('shr_WT', l !== 'neo'); ['A', 'B', 'C'].forEach(k => show('shr_' + k, l === 'neo'));
   const fit = document.getElementById('sh_fit') ? document.getElementById('sh_fit').value : 'square';
-  show('shw_fit', !['neo', 'door', 'knee'].includes(l)); show('shw_out', fit === 'exact');
-  show('shr_D', l === 'corner'); show('shr_doorW', !['panel', 'door', 'neo'].includes(l));
+  show('shw_fit', !['neo', 'door', 'knee', 'slider'].includes(l)); show('shw_out', fit === 'exact');
+  show('shr_D', l === 'corner'); show('shr_doorW', !['panel', 'door', 'neo', 'slider'].includes(l)); show('shr_overlap', l === 'slider');
   show('shr_kneeW', l === 'knee'); show('shr_kneeH', l === 'knee');
   show('shw_side', l !== 'panel'); show('shw_fix', l !== 'door');
   const canTr = ['door', 'doorpanel', 'pdp', 'panel', 'tub'].includes(l);
@@ -6327,6 +6330,11 @@ function shCompute(layout, n, opt = {}) {
     out.push({ role: 'panel', label: 'Left panel', w: each, h: H });
     out.push({ role: 'door', label: 'Door', w: doorW, h: doorH, hinge: 'glass' });
     out.push({ role: 'panel', label: 'Right panel', w: each, h: H });
+  } else if (layout === 'slider') {
+    const ov = n.overlap > 0 ? n.overlap : 2, each = (W - 2 * wallGap + ov) / 2;
+    out.push({ role: 'panel', label: 'Fixed panel', w: each, h: H });
+    out.push({ role: 'door', label: 'Sliding door', w: each, h: H - doorBottom, slide: true, overlap: ov });
+    out.slider = true;
   } else if (layout === 'neo') {
     out.push({ role: 'panel', label: 'Left angled panel', w: n.A - wallGap - glassGap / 2, h: H });
     out.push({ role: 'door', label: 'Door', w: n.B - glassGap - strikeGap, h: doorH, hinge: 'glass' });
@@ -6341,7 +6349,8 @@ function shCompute(layout, n, opt = {}) {
   }
   const small = out.find(p => p.w < 6 || p.h < 3);
   if (small) return { error: `${small.label} would be only ${drFmt(small.w)} wide — check the measurements` };
-  if (out.some(p => p.role === 'door' && p.w > 36)) out.warn = 'Door is wider than 36" — check your hinge rating.';
+  if (layout === 'slider' && out[0].w > 40) out.warn = 'Each slider panel is over 40" wide — check the track and roller rating.';
+  else if (out.some(p => p.role === 'door' && p.w > 36 && !p.slide)) out.warn = 'Door is wider than 36" — check your hinge rating.';
   return out;
 }
 
@@ -6366,6 +6375,7 @@ function shPlan(layout, n, front, ret, hingeLeft) {
   if (layout === 'corner') walls.push([0, -n.D, W + 2, -n.D]); else walls.push([W, -14, W, 2]);
   front.forEach(m => {
     const xa = m.pn.x - 12, xb = xa + (m.p.role === 'door' ? m.p.w : m.pn.botW || m.pn.w);
+    if (m.p.slide) { glass.push({ x1: xa, y1: 1.5, x2: xb, y2: 1.5, role: 'slide' }); notes.push('Sliding door runs in front of the fixed panel — no swing room needed.'); x = xb; return; }
     glass.push({ x1: xa, y1: 0, x2: xb, y2: 0, role: m.p.role });
     if (m.p.role === 'door') door = { hx: hingeLeft ? xa : xb, hy: 0, r: m.p.w, a0: hingeLeft ? 0 : Math.PI, a1: H };
     x = xb;
@@ -6425,6 +6435,13 @@ function drBuildShower() {
     DR.cur.objects.push(pn); made.push({ p, pn });
     x += p.w + (i < front.length - 1 ? n.glassGap : 0);
   });
+  if (L === 'slider') { // the sliding door runs in front of the fixed panel and overlaps it
+    const fx = made.find(m => m.p.role === 'panel'), dr = made.find(m => m.p.role === 'door');
+    const ov = dr.p.overlap;
+    if (made[0] === fx) dr.pn.x = fx.pn.x + fx.pn.w - ov; else fx.pn.x = dr.pn.x + dr.pn.w - ov;
+    x = Math.max(fx.pn.x + fx.pn.w, dr.pn.x + dr.pn.w);
+    dr.pn.shopNote = 'Sliding door, runs in front of the fixed panel; ' + drFmt(ov) + ' overlap closed';
+  }
   // ── follow the walls: fixed panels become out-of-square pieces that match a leaning wall and a sloped curb ──
   const exactNotes = [];
   if (exact && (wallOut >= 0.0625 || plumb >= 0.0625)) {
@@ -6452,8 +6469,15 @@ function drBuildShower() {
     });
   }
   const mk = (pn, kind, xIn, yIn, note, extra) => DR.cur.objects.push(Object.assign({ id: uid(), type: 'marker', panelId: pn.id, kind, xIn, yIn, size: DR_KINDS[kind].size, note, vis: 'both' }, extra || {}));
-  const door = made.find(m => m.p.role === 'door');
+  const door = made.find(m => m.p.role === 'door' && !m.p.slide);
+  const slide = made.find(m => m.p.slide);
   let hingeLeft = right;
+  if (slide) {
+    const d = slide.pn, openLeft = made[0] === slide; // the door sits at the end it opens toward
+    [3, d.w - 3].forEach(xx => mk(d, 'standoff', xx, 0.75, 'roller'));
+    mk(d, 'handle', openLeft ? 3 : d.w - 3, Math.max(0, d.h - n.handleH), 'pull — opening edge', { len: 12 });
+    DR.cur.objects.push({ id: uid(), type: 'dim', x1: 12, y1: y0 - 2.5, x2: 12 + n.W, y2: y0 - 2.5, text: 'Header track ' + drFmt(n.W - 2 * n.wallGap), vis: 'both' });
+  }
   if (door) {
     const d = door.pn, idx = made.indexOf(door);
     if (L === 'door' || L === 'pdp' || L === 'neo') hingeLeft = right;
@@ -6512,6 +6536,7 @@ function drBuildShower() {
   }
   if (L === 'neo') notes.push('Neo-angle: 135° joints — confirm the glass-thickness allowance with your supplier.');
   if (L === 'steam') notes.push('Steam unit: glass to the ceiling, seals on every door edge, 1/2" glass recommended. Check the steam generator maker\'s vent requirement before ordering the transom.');
+  if (L === 'slider') notes.push('Slider: header track ' + drFmt(n.W - 2 * n.wallGap) + ', ' + drFmt(n.overlap || 2) + ' overlap. Confirm roller and track hardware with the supplier.');
   if (L === 'tub') notes.push('Tub: check the tub deck is level; use a bottom sweep and drip rail on the door.');
   DR.cur.shopNotes = [DR.cur.shopNotes].concat(notes).filter(Boolean).join('\n');
   if (!DR.cur.name) DR.cur.name = 'Shower ' + drFmt(n.W) + ' × ' + drFmt(n.H);
@@ -7131,13 +7156,16 @@ window.coSync = coSync; window.coCreate = coCreate; window.coCopyLink = coCopyLi
 // publicPricing/shower: the numbers the website price range is built from. Anyone can read it; only the owner login can change it.
 // ═════════════════════════════════════════════════
 const LD = { list: [], listening: false, denied: false, showClosed: false };
-const LD_LAYOUTS = { door: 'Door only', doorpanel: 'Door + panel', pdp: 'Panel + door + panel', corner: '90° corner', neo: 'Neo-angle', tub: 'Tub door + panel', steam: 'Steam unit', panel: 'Splash / walk-in panel' };
+const LD_LAYOUTS = { door: 'Door only', doorpanel: 'Door + panel', pdp: 'Panel + door + panel', corner: '90° corner', neo: 'Neo-angle', tub: 'Tub door + panel', steam: 'Steam unit', panel: 'Splash / walk-in panel', slider: 'Sliding door' };
+const LD_SPOT = { L: 'left wall', BL: 'back wall, left', BC: 'back wall, middle', BR: 'back wall, right', R: 'right wall' };
+const LD_EXTRA = { channel: 'U-channel instead of clamps ($ per job)', notch: 'Pony wall / bench notch ($ per job)', coat: 'Easy-clean coating ($ per sq ft)', removal: 'Remove old door ($ per job)' };
 const LD_GLASS = { clear: 'Clear', lowiron: 'Low-iron', frost: 'Frosted' };
 const LD_FIN = { chrome: 'Chrome', black: 'Matte black', brushed: 'Brushed nickel', gold: 'Satin brass' };
 const LD_PRICE_DEFAULT = {
   enabled: false, rangePct: 15, minJob: 0,
   rate: { clear: 0, lowiron: 0, frost: 0 },
-  base: { door: 0, doorpanel: 0, pdp: 0, corner: 0, neo: 0, tub: 0, steam: 0, panel: 0 },
+  base: { door: 0, doorpanel: 0, pdp: 0, corner: 0, neo: 0, tub: 0, steam: 0, panel: 0, slider: 0 },
+  extra: { channel: 0, notch: 0, coat: 0, removal: 0 },
   finish: { chrome: 0, black: 0, brushed: 0, gold: 0 },
 };
 // Same formula as builder.html — keep the two in step.
@@ -7152,7 +7180,9 @@ function ldEstimate(pr, d) {
   if (!pr || !pr.enabled) return null;
   const rate = (pr.rate || {})[d.glass] || 0, base = (pr.base || {})[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
   if (!rate || !base) return null;
-  const est = base + ldArea(d) * rate + fin, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
+  const ex = pr.extra || {}, a = ldArea(d);
+  const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0);
+  const est = base + a * rate + fin + add, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
   const r50 = v => Math.round(v / 50) * 50;
   const lo = Math.max(r50(est * (1 - r)), +pr.minJob || 0), hi = Math.max(r50(est * (1 + r)), lo + 50);
   return { lo, hi };
@@ -7178,7 +7208,19 @@ function ldSummary(d) {
   if (d.layout === 'corner') size += `, ${f(d.D)} deep`;
   size += ` × ${f(d.H)} tall`;
   if (d.layout === 'steam' && +d.ceil) size += `, ceiling ${f(d.ceil)}`;
-  return `${LD_LAYOUTS[d.layout] || 'Shower'} · ${size} · ${LD_GLASS[d.glass] || 'Clear'} glass · ${LD_FIN[d.finish] || 'Chrome'}${d.side ? ' · opens ' + (d.side === 'left' ? 'left' : 'right') : ''}`;
+  return `${LD_LAYOUTS[d.layout] || 'Shower'} · ${size} · ${LD_GLASS[d.glass] || 'Clear'} glass · ${LD_FIN[d.finish] || 'Chrome'}${d.fix === 'channel' ? ' · U-channel' : d.fix === 'clamps' ? ' · clamps' : ''}${d.side ? ' · door on the ' + (d.side === 'left' ? 'left' : 'right') : ''}`;
+}
+// Second line: site details and extras the customer picked
+function ldDetails(d) {
+  d = d || {}; const out = [];
+  if (LD_SPOT[d.head]) out.push('Shower head: ' + LD_SPOT[d.head]);
+  if (LD_SPOT[d.valve]) out.push('Water handle: ' + LD_SPOT[d.valve]);
+  if (d.wall === 'pony' || d.wall === 'bench') out.push((d.wall === 'pony' ? 'Pony wall' : 'Bench') + (+d.wallH ? ' ' + drFmt(+d.wallH) + ' tall' : '') + (+d.wallL ? ', ' + drFmt(+d.wallL) + (d.wall === 'pony' ? ' long' : ' deep') : '') + (d.wallSide ? ' on the ' + (d.wallSide === 'left' ? 'left' : 'right') : ''));
+  if (d.coat) out.push('wants easy-clean coating');
+  if (d.removal) out.push('remove old door');
+  const tile = { done: 'tile is done', progress: 'tile going in now', planning: 'remodel not started' }[d.tile]; if (tile) out.push(tile);
+  const when = { asap: 'wants it ASAP', soon: 'in 1–3 months', later: 'just getting prices' }[d.when]; if (when) out.push(when);
+  return out.join(' · ');
 }
 function ldRender() {
   const box = document.getElementById('leadBox'); if (!box) return;
@@ -7199,6 +7241,7 @@ function ldRender() {
     h += `<div class="ld-card"><div class="ld-top"><b>${escapeHtml(l.name || 'No name')}</b> ${st}<span class="ld-when">${escapeHtml(when)}</span></div>
       <div class="ld-line">${tel ? `<a href="tel:${escapeHtml(tel)}">📞 ${escapeHtml(l.phone)}</a>` : ''}${l.email ? ` · <a href="mailto:${escapeHtml(l.email)}">${escapeHtml(l.email)}</a>` : ''}${l.place ? ' · 📍 ' + escapeHtml(l.place) : ''}</div>
       <div class="ld-line">${escapeHtml(ldSummary(l.design))}</div>
+      ${ldDetails(l.design) ? `<div class="ld-line">${escapeHtml(ldDetails(l.design))}</div>` : ''}
       <div class="ld-line">${+l.lo ? `Website showed <b>${escapeHtml(fmt(+l.lo))} – ${escapeHtml(fmt(+l.hi))}</b> (their measurements)` : 'No price shown on the website'}</div>
       ${l.notes ? `<div class="ld-line ld-notes">“${escapeHtml(l.notes)}”</div>` : ''}
       <div class="ld-acts">${b('＋ Start bid', `ldStartBid('${l.id}')`, 'Open a new bid with their contact details filled in')}${b('<svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Open in Drawing', `ldOpenDrawing('${l.id}')`, 'Open the shower builder with their sizes filled in')}` +
@@ -7228,7 +7271,7 @@ function ldStartBid(id) {
   set('customerName', l.name); set('customerPhone', l.phone); set('customerEmail', l.email); set('jobLocation', l.place);
   set('jobDesc', ldSummary(l.design).split(' · ')[0] + ' (website request)');
   const bn = document.getElementById('bidNotes');
-  if (bn) bn.value = 'From the website: ' + ldSummary(l.design) + '.' + (+l.lo ? ` Website range ${fmt(+l.lo)}–${fmt(+l.hi)} from the customer's own measurements; final price after our field measure.` : ' Final price after our field measure.') + (l.notes ? '\nCustomer note: ' + l.notes : '');
+  if (bn) bn.value = 'From the website: ' + ldSummary(l.design) + '.' + (ldDetails(l.design) ? ' ' + ldDetails(l.design) + '.' : '') + (+l.lo ? ` Website range ${fmt(+l.lo)}–${fmt(+l.hi)} from the customer's own measurements; final price after our field measure.` : ' Final price after our field measure.') + (l.notes ? '\nCustomer note: ' + l.notes : '');
   if (typeof calculate === 'function') calculate();
   if (l.status === 'new') ldSet(id, 'contacted');
   showToast('✓ Bid started from the website request — measure before you price it');
@@ -7242,18 +7285,22 @@ function ldOpenDrawing(id) {
   const box = document.getElementById('drShowerBox'); if (box) box.style.display = 'none';
   drToggleShower();
   const pick = (k, v) => { if (v && document.querySelector(`.sh-cards[data-name="${k}"] [data-v="${v}"]`)) shPick(k, v); };
-  pick('layout', d.layout); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', d.side);
+  // a pony wall or bench next to a door + panel is the knee-wall layout (notched panel)
+  const knee = (d.wall === 'pony' || d.wall === 'bench') && ['doorpanel', 'steam'].includes(d.layout);
+  pick('layout', knee ? 'knee' : d.layout); pick('fix', d.fix); pick('glass', d.glass); pick('finish', d.finish); pick('handleSide', d.side);
   const fill = (k, v) => { const el = document.getElementById('sh_' + k); if (el && +v) el.value = drFmtPlain(+v); };
+  if (knee) { fill('kneeW', d.wallL); fill('kneeH', d.wallH); }
   fill('W', d.W); fill('HL', d.H); fill('HR', d.H); fill('D', d.D); fill('A', d.A); fill('B', d.B); fill('C', d.A); fill('ceilH', d.ceil);
   const wt = document.getElementById('sh_WT'); if (wt) wt.value = '';
-  showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.');
+  const extra = (d.wall === 'pony' || d.wall === 'bench') && !knee ? ' The ' + (d.wall === 'pony' ? 'pony wall' : 'bench') + ' isn\'t drawn for this style — notch the panel by hand after building.' : '';
+  showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.' + extra);
 }
 // ── website prices ──
 async function ldOpenPricing() {
   if (window._currentUserRole === 'employee') { showToast('Only the owner login can change website prices', 'error'); return; }
   let pr = JSON.parse(JSON.stringify(LD_PRICE_DEFAULT));
   try { const snap = await window._getDoc(window._doc(window._db, 'publicPricing', 'shower')); if (snap.exists()) pr = Object.assign(pr, snap.data()); } catch (e) { console.error(e); }
-  ['rate', 'base', 'finish'].forEach(k => { pr[k] = Object.assign({}, LD_PRICE_DEFAULT[k], pr[k] || {}); });
+  ['rate', 'base', 'finish', 'extra'].forEach(k => { pr[k] = Object.assign({}, LD_PRICE_DEFAULT[k], pr[k] || {}); });
   const inp = (grp, k, v, ph) => `<input class="dr-in" style="max-width:110px" data-grp="${grp}" data-k="${k}" value="${v ? escapeHtml(String(v)) : ''}" placeholder="${ph}" inputmode="decimal">`;
   const row = (label, html) => `<label class="dr-row"><span>${label}</span>${html}</label>`;
   hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Website prices</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
@@ -7262,13 +7309,14 @@ async function ldOpenPricing() {
     <div class="dr-sub">Layout base (hardware + install, $)</div>${Object.entries(LD_LAYOUTS).map(([k, t]) => row(t, inp('base', k, pr.base[k], 'e.g. 900'))).join('')}
     <div class="dr-sub">Glass, $ per square foot</div>${Object.entries(LD_GLASS).map(([k, t]) => row(t, inp('rate', k, pr.rate[k], 'e.g. 28'))).join('')}
     <div class="dr-sub">Finish extra (per job, $)</div>${Object.entries(LD_FIN).map(([k, t]) => row(t, inp('finish', k, pr.finish[k], '0'))).join('')}
+    <div class="dr-sub">Extras (only added when the customer picks them)</div>${Object.entries(LD_EXTRA).map(([k, t]) => row(t, inp('extra', k, pr.extra[k], '0'))).join('')}
     <div class="dr-sub">Range</div>${row('± percent', inp('top', 'rangePct', pr.rangePct, '15'))}${row('Lowest price shown', inp('top', 'minJob', pr.minJob, '0'))}
     <div class="dr-hint" id="ldExample"></div>
     <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem"><button class="dr-btn" onclick="hwClose()">Cancel</button><button class="dr-btn on" onclick="ldSavePricing()">Publish to website</button></div>`);
   document.querySelectorAll('#hwModal [data-grp]').forEach(el => el.addEventListener('input', ldExample)); ldExample();
 }
 function ldReadPricing() {
-  const pr = { enabled: !!(document.getElementById('ldEnabled') || {}).checked, rate: {}, base: {}, finish: {}, rangePct: 15, minJob: 0 };
+  const pr = { enabled: !!(document.getElementById('ldEnabled') || {}).checked, rate: {}, base: {}, finish: {}, extra: {}, rangePct: 15, minJob: 0 };
   let bad = false;
   document.querySelectorAll('#hwModal [data-grp]').forEach(el => {
     const raw = el.value.trim().replace(/[$,]/g, ''), v = raw === '' ? 0 : parseFloat(raw);
