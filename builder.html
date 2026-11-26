@@ -117,6 +117,11 @@
         <div class="sub">Glass</div><div class="chips" id="glass"></div>
         <div class="sub">Hardware finish</div><div class="chips" id="finish"></div>
         <div id="fixBox"><div class="sub">Fixed glass held by</div><div class="cards two" id="fix"></div></div>
+        <div id="sealBox"><div class="sub">Seals &amp; sweeps <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+          <div class="checks">
+            <label><input type="checkbox" id="xSweep"><span>Bottom sweep on the door<small>A clear vinyl strip along the bottom that keeps water in and blocks drafts.</small></span></label>
+            <label><input type="checkbox" id="xSeals"><span>Edge seals<small>Clear profiles on the door edges where silicone can't go — less water at the gaps and a better air seal.</small></span></label>
+          </div><p class="hint" id="sealNote"></p></div>
       </section>
 
       <section class="step"><h2><span class="n">7</span>Extras &amp; timing</h2>
@@ -188,7 +193,7 @@ const FIN = { chrome: { t: 'Chrome', a: '#fbfcfd', b: '#a9b2b7', c: '#59626a' },
 const SLIDES = { single: { t: 'Single slider', d: 'Fixed panel + sliding door' }, bypass: { t: 'Bypass', d: 'Both panels slide' }, barn: { t: 'Barn style', d: 'Flat bar, big exposed rollers' }, corner: { t: 'Corner slider', d: 'Sliding door + side panel' } };
 const SPOTS = { L: 'Left wall', BL: 'Back wall – left', BC: 'Back wall – middle', BR: 'Back wall – right', R: 'Right wall' };
 const S = { layout: 'doorpanel', side: 'right', sideTouched: false, handle: 'right', handleTouched: false, glass: 'clear', finish: 'chrome', fix: 'clamps', W: 60, H: 72, D: 36, A: 18, B: 26, ceil: 96,
-  P: 34, slideType: 'single', onTub: false, head: '', valve: '', wall: 'none', wallH: 36, wallL: 18, wallSide: 'left', coat: false, removal: false, tile: '', when: '' };
+  P: 34, slideType: 'single', onTub: false, sweep: false, seals: false, head: '', valve: '', wall: 'none', wallH: 36, wallL: 18, wallSide: 'left', coat: false, removal: false, tile: '', when: '' };
 let PRICING = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -208,6 +213,7 @@ const hasHandle = l => swingStyles.includes(l);           // hinged doors: pick 
 const hasPlace = l => ['doorpanel', 'tub', 'steam', 'corner', 'slider', 'panel'].includes(l); // styles where the door's position is a choice
 const hingeOnWall = () => ['doorpanel', 'tub', 'steam', 'corner'].includes(S.layout) && S.handle !== S.side; // handle toward the panel → hinges on the wall
 const hingeLeftNow = () => S.handle === 'right';
+const hasSeals = () => S.layout !== 'panel';
 
 // ── price (same formula as the staff app, leads.js — keep the two in step) ──
 function area(d) {
@@ -222,7 +228,7 @@ function estimate(pr, d) {
   const bs = pr.base || {}, rate = (pr.rate || {})[d.glass] || 0, base = (d.layout === 'slider' && d.slideType && d.slideType !== 'single' ? +bs['slider_' + d.slideType] || 0 : 0) || bs[d.layout] || 0, fin = (pr.finish || {})[d.finish] || 0;
   if (!rate || !base) return null;
   const ex = pr.extra || {}, a = area(d);
-  const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0);
+  const add = (d.fix === 'channel' ? +ex.channel || 0 : 0) + (d.wall && d.wall !== 'none' ? +ex.notch || 0 : 0) + (d.coat ? a * (+ex.coat || 0) : 0) + (d.removal ? +ex.removal || 0 : 0) + (d.sweep ? +ex.sweep || 0 : 0) + (d.seals ? +ex.seals || 0 : 0);
   const est = base + a * rate + fin + add, r = Math.min(Math.max(+pr.rangePct || 15, 5), 40) / 100;
   const r50 = v => Math.round(v / 50) * 50;
   const lo = Math.max(r50(est * (1 - r)), +pr.minJob || 0), hi = Math.max(r50(est * (1 + r)), lo + 50);
@@ -452,6 +458,9 @@ function draw() {
     return `<path d="${d}" fill="url(#gl)" stroke="#94c3b6" stroke-width=".45"/><path d="${d}" fill="none" stroke="#fff" stroke-width=".25" opacity=".8" transform="translate(.35,.35)"/><clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})" opacity="${S.glass === 'frost' ? .25 : .5}"><polygon points="${x + w * .18},${y} ${x + w * .34},${y} ${x + w * .02},${y + h} ${x - w * .14},${y + h}" fill="#fff"/><polygon points="${x + w * .42},${y} ${x + w * .47},${y} ${x + w * .15},${y + h} ${x + w * .1},${y + h}" fill="#fff" opacity=".7"/></g>`;
   };
   const clamp = (x, y) => metal(x - 1, y - .75, 2, 1.5, .3);
+  // sweep: clear strip under the door with a drip lip; edge seals: clear profiles on both vertical edges
+  const sealSvg = (x, y, w, h, hingeLeft) => (S.sweep ? `<rect x="${x + .3}" y="${y + h - .2}" width="${w - .6}" height="1.1" rx=".2" fill="#cfe3e8" stroke="#8fb3bd" stroke-width=".18" opacity=".95"/><rect x="${x + .3}" y="${y + h + .7}" width="${w - .6}" height=".3" fill="#9fbcc4"/>` : '') +
+    (S.seals ? [x - .35, x + w - .35].map(ex => `<rect x="${ex}" y="${y + .5}" width=".7" height="${h - 1}" rx=".2" fill="#d7eaee" stroke="#8fb3bd" stroke-width=".15" opacity=".95"/>`).join('') : '');
   if (L === 'steam') s += glass(x0, pad, totalW, headroom - gap);
   const doorHingeLeft = () => hingeLeftNow();
   let x = x0; const fixed = [];
@@ -463,6 +472,7 @@ function draw() {
       const hl = doorHingeLeft(), hx = hl ? gx : gx + gw, lx = hl ? gx + gw - 3 : gx + 3;
       [y0 + 9, y0 + h - 9].forEach(yy => { s += metal(hl ? hx - .5 : hx - 2.5, yy - 1.2, 3, 2.4); });
       s += metal(lx - .42, y0 + h - 42, .84, 12, .42);
+      if (hasSeals()) s += sealSvg(gx, y0, gw, h, hl);
     } else fixed.push({ i, gx, gw, q });
     x += q.w;
   });
@@ -493,6 +503,7 @@ function draw() {
     slides.forEach(({ q, i }) => {
       const dx = i === 0 ? x0 : x0 + totalW - q.w, dy = q.back ? y0 + .6 : y0 + 1.6;
       s += glass(dx, dy, q.w, H - (dy - y0) - .5);
+      if (hasSeals()) s += sealSvg(dx, dy, q.w, H - (dy - y0) - .5, i !== 0);
       const hx = i === 0 ? dx + 3 : dx + q.w - 3; s += metal(hx - .42, y0 + H - 42, .84, 12, .42);
       const rs = barn ? [dx + 5, dx + q.w - 5] : [dx + 3, dx + q.w - 3];
       rs.forEach(rx => { s += barn ? metal(rx - .5, y0 - 3.4, 1, dy - y0 + 4.4, .2) + `<circle cx="${rx}" cy="${y0 - 3.8}" r="2.3" fill="url(#mt)" stroke="rgba(0,0,0,.45)" stroke-width=".18"/><circle cx="${rx}" cy="${y0 - 3.8}" r=".7" fill="rgba(0,0,0,.35)"/>`
@@ -562,6 +573,8 @@ function design() {
   if (S.valve) d.valve = S.valve;
   if (wallFields().length) { d.wall = S.wall; d.wallH = S.wallH; d.wallL = S.wallL; const q = pieces().find(x => x.notch); d.wallSide = q ? q.notch.at : 'left'; }
   if (S.coat) d.coat = true;
+  if (hasSeals() && S.sweep) d.sweep = true;
+  if (hasSeals() && S.seals) d.seals = true;
   if (S.tile) d.tile = S.tile;
   if (S.when) d.when = S.when;
   return d;
@@ -583,6 +596,7 @@ function renderPrice() {
   if (d.wall) rows.push([d.wall === 'pony' ? 'Pony wall' : 'Bench', fmtIn(d.wallH) + ' tall, ' + fmtIn(d.wallL) + (d.wall === 'pony' ? ' long' : ' deep')]);
   rows.push(['Glass', GLASS[d.glass].t + (d.coat ? ', easy-clean coating' : '')]);
   rows.push(['Hardware', FIN[d.finish].t + (d.fix ? ', ' + (d.fix === 'channel' ? 'U-channel' : 'clamps') : '')]);
+  if (d.sweep || d.seals) rows.push(['Seals', [d.sweep && 'bottom sweep', d.seals && 'edge seals'].filter(Boolean).join(' + ')]);
   $('summary').innerHTML = rows.map(r => `<li><span>${esc(r[0])}</span><span>${esc(r[1])}</span></li>`).join('');
 }
 
@@ -632,6 +646,9 @@ function renderChoices() {
   cards('walls', { none: { t: 'Neither' }, pony: { t: 'Pony wall', d: 'Half wall the glass sits on' }, bench: { t: 'Bench', d: 'Seat that meets the glass' } }, 'wall');
   renderWallFields();
   $('fixBox').style.display = fixOk(L) ? '' : 'none';
+  $('sealBox').style.display = hasSeals() ? '' : 'none';
+  $('xSweep').checked = S.sweep; $('xSeals').checked = S.seals;
+  $('sealNote').textContent = L === 'steam' ? 'Recommended for steam showers — the seals keep the steam in.' : L === 'slider' ? 'Sliders get a bottom guide either way; seals close the gaps where the doors overlap.' : '';
   cards('fix', { clamps: { t: 'Clamps', d: 'Small clips on the wall and bottom' }, channel: { t: 'U-channel', d: 'Slim metal track on the wall and bottom' } }, 'fix');
   chips('glass', GLASS, 'glass');
   chips('finish', FIN, 'finish', o => `<span class="sw" style="background:linear-gradient(135deg,${o.a},${o.b} 50%,${o.c})"></span>`);
@@ -680,6 +697,8 @@ function showDone(name) {
 }
 $('sendBtn').onclick = send;
 $('xCoat').onchange = e => { S.coat = e.target.checked; update(); };
+$('xSweep').onchange = e => { S.sweep = e.target.checked; update(); };
+$('xSeals').onchange = e => { S.seals = e.target.checked; update(); };
 $('xTub').onchange = e => { S.onTub = e.target.checked; if (onTub() && S.H > 66) S.H = 60; else if (!onTub() && S.H < 66) S.H = 72; renderFields(); update(); };
 renderChoices(); renderFields(); update();
 // prices load after the page is usable; if they can't load, the page simply says "quote after a free measure"
