@@ -71,6 +71,19 @@
   .opt-card .opt-pick { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   .opt-card.selected .opt-pick { color: var(--green); }
   .opt-intro { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+  .resp-links { text-align: center; margin-top: 0.9rem; font-size: 0.85rem; color: var(--muted); }
+  .resp-links button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0.3rem 0.4rem; }
+  .resp-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin-top: 1rem; text-align: left; }
+  .resp-panel h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: .04em; font-size: 1.25rem; margin-bottom: .6rem; }
+  .resp-panel label.r { display: flex; gap: .55rem; align-items: center; padding: .35rem 0; font-size: .9rem; cursor: pointer; }
+  .resp-panel label.r input { width: 20px; height: 20px; accent-color: var(--green); }
+  .resp-panel textarea { width: 100%; min-height: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 1rem; padding: .7rem .8rem; margin-top: .5rem; resize: vertical; }
+  .resp-panel .resp-btns { display: flex; gap: .6rem; margin-top: .8rem; }
+  .resp-panel .resp-btns button { flex: 1; border-radius: 10px; padding: .75rem; font-family: 'DM Sans', sans-serif; font-size: .95rem; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--text); }
+  .resp-panel .resp-btns button.send { background: var(--text); color: #111; border-color: var(--text); font-weight: 600; }
+  .note-box { border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; margin-bottom: 1rem; font-size: .88rem; line-height: 1.45; }
+  .note-box.warn { border-color: #6b5a2e; background: rgba(232,194,122,.08); }
+  .co-line { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: .92rem; }
   .fine-print { text-align: center; font-size: 0.72rem; color: var(--muted); margin-top: 1rem; line-height: 1.5; }
   .page-footer { text-align: center; font-size: 0.78rem; color: var(--muted); margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
   .page-footer a { color: var(--text); text-decoration: none; }
@@ -172,6 +185,161 @@
     return { name, agreed, ok: name.length >= 2 && /[A-Za-z\u00C0-\u024F]/.test(name) && agreed };
   }
 
+  const CALL_US = 'Call us at <a href="tel:4804428121" style="color:var(--text);">480-442-8121</a>';
+  const DECLINE_REASONS = ['Price too high', 'Timing does not work', 'Going with another company', 'No longer doing the project', 'Other'];
+  function fmtDate(iso) { try { return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return iso; } }
+  async function notifyShop(subject, message) {
+    try {
+      await fetchWithTimeout('https://api.web3forms.com/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_key: WEB3FORMS_ACCESS_KEY, subject, email: 'americanlegacyglass@gmail.com', message }) });
+    } catch (e) { console.error('Shop notification failed:', e); }
+  }
+  // "Request changes" / "Decline" for a whole bid. mode: 'changes' | 'declined'.
+  function openRespond(view, mode, presetText) {
+    const host = document.getElementById('respHost'); if (!host) return;
+    host.innerHTML = mode === 'declined' ? `<div class="resp-panel">
+        <h3>Decline this bid</h3>
+        <div style="font-size:.85rem;color:var(--muted);margin-bottom:.4rem;">Mind telling us why? It helps us improve.</div>
+        ${DECLINE_REASONS.map((r, i) => `<label class="r"><input type="radio" name="decReason" value="${escapeHtml(r)}"> ${escapeHtml(r)}</label>`).join('')}
+        <textarea id="respText" maxlength="1000" placeholder="Anything else you'd like us to know (optional)"></textarea>
+        <div class="resp-btns"><button type="button" id="respCancel">Cancel</button><button type="button" class="send" id="respSend">Decline bid</button></div>
+      </div>` : `<div class="resp-panel">
+        <h3>Request changes</h3>
+        <div style="font-size:.85rem;color:var(--muted);">Tell us what you'd like changed and we'll send you an updated bid.</div>
+        <textarea id="respText" maxlength="1000" placeholder="e.g. Can you price it without the transom?">${escapeHtml(presetText || '')}</textarea>
+        <div class="resp-btns"><button type="button" id="respCancel">Cancel</button><button type="button" class="send" id="respSend">Send request</button></div>
+      </div>`;
+    document.getElementById('respCancel').onclick = () => { host.innerHTML = ''; };
+    document.getElementById('respSend').onclick = () => sendRespond(view, mode);
+    host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  async function sendRespond(view, mode) {
+    const text = (document.getElementById('respText').value || '').trim();
+    const reasonEl = document.querySelector('input[name="decReason"]:checked');
+    const reason = reasonEl ? reasonEl.value : '';
+    if (mode === 'declined') {
+      if (!reason) { alert('Please pick a reason.'); return; }
+      if (reason === 'Other' && text.length < 3) { alert('Please tell us a little more.'); return; }
+      if (!confirm('Decline this bid? You can still call us later if you change your mind.')) return;
+    } else if (text.length < 3) { alert('Please tell us what you would like changed.'); return; }
+    const btn = document.getElementById('respSend'); btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const res = await fetchWithTimeout(WORKER + '/respond-bid', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: bidId, type: mode, reason, comment: text }) }, 20000);
+      let data = null; try { data = await res.json(); } catch (e) {}
+      if (!res.ok || !data || !data.ok) { const e = new Error('failed'); e.userMessage = data && data.error; throw e; }
+      if (!data.already) {
+        await notifyShop((mode === 'declined' ? '✗ Bid DECLINED — ' : '✎ Changes requested — ') + (view.customer || 'Unknown') + ' (' + fmt(view.total || 0) + ')',
+          (mode === 'declined' ? 'A customer declined a bid.\n\nReason: ' + reason + '\n' : 'A customer asked for changes to a bid.\n\n') +
+          'Customer: ' + (view.customer || '') + '\nJob: ' + (view.jobDesc || '') + '\nBid ID: ' + bidId + '\n\n' + (mode === 'declined' ? 'Comment: ' : 'What they want changed: ') + (text || '(none)') +
+          '\n\n' + (mode === 'declined' ? 'Worth a call while they are still deciding.' : 'Revise the bid, save it, and send the link again.'));
+      }
+      showResponded(data.view || view, mode);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = mode === 'declined' ? 'Decline bid' : 'Send request';
+      alert(err.userMessage || 'Something went wrong. Please try again or call us.');
+    }
+  }
+  function showResponded(view, mode) {
+    content.innerHTML = mode === 'declined'
+      ? `<div class="status-msg"><div class="icon">✓</div><div class="title">Bid declined</div><div class="sub">Thanks for letting us know${view.customer ? ', ' + escapeHtml(view.customer) : ''}. If you change your mind, ${CALL_US}.</div></div>`
+      : `<div class="status-msg"><div class="icon">✓</div><div class="title">Request sent</div><div class="sub">Thanks${view.customer ? ', ' + escapeHtml(view.customer) : ''}! We'll look at your changes and send you an updated bid. Questions? ${CALL_US}.</div></div>`;
+  }
+  function respLinksHtml() {
+    return `<div class="resp-links"><button type="button" id="lnkChanges">Request changes</button> · <button type="button" id="lnkDecline">Decline this bid</button></div><div id="respHost"></div>`;
+  }
+  function wireRespLinks(view) {
+    document.getElementById('lnkChanges').onclick = () => openRespond(view, 'changes');
+    document.getElementById('lnkDecline').onclick = () => openRespond(view, 'declined');
+  }
+  // Notes shown above a bid: price expiry, an earlier "changes requested".
+  function bidNotesHtml(view) {
+    let h = '';
+    if (view.response && view.response.type === 'changes') h += `<div class="note-box">You asked for changes${view.response.at ? ' on ' + escapeHtml(fmtDate(view.response.at)) : ''}. We'll send you an updated bid — or you can still approve this one below.</div>`;
+    return h;
+  }
+  function validLineHtml(view) {
+    return view.validUntil ? `<div class="row" style="color:var(--muted);font-size:0.8rem;">Price valid until ${escapeHtml(fmtDate(view.validUntil))}</div>` : '';
+  }
+  function showExpired(view) {
+    content.innerHTML = `
+      <div class="card"><div class="card-label">Prepared For</div><div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
+        ${view.jobDesc ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">${escapeHtml(view.jobDesc)}</div>` : ''}</div>
+      <div class="note-box warn"><b>This price has expired.</b> It was valid until ${escapeHtml(fmtDate(view.validUntil))}. Material prices change, so we need to confirm it before you approve. ${CALL_US}, or ask for an updated price below.</div>
+      <button class="btn-approve" id="btnUpdPrice">Request an updated price</button>
+      <div id="respHost"></div>`;
+    document.getElementById('btnUpdPrice').onclick = () => openRespond(view, 'changes', 'Please send me an updated price for this bid.');
+  }
+  function showDeclined(view) {
+    content.innerHTML = `<div class="status-msg"><div class="icon">✕</div><div class="title">This bid was declined</div><div class="sub">${view.response && view.response.at ? 'Declined on ' + escapeHtml(fmtDate(view.response.at)) + '. ' : ''}Changed your mind? ${CALL_US}.</div></div>`;
+  }
+
+  // ── Change orders (link has &co=ID) ──
+  const CO_WORDING = 'I approve this change order and authorize American Legacy Glass to do this added work at the price shown.';
+  function showChangeOrder(view) {
+    const co = view.co;
+    const head = `<div class="card"><div class="card-label">Change order #${co.n}${co.title ? ' — ' + escapeHtml(co.title) : ''}</div>
+        <div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
+        ${view.jobDesc ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">${escapeHtml(view.jobDesc)}</div>` : ''}</div>
+      <div class="card"><div class="card-label">Added work</div>
+        ${co.lines.map(l => `<div class="co-line"><span>${escapeHtml(l.desc)}</span><span>${fmt(l.amount)}</span></div>`).join('')}
+        <div class="row total"><span>Change order total</span><span>${fmt(co.total)}</span></div>
+        <div class="row" style="color:var(--muted);font-size:0.8rem;">This is added to your original bid.</div></div>`;
+    if (co.status === 'approved') {
+      content.innerHTML = head + `<div class="status-msg"><div class="icon">✓</div><div class="title" style="color:var(--green);">Change order approved</div>
+        ${co.signedName ? `<div class="sub">Signed by <b style="color:var(--text);">${escapeHtml(co.signedName)}</b>${co.signedAt ? ' on ' + escapeHtml(new Date(co.signedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })) : ''}</div>` : ''}
+        <div class="sub" style="margin-top:.5rem;">Thanks! We'll add this to your job.</div></div>`;
+      return;
+    }
+    if (co.status === 'declined') { content.innerHTML = head + `<div class="status-msg"><div class="icon">✕</div><div class="title">Change order declined</div><div class="sub">We won't do this added work. Questions? ${CALL_US}.</div></div>`; return; }
+    content.innerHTML = head + `
+      <div class="sign-box">
+        <label class="lbl" for="signName">Type your full name to sign</label>
+        <input type="text" id="signName" autocomplete="name" maxlength="80" placeholder="Full name">
+        <label class="sign-agree"><input type="checkbox" id="signAgree"><span>${CO_WORDING}</span></label>
+      </div>
+      <button class="btn-approve" id="approveBtn" disabled>Type your name and tick the box</button>
+      <div class="fine-print">Your typed name, the date and time, and your internet address are saved with this approval as your signature.</div>
+      <div class="resp-links"><button type="button" id="lnkCoDecline">Decline this change order</button></div><div id="respHost"></div>`;
+    const btn = document.getElementById('approveBtn');
+    const refresh = () => { const sv = signValues(); btn.disabled = !sv.ok; btn.textContent = sv.ok ? '✓ Approve change order — ' + fmt(co.total) : 'Type your name and tick the box'; };
+    document.getElementById('signName').addEventListener('input', refresh);
+    document.getElementById('signAgree').addEventListener('change', refresh);
+    btn.onclick = () => { if (signValues().ok) respondCo(view, 'approve'); };
+    document.getElementById('lnkCoDecline').onclick = () => {
+      document.getElementById('respHost').innerHTML = `<div class="resp-panel"><h3>Decline this change order</h3>
+        <textarea id="respText" maxlength="1000" placeholder="Anything you'd like us to know (optional)"></textarea>
+        <div class="resp-btns"><button type="button" id="respCancel">Cancel</button><button type="button" class="send" id="respSend">Decline</button></div></div>`;
+      document.getElementById('respCancel').onclick = () => { document.getElementById('respHost').innerHTML = ''; };
+      document.getElementById('respSend').onclick = () => { if (confirm('Decline this change order?')) respondCo(view, 'decline'); };
+    };
+  }
+  async function respondCo(view, action) {
+    const co = view.co;
+    const btn = document.getElementById(action === 'approve' ? 'approveBtn' : 'respSend');
+    btn.disabled = true; btn.textContent = action === 'approve' ? 'Approving…' : 'Sending…';
+    const sv = signValues(), comment = ((document.getElementById('respText') || {}).value || '').trim();
+    try {
+      const res = await fetchWithTimeout(WORKER + '/respond-change-order', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: bidId, coId: co.id, action, signerName: sv.name, agreed: sv.agreed, comment }) }, 20000);
+      let data = null; try { data = await res.json(); } catch (e) {}
+      if (!res.ok || !data || !data.ok) { const e = new Error('failed'); e.userMessage = data && data.error; throw e; }
+      if (!data.already) {
+        await notifyShop((action === 'approve' ? '✓ Change order APPROVED — ' : '✗ Change order declined — ') + (view.customer || '') + ' (#' + co.n + ', ' + fmt(co.total) + ')',
+          'Customer: ' + (view.customer || '') + '\nJob: ' + (view.jobDesc || '') + '\nBid ID: ' + bidId + '\nChange order #' + co.n + (co.title ? ' — ' + co.title : '') + '\nTotal: ' + fmt(co.total) + '\n' +
+          (action === 'approve' ? 'Signed by: ' + sv.name : 'Comment: ' + (comment || '(none)')));
+        if (action === 'approve') {
+          try { await fetchWithTimeout(WORKER + '/invoice-change-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId: bidId, coId: co.id }) }, 20000); }
+          catch (e) { console.error('Change order invoice failed:', e); }
+        }
+      }
+      showChangeOrder(data.view);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = action === 'approve' ? '✓ Approve change order — ' + fmt(co.total) : 'Decline';
+      alert(err.userMessage || 'Something went wrong. Please try again or call us.');
+    }
+  }
+
   function chosenOf(view) {
     return view.options ? (view.options.find(o => o.id === view.selectedOptionId) || null) : null;
   }
@@ -179,16 +347,20 @@
   async function loadBid() {
     if (!bidId) { showError('No bid specified'); return; }
     try {
-      const res = await fetchWithTimeout(WORKER + '/bid-view?id=' + encodeURIComponent(bidId), { cache: 'no-store' }, 15000);
+      const coParam = params.get('co');
+      const res = await fetchWithTimeout(WORKER + '/bid-view?id=' + encodeURIComponent(bidId) + (coParam ? '&co=' + encodeURIComponent(coParam) : ''), { cache: 'no-store' }, 15000);
       if (res.status === 404) { showError('Bid not found'); return; }
       let view = null;
       try { view = await res.json(); } catch (e) { /* handled below */ }
       if (!res.ok || !view || !view.ok) { showError('Could not load this bid right now. Please try again in a moment, or call us.'); return; }
 
+      if (view.kind === 'changeOrder') { showChangeOrder(view); return; }
       if (view.status === 'accepted') { showApproved(view, chosenOf(view)); return; }
+      if (view.response && view.response.type === 'declined') { showDeclined(view); return; }
+      if (view.expired) { showExpired(view); return; }
       if (view.options) { renderOptionChoice(view, view.options); return; }
 
-      content.innerHTML = `
+      content.innerHTML = bidNotesHtml(view) + `
         <div class="card">
           <div class="card-label">Prepared For</div>
           <div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
@@ -203,11 +375,14 @@
             <span>${fmt(view.total || 0)}</span>
           </div>
           ${view.depositRequired !== false ? `<div class="row" style="color:var(--muted);font-size:0.8rem;">50% deposit required to begin production</div>` : ''}
+          ${validLineHtml(view)}
         </div>
         ${signBoxHtml()}
         <button class="btn-approve" id="approveBtn" disabled>Type your name and tick the box</button>
         <div class="fine-print">Your typed name, the date and time, and your internet address are saved with this approval as your signature.</div>
+        ${respLinksHtml()}
       `;
+      wireRespLinks(view);
       const btn1 = document.getElementById('approveBtn');
       const refresh1 = () => { const sv = signValues(); btn1.disabled = !sv.ok; btn1.textContent = sv.ok ? '✓ Approve Bid Now' : 'Type your name and tick the box'; };
       document.getElementById('signName').addEventListener('input', refresh1);
@@ -222,11 +397,12 @@
   function renderOptionChoice(view, opts) {
     document.querySelector('.wrap').classList.add('wide');
     const depositOn = view.depositRequired !== false;
-    content.innerHTML = `
+    content.innerHTML = bidNotesHtml(view) + `
       <div class="card">
         <div class="card-label">Prepared For</div>
         <div style="font-size:1.1rem;font-weight:600;">${escapeHtml(view.customer || 'Customer')}</div>
         ${view.jobDesc ? `<div style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem;">${escapeHtml(view.jobDesc)}</div>` : ''}
+        ${view.validUntil ? `<div style="color:var(--muted);font-size:0.8rem;margin-top:0.4rem;">Prices valid until ${escapeHtml(fmtDate(view.validUntil))}</div>` : ''}
       </div>
       <div class="opt-intro">We've prepared ${opts.length} options for you. Tap the one you'd like, then approve it below.</div>
       <div class="opt-grid">
@@ -246,7 +422,9 @@
       ${signBoxHtml()}
       <button class="btn-approve" id="approveBtn" disabled>Choose an option above</button>
       <div class="fine-print">Your typed name, the date and time, and your internet address are saved with this approval as your signature.</div>
+      ${respLinksHtml()}
     `;
+    wireRespLinks(view);
     let chosen = null;
     const btn = document.getElementById('approveBtn');
     const refresh = () => {
