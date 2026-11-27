@@ -1433,7 +1433,7 @@ onAuthStateChanged(auth, async user => {
         style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;padding:0.32rem 0.75rem;outline:none;transition:border-color 0.2s;width:200px;"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <button onclick="exportAllData()" title="Download every job and customer as a backup file" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">⬇ Backup</button>
-      <button id="btnJobProfit" onclick="jpOpen()" title="Invoiced vs. supplier bills, per job" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">$ Job profit</button>
+      <button id="btnJobProfit" onclick="jpOpen()"  title="Every Xero invoice vs. the supplier bills linked to it" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">$ Job profit</button>
       <button id="btnManageStaff" onclick="toggleStaffPanel()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg>Manage Staff</button>
     </div>
 
@@ -7158,32 +7158,23 @@ window.scShift = scShift; window.scToday = scToday; window.scRender = scRender; 
 
 // ═════════════════════════════════════════════════
 // JOB PROFIT (owner only) + WEBSITE PRICE SUGGESTIONS
-// Profit = what Xero says was invoiced (main invoice + separate change-order invoices) − supplier bills linked
-// to the job. Install labor is the owners' own time, so it isn't subtracted. Bills come from Xero read-only
-// through the Worker; which bills belong to which job is saved on the job as costBills[] (updateDoc only).
-// Bills are matched by our PO # or the customer's name in the bill's reference / line text; staff confirm.
+// Every Xero customer invoice is a job. Profit = invoice total − supplier bill lines linked to it. Xero is only
+// READ (through the Worker); the links are saved in Firestore invoiceCosts/{xeroInvoiceId}. Install labor is the
+// owners' own time, so it isn't subtracted.
 // ═════════════════════════════════════════════════
-const JP = { days: 90, data: null, loadedKey: '', view: null, search: '', showAll: false };
+const JP = { days: 90, data: null, costs: {}, view: null, search: '', showAll: false, loadedDays: 0 };
 // Only these Xero accounts are job materials; insurance (6170), advertising (6000), vehicles (6210) etc. never
 // get suggested. Add a code here if materials ever get booked to another account.
 const JP_MATERIAL_ACCOUNTS = ['6350'];
-async function jpFetch(invoiceIds, billsFrom) {
-  const res = await fetch(GCAL_WORKER + '/xero-finance', { method: 'POST', headers: await gcalAuthHeaders(), body: JSON.stringify({ invoiceIds, billsFrom }) });
+// Each Xero customer invoice is a "job". Which bill lines belong to it lives in Firestore invoiceCosts/{invoiceId}
+// — Xero itself is only ever read.
+async function jpFetch(body) {
+  const res = await fetch(GCAL_WORKER + '/xero-finance', { method: 'POST', headers: await gcalAuthHeaders(), body: JSON.stringify(body) });
   let d = null; try { d = await res.json(); } catch (e) {}
   if (!res.ok || !d || !d.ok) throw new Error((d && d.error) || ('HTTP ' + res.status));
   return d;
 }
 function jpNorm(s) { return ' ' + String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' '; }
-function jpStart(job) { return String(job.acceptedAt || job.date || job.savedAt || '').slice(0, 10); }
-function jpCoInvoiceIds(job) { return (job.changeOrders || []).filter(c => c && c.xeroMode === 'separate' && c.xeroInvoiceId).map(c => c.xeroInvoiceId); }
-function jpExpectedMaterials(job) {
-  const parts = tdJobParts(job);
-  let t = 0;
-  (parts.pieces || []).forEach(p => { if (p && (p.flatPrice || (getPieceW(p) && getPieceH(p)))) t += getPieceGlassTotal(p) + getPieceEdgeTotal(p) + getPieceFabTotal(p); });
-  (parts.hardware || []).forEach(h => { t += parseFloat(h && h.cost) || 0; });
-  return Math.round(t * 100) / 100;
-}
-// Every bill line on its own, so one supplier bill that covers several jobs splits line by line.
 function jpLines() {
   if (JP._lines && JP._linesFor === JP.data) return JP._lines;
   const out = [];
@@ -7194,78 +7185,73 @@ function jpLines() {
   }));
   JP._lines = out; JP._linesFor = JP.data; return out;
 }
-// "28 x 75 11/16", "69 11/16  x 104 1/2", "9\"  x 27\"" → [[28, 75.6875], …]
+// "28 x 75 11/16", "69 11/16  x 104 1/2", "19 1/2\"  x 79 1/2\"" → [[28, 75.6875], …]
 function jpSizes(text) {
   const num = '(\\d+(?:\\s+\\d+\\/\\d+)?|\\d+\\/\\d+)';
   const re = new RegExp(num + '\\s*["”]?\\s*[x×]\\s*' + num, 'gi');
   const val = s => s.trim().split(/\s+/).reduce((t, p) => { const m = p.match(/^(\d+)\/(\d+)$/); return t + (m ? +m[1] / +m[2] : +p); }, 0);
-  const out = []; let m; while ((m = re.exec(String(text || '')))) { const a = val(m[1]), b = val(m[2]); if (a >= 4 && b >= 4) out.push([a, b]); }
+  const out = []; let m; while ((m = re.exec(String(text || '')))) { const a = val(m[1]), b = val(m[2]); if (a >= 3 && b >= 3) out.push([a, b]); }
   return out;
 }
-function jpJobSizes(job) { return (tdJobParts(job).pieces || []).filter(p => p && getPieceW(p) && getPieceH(p)).map(p => [getPieceW(p), getPieceH(p)]); }
-// How sure we are a bill line belongs to a job. 3 = strong (our PO / supplier order #, job ID, or glass size + name),
-// 2 = good (a glass size from the bid, or the customer's full name), 1 = maybe (last name / one word of the name).
-const JP_STOP = new Set(['the', 'and', 'inc', 'llc', 'home', 'homes', 'house', 'glass', 'shower', 'mirror', 'door', 'clear', 'bath', 'pool', 'new', 'job', 'mr', 'mrs', 'ms']);
-function jpMatch(job, line) {
-  const start = jpStart(job);
-  if (start && line.date && (line.date < tdAddDays(start, -30) || line.date > tdAddDays(start, 150))) return null;
+function jpFmtIn(v) { try { return typeof drFmt === 'function' ? drFmt(v).replace(/"$/, '') : String(v); } catch (e) { return String(v); } }
+// Words that say nothing about which customer it is.
+const JP_STOP = new Set(['the', 'and', 'inc', 'llc', 'co', 'corp', 'group', 'management', 'construction', 'development', 'hotels', 'hotel', 'home', 'homes', 'house', 'glass', 'shower', 'mirror',
+  'door', 'doors', 'clear', 'bath', 'pool', 'new', 'job', 'mr', 'mrs', 'ms', 'scottsdale', 'phoenix', 'mesa', 'tempe', 'chandler', 'gilbert', 'glendale', 'peoria', 'az', 'arizona', 'estates', 'concierge', 'services']);
+// How sure we are a bill line belongs to a customer invoice. 3 = strong (a size from the invoice + the name, or the
+// invoice's PO/reference number on the bill), 2 = good (an exact glass size from the invoice, or two words of the
+// customer's name together, e.g. "fairmont princess"), 1 = maybe (one distinctive word of the name, e.g. "wong").
+function jpMatch(sale, line) {
+  if (sale.date && line.date && (line.date < tdAddDays(sale.date, -75) || line.date > tdAddDays(sale.date, 45))) return null;
   const hay = jpNorm(line.reference + ' ' + line.number + ' ' + line.desc);
-  const po = jpNorm(job.orderPo).trim();
-  if (po.length >= 3 && hay.includes(' ' + po + ' ')) return { score: 3, why: 'PO / order # ' + job.orderPo };
-  if (hay.includes(' ' + job.id.toLowerCase() + ' ')) return { score: 3, why: 'job ID' };
-  const name = jpNorm(job.customer).trim(), words = name.split(' ').filter(w => w.length >= 3 && !JP_STOP.has(w));
-  const fullName = name.length >= 4 && name.includes(' ') && hay.includes(' ' + name + ' ');
-  const word = words.find(w => hay.includes(' ' + w + ' '));
-  const js = jpJobSizes(job), ls = jpSizes(line.desc);
-  const size = ls.find(([a, b]) => js.some(([w, h]) => (Math.abs(a - w) <= 0.25 && Math.abs(b - h) <= 0.25) || (Math.abs(a - h) <= 0.25 && Math.abs(b - w) <= 0.25)));
-  const sizeTxt = size ? 'glass size ' + size.map(v => drFmtSafe(v)).join(' × ') : '';
-  if (size && (fullName || word)) return { score: 3, why: sizeTxt + ' + name' };
+  const refTok = jpNorm(sale.reference).trim().split(' ').find(t => t.length >= 5 && /\d/.test(t) && /[a-z]/.test(t) && hay.includes(' ' + t + ' '));
+  if (refTok) return { score: 3, why: 'PO / ref ' + refTok.toUpperCase() };
+  const words = jpNorm(sale.customer).trim().split(' ').filter(Boolean);
+  const pair = words.slice(0, -1).map((w, i) => w + ' ' + words[i + 1]).find(p => hay.includes(' ' + p + ' ') && !p.split(' ').every(w => JP_STOP.has(w)));
+  const word = words.find(w => w.length >= 4 && !JP_STOP.has(w) && hay.includes(' ' + w + ' '));
+  const ss = (sale.lines || []).flatMap(jpSizes), ls = jpSizes(line.desc);
+  const size = ls.find(([a, b]) => ss.some(([w, h]) => (Math.abs(a - w) <= 0.25 && Math.abs(b - h) <= 0.25) || (Math.abs(a - h) <= 0.25 && Math.abs(b - w) <= 0.25)));
+  const sizeTxt = size ? 'size ' + size.map(jpFmtIn).join(' × ') : '';
+  if (size && (pair || word)) return { score: 3, why: sizeTxt + ' + name' };
   if (size) return { score: 2, why: sizeTxt };
-  if (fullName) return { score: 2, why: 'customer name' };
+  if (pair) return { score: 2, why: 'name "' + pair + '"' };
   if (word) return { score: 1, why: '"' + word + '" in the bill' };
   return null;
 }
-function drFmtSafe(v) { try { return typeof drFmt === 'function' ? drFmt(v).replace(/"$/, '') : String(v); } catch (e) { return String(v); } }
-function jpLinkedKeys(job) { const k = new Set(); (job.costBills || []).forEach(e => { if (e.key) k.add(e.key); else if (e.id) jpLines().filter(l => l.billId === e.id).forEach(l => k.add(l.key)); }); return k; }
-function jpAllLinkedKeys() { const k = new Set(); allJobs.forEach(j => jpLinkedKeys(j).forEach(x => k.add(x))); return k; }
-function jpJobs() {
-  const from = tdAddDays(tdToday(), -JP.days);
-  return allJobs.filter(j => j.type === 'bid' && j.status === 'accepted' && jpStart(j) >= from).sort((a, b) => jpStart(b).localeCompare(jpStart(a)));
+function jpLinksOf(id) { return (JP.costs[id] && JP.costs[id].links) || []; }
+function jpTaken() { const k = new Set(); Object.values(JP.costs).forEach(c => (c.links || []).forEach(l => k.add(l.key))); return k; }
+async function jpLoadCosts() {
+  const snap = await window._getDocs(window._collection(window._db, 'invoiceCosts'));
+  const out = {}; snap.forEach(d => { out[d.id] = d.data(); }); JP.costs = out;
 }
 async function jpOpen(force) {
   if (window._currentUserRole === 'employee') { showToast('Only the owner login can see job profit', 'error'); return; }
-  const jobs = jpJobs(), key = JP.days + '|' + jobs.map(j => j.id).join(',');
   JP.view = null;
-  if (force || !JP.data || JP.loadedKey !== key) {
-    hwModal('<div class="dr-ptitle" style="margin:0">Job profit</div><div class="dr-hint" style="margin-top:.6rem">Reading invoices and supplier bills from Xero…</div>');
+  if (force || !JP.data || JP.loadedDays !== JP.days) {
+    hwModal('<div class="dr-ptitle" style="margin:0">Job profit</div><div class="dr-hint" style="margin-top:.6rem">Reading invoices and supplier bills from Xero (read only)…</div>');
     try {
-      const ids = jobs.flatMap(j => [j.xeroInvoiceId, ...jpCoInvoiceIds(j)]).filter(Boolean);
-      JP.data = await jpFetch(ids, tdAddDays(tdToday(), -JP.days - 30)); JP.loadedKey = key;
+      const salesFrom = tdAddDays(tdToday(), -JP.days);
+      const [d] = await Promise.all([jpFetch({ salesFrom, billsFrom: tdAddDays(salesFrom, -75) }), jpLoadCosts()]);
+      JP.data = d; JP.loadedDays = JP.days;
     } catch (e) {
-      hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Job profit</div><button class="btn-remove" onclick="hwClose()">✕</button></div><div class="dr-hint" style="margin-top:.6rem;color:#e06060">Couldn't read Xero: ${escapeHtml(e.message)}</div>`);
+      hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Job profit</div><button class="btn-remove" onclick="hwClose()">✕</button></div><div class="dr-hint" style="margin-top:.6rem;color:#e06060">Couldn't load: ${escapeHtml(e.message)}${/permission/i.test(e.message) ? ' — publish Firestore rules v6 first.' : ''}</div>`);
       return;
     }
   }
   jpRender();
 }
-function jpRow(job, taken) {
-  const inv = new Map((JP.data.invoices || []).map(i => [i.id, i]));
-  const ids = [job.xeroInvoiceId, ...jpCoInvoiceIds(job)].filter(Boolean);
-  const live = ids.map(id => inv.get(id)).filter(i => i && i.status !== 'VOIDED' && i.status !== 'DELETED');
-  const fromXero = live.length > 0;
-  const revenue = fromXero ? live.reduce((s, i) => s + i.total, 0) : jobDisplayTotal(job);
-  const owed = live.reduce((s, i) => s + i.amountDue, 0);
-  const materials = (job.costBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
-  const mine = jpLinkedKeys(job), all = taken || jpAllLinkedKeys();
-  const cands = jpLines().filter(l => l.material && !all.has(l.key)).map(l => ({ l, m: jpMatch(job, l) })).filter(x => x.m).sort((a, b) => b.m.score - a.m.score || b.l.date.localeCompare(a.l.date));
-  return { job, revenue, fromXero, owed, materials, profit: revenue - materials, expected: jpExpectedMaterials(job), strong: cands.filter(x => x.m.score >= 2), maybe: cands.filter(x => x.m.score === 1), nBills: (job.costBills || []).length, mine };
+function jpRow(sale, taken) {
+  const links = jpLinksOf(sale.id), mine = new Set(links.map(l => l.key));
+  const materials = links.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+  const cands = jpLines().filter(l => l.material && !taken.has(l.key)).map(l => ({ l, m: jpMatch(sale, l) })).filter(x => x.m).sort((a, b) => b.m.score - a.m.score || b.l.date.localeCompare(a.l.date));
+  return { sale, revenue: sale.total, owed: sale.amountDue, materials, profit: sale.total - materials, strong: cands.filter(x => x.m.score >= 2), maybe: cands.filter(x => x.m.score === 1), nBills: links.length, mine };
 }
+function jpSaleDesc(s) { return (s.lines || []).map(x => x.replace(/\s+/g, ' ')).find(x => !/^\d+ .*(st|rd|dr|ave|way|blvd|ln|ct)\b/i.test(x)) || s.reference || ''; }
 function jpLineHtml(l, act, extra = '') {
   return `<div class="jp-bill"><span>${escapeHtml(l.date)}</span><span><b>${escapeHtml(l.supplier)}</b> ${escapeHtml(l.number || l.reference || '')}<small>${escapeHtml(l.desc.replace(/\s+/g, ' ').slice(0, 160))}${l.nLines > 1 ? ' · 1 of ' + l.nLines + ' lines' : ''}${extra}</small></span><span>${fmt(l.amount)}</span>${act}</div>`;
 }
 function jpRender() {
-  const taken = jpAllLinkedKeys();
-  const rows = jpJobs().map(j => jpRow(j, taken));
+  const taken = jpTaken();
+  const rows = (JP.data.sales || []).map(s => jpRow(s, taken));
   const T = rows.reduce((a, r) => ({ rev: a.rev + r.revenue, mat: a.mat + r.materials }), { rev: 0, mat: 0 });
   const done = rows.filter(r => r.nBills), P = done.reduce((a, r) => ({ rev: a.rev + r.revenue, mat: a.mat + r.materials }), { rev: 0, mat: 0 });
   const pct = (p, r) => r > 0 ? Math.round(p / r * 100) + '%' : '—';
@@ -7274,20 +7260,20 @@ function jpRender() {
   const sel = `<select onchange="JP.days=+this.value;jpOpen()" class="dr-in" style="max-width:150px">${[30, 90, 180, 365].map(d => `<option value="${d}" ${JP.days === d ? 'selected' : ''}>Last ${d} days</option>`).join('')}</select>`;
   hwModal(`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div class="dr-ptitle" style="margin:0">Job profit</div><span style="display:flex;gap:.4rem;align-items:center">${sel}<button class="btn-job-open" onclick="jpOpen(true)">↻</button><button class="btn-remove" onclick="hwClose()">✕</button></span></div>
-    <div class="jp-sum"><div><span>Jobs</span><b>${rows.length}</b></div><div><span>Invoiced</span><b>${fmt(T.rev)}</b></div><div><span>Material bills linked</span><b>${fmt(T.mat)}</b></div><div><span>Profit · ${done.length} job${done.length === 1 ? '' : 's'} with bills</span><b style="color:var(--green,#7ed4a0)">${done.length ? fmt(P.rev - P.mat) : '—'}</b><i>${done.length ? pct(P.rev - P.mat, P.rev) + ' of ' + fmt(P.rev) : 'link bills to see profit'}</i></div></div>
-    <div class="dr-hint">Profit = invoiced in Xero − supplier bill lines linked to the job. Install is the owners' own time, so it isn't subtracted. Bills are matched line by line on glass sizes, names and order numbers — <b>tip:</b> typing the customer's name in a bill's Reference in Xero makes matching automatic.${nStrong ? ` <b>${nStrong} bill line${nStrong === 1 ? '' : 's'} look${nStrong === 1 ? 's' : ''} like they belong to these jobs.</b>` : ''}${JP.data.truncated ? ' Only the newest 800 bills were read — pick a shorter period.' : ''}</div>
+    <div class="jp-sum"><div><span>Invoices</span><b>${rows.length}</b></div><div><span>Invoiced</span><b>${fmt(T.rev)}</b></div><div><span>Material bills linked</span><b>${fmt(T.mat)}</b></div><div><span>Profit · ${done.length} job${done.length === 1 ? '' : 's'} with bills</span><b style="color:var(--green,#7ed4a0)">${done.length ? fmt(P.rev - P.mat) : '—'}</b><i>${done.length ? pct(P.rev - P.mat, P.rev) + ' of ' + fmt(P.rev) : 'link bills to see profit'}</i></div></div>
+    <div class="dr-hint">Every customer invoice in Xero is a job here (read only — nothing in Xero changes). Profit = invoice total − supplier bill lines you link to it; install is the owners' own time, so it isn't subtracted. Bills are matched on glass sizes, names and PO numbers. <b>Tip:</b> the customer's name in a bill's Reference makes matching automatic.${nStrong ? ` <b>${nStrong} bill line${nStrong === 1 ? '' : 's'} look${nStrong === 1 ? 's' : ''} like they belong to these invoices.</b>` : ''}${JP.data.truncated ? ' Only the newest 800 were read — pick a shorter period.' : ''}</div>
     <div class="jp-table">
-      <div class="jp-tr jp-th"><span>Job</span><span>Invoiced</span><span>Materials</span><span>Bid expected</span><span>Profit</span><span></span></div>
+      <div class="jp-tr jp-th"><span>Customer / invoice</span><span>Invoiced</span><span>Materials</span><span>Date</span><span>Profit</span><span></span></div>
       ${rows.map(r => `<div class="jp-tr">
-        <span><b>${escapeHtml(r.job.customer || '')}</b><small>${escapeHtml(r.job.jobDesc || '')}${r.fromXero ? '' : ' · <i title="No Xero invoice found — using the bid total">from bid</i>'}${r.owed > 0.004 ? ' · ' + fmt(r.owed) + ' still owed' : ''}</small></span>
+        <span><b>${escapeHtml(r.sale.customer)}</b><small>${escapeHtml(r.sale.number)} · ${escapeHtml(jpSaleDesc(r.sale).slice(0, 70))}${r.owed > 0.004 ? ' · ' + fmt(r.owed) + ' still owed' : ''}</small></span>
         <span>${fmt(r.revenue)}</span>
         <span>${r.nBills ? fmt(r.materials) : '<i class="jp-none">none linked</i>'}</span>
-        <span class="jp-muted">${r.expected ? fmt(r.expected) : '—'}</span>
+        <span class="jp-muted">${escapeHtml(r.sale.date)}</span>
         <span>${r.nBills ? `<b>${fmt(r.profit)}</b> <small>${pct(r.profit, r.revenue)}</small>` : '<i class="jp-none">—</i>'}</span>
-        <span><button class="btn-job-open" onclick="jpJob('${r.job.id}')">Bills${r.strong.length ? ` <span class="jp-dot">${r.strong.length}</span>` : r.maybe.length ? ` <span class="jp-dot jp-dot-maybe">${r.maybe.length}?</span>` : ''}</button></span>
-      </div>`).join('') || '<div class="dr-hint">No approved jobs in this period.</div>'}
+        <span><button class="btn-job-open" onclick="jpJob('${escapeHtml(r.sale.id)}')">Bills${r.strong.length ? ` <span class="jp-dot">${r.strong.length}</span>` : r.maybe.length ? ` <span class="jp-dot jp-dot-maybe">${r.maybe.length}?</span>` : ''}</button></span>
+      </div>`).join('') || '<div class="dr-hint">No customer invoices in this period.</div>'}
     </div>
-    <details style="margin-top:.8rem"><summary class="dr-sub" style="cursor:pointer">Bill lines not linked to any job (${unlinked.length})</summary>
+    <details style="margin-top:.8rem"><summary class="dr-sub" style="cursor:pointer">Bill lines not linked to any invoice (${unlinked.length})</summary>
       <label style="display:flex;gap:.4rem;align-items:center;font-size:.75rem;color:var(--muted);margin:.3rem 0"><input type="checkbox" ${JP.showAll ? 'checked' : ''} onchange="JP.showAll=this.checked;jpRender()"> Also show insurance, advertising and other non-material bills</label>
       <div class="dr-hint">Shop supplies (sealant, drill bits) land here too — that's normal; they aren't one job's cost.</div>
       ${unlinked.slice(0, 80).map(l => jpLineHtml(l, '')).join('')}
@@ -7295,50 +7281,51 @@ function jpRender() {
   const box = document.querySelector('#hwModal .hw-box'); if (box) box.style.maxWidth = '980px';
 }
 function jpJob(id) {
-  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const sale = (JP.data.sales || []).find(s => s.id === id); if (!sale) return;
   JP.view = id;
-  const taken = jpAllLinkedKeys(), r = jpRow(job, taken);
+  const taken = jpTaken(), r = jpRow(sale, taken);
   const q = jpNorm(JP.search).trim();
   const others = q ? jpLines().filter(l => !r.mine.has(l.key) && jpNorm([l.supplier, l.number, l.reference, l.desc].join(' ')).includes(q)).slice(0, 30) : [];
-  const elsewhere = key => allJobs.filter(j => j.id !== id && jpLinkedKeys(j).has(key)).map(j => j.customer);
-  const linkBtn = l => `<button class="btn-job-open" onclick="jpLink('${id}','${escapeHtml(l.key)}')">Link</button>`;
+  const owner = key => { for (const [iid, c] of Object.entries(JP.costs)) if (iid !== id && (c.links || []).some(l => l.key === key)) return c.customer || c.invoiceNumber || 'another invoice'; return ''; };
+  const linkBtn = l => `<button class="btn-job-open" onclick="jpLink('${escapeHtml(id)}','${escapeHtml(l.key)}')">Link</button>`;
   hwModal(`
-    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">${escapeHtml(job.customer || '')} — bills</div><span style="display:flex;gap:.4rem"><button class="btn-job-open" onclick="jpRender()">‹ All jobs</button><button class="btn-remove" onclick="hwClose()">✕</button></span></div>
-    <div class="jp-sum"><div><span>Invoiced</span><b>${fmt(r.revenue)}</b></div><div><span>Materials</span><b>${fmt(r.materials)}</b></div><div><span>Profit</span><b style="color:var(--green,#7ed4a0)">${r.nBills ? fmt(r.profit) : '—'}</b><i>${!r.nBills ? 'link this job\'s bills first' : r.revenue > 0 ? Math.round(r.profit / r.revenue * 100) + '%' : ''}</i></div><div><span>Bid expected materials</span><b class="jp-muted">${fmt(r.expected)}</b></div></div>
-    <div class="dr-sub">Linked to this job</div>
-    ${(job.costBills || []).length ? job.costBills.map(b => `<div class="jp-bill"><span>${escapeHtml(b.date || '')}</span><span><b>${escapeHtml(b.supplier || '')}</b> ${escapeHtml(b.number || '')}<small>${escapeHtml(String(b.desc || ('Whole bill · total ' + fmt(b.total || b.amount))).replace(/\s+/g, ' ').slice(0, 160))}</small></span>
-        <label class="jp-amt" title="Change if only part of this line is for this job">This job $<input value="${escapeHtml(String(b.amount))}" inputmode="decimal" onchange="jpSetAmount('${id}','${escapeHtml(b.key || b.id)}',this.value)"></label><button class="btn-remove" style="width:auto;padding:.3rem .6rem" onclick="jpUnlink('${id}','${escapeHtml(b.key || b.id)}')">Unlink</button></div>`).join('') : '<div class="dr-hint" style="margin:0">None yet.</div>'}
-    ${r.strong.length ? `<div class="dr-sub">Looks like this job's</div>${r.strong.map(x => jpLineHtml(x.l, linkBtn(x.l), ' · <b>' + escapeHtml(x.m.why) + '</b>')).join('')}${r.strong.length > 1 ? `<button class="btn-add" style="width:auto;margin-top:.4rem" onclick="jpLinkAll('${id}')">Link all ${r.strong.length}</button>` : ''}` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">${escapeHtml(sale.customer)} — ${escapeHtml(sale.number)}</div><span style="display:flex;gap:.4rem"><button class="btn-job-open" onclick="jpRender()">‹ All invoices</button><button class="btn-remove" onclick="hwClose()">✕</button></span></div>
+    <div class="dr-hint" style="margin-top:.3rem">${escapeHtml(sale.date)} · ${escapeHtml((sale.lines || []).join(' · ').replace(/\s+/g, ' ').slice(0, 300))}</div>
+    <div class="jp-sum"><div><span>Invoiced</span><b>${fmt(r.revenue)}</b></div><div><span>Materials</span><b>${fmt(r.materials)}</b></div><div><span>Profit</span><b style="color:var(--green,#7ed4a0)">${r.nBills ? fmt(r.profit) : '—'}</b><i>${!r.nBills ? 'link this job\'s bills first' : r.revenue > 0 ? Math.round(r.profit / r.revenue * 100) + '%' : ''}</i></div></div>
+    <div class="dr-sub">Linked to this invoice</div>
+    ${jpLinksOf(id).length ? jpLinksOf(id).map(b => `<div class="jp-bill"><span>${escapeHtml(b.date || '')}</span><span><b>${escapeHtml(b.supplier || '')}</b> ${escapeHtml(b.number || '')}<small>${escapeHtml(String(b.desc || '').replace(/\s+/g, ' ').slice(0, 160))}</small></span>
+        <label class="jp-amt" title="Change if only part of this line is for this job">This job $<input value="${escapeHtml(String(b.amount))}" inputmode="decimal" onchange="jpSetAmount('${escapeHtml(id)}','${escapeHtml(b.key)}',this.value)"></label><button class="btn-remove" style="width:auto;padding:.3rem .6rem" onclick="jpUnlink('${escapeHtml(id)}','${escapeHtml(b.key)}')">Unlink</button></div>`).join('') : '<div class="dr-hint" style="margin:0">None yet.</div>'}
+    ${r.strong.length ? `<div class="dr-sub">Looks like this job's</div>${r.strong.map(x => jpLineHtml(x.l, linkBtn(x.l), ' · <b>' + escapeHtml(x.m.why) + '</b>')).join('')}${r.strong.length > 1 ? `<button class="btn-add" style="width:auto;margin-top:.4rem" onclick="jpLinkAll('${escapeHtml(id)}')">Link all ${r.strong.length}</button>` : ''}` : ''}
     ${r.maybe.length ? `<div class="dr-sub">Maybe — check before linking</div>${r.maybe.slice(0, 15).map(x => jpLineHtml(x.l, linkBtn(x.l), ' · ' + escapeHtml(x.m.why))).join('')}` : ''}
     <div class="dr-sub">Find another bill</div>
-    <input class="dr-in" id="jpSearch" placeholder="Supplier, bill #, size, name…" value="${escapeHtml(JP.search)}" oninput="JP.search=this.value;clearTimeout(JP.t);JP.t=setTimeout(()=>{jpJob('${id}');const s=document.getElementById('jpSearch');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}},250)">
-    ${others.map(l => jpLineHtml(l, linkBtn(l), elsewhere(l.key).length ? ' · already on ' + escapeHtml(elsewhere(l.key).join(', ')) : '')).join('')}
+    <input class="dr-in" id="jpSearch" placeholder="Supplier, bill #, size, name…" value="${escapeHtml(JP.search)}" oninput="JP.search=this.value;clearTimeout(JP.t);JP.t=setTimeout(()=>{jpJob('${escapeHtml(id)}');const s=document.getElementById('jpSearch');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}},250)">
+    ${others.map(l => { const o = owner(l.key); return jpLineHtml(l, o ? '' : linkBtn(l), o ? ' · already linked to ' + escapeHtml(o) : ''); }).join('')}
     ${q && !others.length ? '<div class="dr-hint">No matching bills in this period.</div>' : ''}`);
   const box = document.querySelector('#hwModal .hw-box'); if (box) box.style.maxWidth = '980px';
 }
-async function jpSaveBills(id, list) {
-  const job = allJobs.find(j => j.id === id); if (!job) return;
-  const prev = job.costBills; job.costBills = list;
-  try { await window._updateDoc(window._doc(window._db, 'jobs', id), { costBills: list }); }
-  catch (e) { console.error(e); job.costBills = prev; showToast('Could not save — try again', 'error'); }
+// Saves this invoice's links to Firestore (never to Xero). Shows the change at once and rolls back if it fails.
+async function jpSaveLinks(id, links) {
+  const sale = (JP.data.sales || []).find(s => s.id === id); if (!sale) return;
+  const prev = JP.costs[id];
+  JP.costs[id] = { invoiceNumber: sale.number, customer: sale.customer, invoiceDate: sale.date, links, updatedAt: new Date().toISOString() };
+  try { await window._setDoc(window._doc(window._db, 'invoiceCosts', id), JP.costs[id]); }
+  catch (e) { console.error(e); if (prev) JP.costs[id] = prev; else delete JP.costs[id]; showToast(/permission/i.test(e.message || '') ? 'Blocked — publish Firestore rules v6 first' : 'Could not save — try again', 'error'); }
   jpJob(id);
 }
-function jpEntry(l) { return { key: l.key, billId: l.billId, number: l.number, supplier: l.supplier, date: l.date, desc: l.desc.slice(0, 200), amount: l.amount, total: l.billTotal, linkedAt: new Date().toISOString() }; }
+function jpEntry(l) { return { key: l.key, billId: l.billId, number: l.number, supplier: l.supplier, date: l.date, desc: l.desc.slice(0, 200), amount: l.amount, linkedAt: new Date().toISOString() }; }
 function jpLink(id, key) {
-  const job = allJobs.find(j => j.id === id), l = jpLines().find(x => x.key === key); if (!job || !l) return;
-  if (jpLinkedKeys(job).has(key)) return;
-  return jpSaveBills(id, (job.costBills || []).concat(jpEntry(l)));
+  const l = jpLines().find(x => x.key === key); if (!l || jpTaken().has(key)) return;
+  return jpSaveLinks(id, jpLinksOf(id).concat(jpEntry(l)));
 }
-async function jpLinkAll(id) {
-  const job = allJobs.find(j => j.id === id); if (!job) return;
-  await jpSaveBills(id, (job.costBills || []).concat(jpRow(job).strong.map(x => jpEntry(x.l))));
+function jpLinkAll(id) {
+  const sale = (JP.data.sales || []).find(s => s.id === id); if (!sale) return;
+  return jpSaveLinks(id, jpLinksOf(id).concat(jpRow(sale, jpTaken()).strong.map(x => jpEntry(x.l))));
 }
-function jpUnlink(id, key) { const job = allJobs.find(j => j.id === id); if (job) jpSaveBills(id, (job.costBills || []).filter(b => (b.key || b.id) !== key)); }
+function jpUnlink(id, key) { jpSaveLinks(id, jpLinksOf(id).filter(b => b.key !== key)); }
 function jpSetAmount(id, key, raw) {
-  const job = allJobs.find(j => j.id === id); if (!job) return;
   const v = parseFloat(String(raw).replace(/[$,]/g, ''));
   if (isNaN(v) || v < 0) { showToast('Enter an amount', 'error'); jpJob(id); return; }
-  jpSaveBills(id, (job.costBills || []).map(b => (b.key || b.id) === key ? Object.assign({}, b, { amount: Math.round(v * 100) / 100 }) : b));
+  jpSaveLinks(id, jpLinksOf(id).map(b => b.key === key ? Object.assign({}, b, { amount: Math.round(v * 100) / 100 }) : b));
 }
 window.jpOpen = jpOpen; window.jpRender = jpRender; window.jpJob = jpJob; window.jpLink = jpLink; window.jpLinkAll = jpLinkAll; window.jpUnlink = jpUnlink; window.jpSetAmount = jpSetAmount; window.JP = JP;
 
@@ -7403,7 +7390,7 @@ async function wpOpen() {
   let invByid = new Map(), note = '';
   try {
     const ids = allJobs.filter(j => j.type === 'bid' && j.status === 'accepted' && j.xeroInvoiceId).map(j => j.xeroInvoiceId);
-    const d = await jpFetch(ids, null); invByid = new Map(d.invoices.map(i => [i.id, i]));
+    const d = await jpFetch({ invoiceIds: ids }); invByid = new Map(d.invoices.map(i => [i.id, i]));
   } catch (e) { note = 'Couldn\'t read Xero (' + e.message + ') — using the bid totals instead.'; }
   WP.inv = invByid; WP.note = note;
   wpRender();
@@ -7414,6 +7401,7 @@ function wpRender() {
   const line = (label, curV, sugV, n, unit) => `<div class="wp-tr"><span>${escapeHtml(label)}</span><span class="jp-muted">${curV ? money0(curV) + unit : '—'}</span><span>${sugV != null ? '<b>' + money0(sugV) + unit + '</b>' : `<i class="jp-none">need ${WP_MIN_JOBS}+ jobs</i>`}</span><span class="jp-muted">${n} job${n === 1 ? '' : 's'}</span></div>`;
   hwModal(`
     <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Suggest website prices</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    ${rows.length ? '' : `<div class="dr-hint" style="color:#e0a060"><b>No data yet.</b> Suggestions come from bids that customers approved through the app (they carry the glass sizes and layout). Once bids are sent and approved here, this fills in. Until then, set the website prices by hand.</div>`}
     <div class="dr-hint">From ${rows.length} approved job${rows.length === 1 ? '' : 's'} with sized glass: what each was actually invoiced, split into glass and everything else. Change orders aren't counted. Nothing is published until you press Publish on the next screen.${WP.note ? '<br><span style="color:#e0a060">' + escapeHtml(WP.note) + '</span>' : ''}</div>
     <div class="wp-tr wp-th"><span></span><span>Now</span><span>Suggested</span><span>Based on</span></div>
     <div class="dr-sub">Glass, $ per sq ft</div>${Object.entries(LD_GLASS).map(([k, t]) => line(t, cur.rate[k], sug.rate[k], sug.n.rate[k], '')).join('')}
