@@ -331,7 +331,9 @@
     if (!bidId) { showError('No bid specified'); return; }
     try {
       const coParam = params.get('co');
-      const res = await fetchWithTimeout(WORKER + '/bid-view?id=' + encodeURIComponent(bidId) + (coParam ? '&co=' + encodeURIComponent(coParam) : ''), { cache: 'no-store' }, 15000);
+      // A device that has logged into the staff app (same website) is staff checking the link — don't count it as the customer viewing.
+      let staffDevice = false; try { staffDevice = localStorage.getItem('alg_staff_device') === '1'; } catch (e) {}
+      const res = await fetchWithTimeout(WORKER + '/bid-view?id=' + encodeURIComponent(bidId) + (coParam ? '&co=' + encodeURIComponent(coParam) : '') + (staffDevice ? '&staff=1' : ''), { cache: 'no-store' }, 15000);
       if (res.status === 404) { showError('Bid not found'); return; }
       let view = null;
       try { view = await res.json(); } catch (e) { /* handled below */ }
