@@ -6,7 +6,6 @@
 <title>American Legacy Glass — Bid Approval</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Web3Forms sends the acceptance notification email — no library needed, just a direct request -->
 <style>
   :root {
     --bg: #0f0f0f;
@@ -110,9 +109,8 @@
   // totals — nothing about margins, costs, notes or contact details) and asks it to record the approval.
   const WORKER = 'https://morning-frost-ce94.rdenmyers1201.workers.dev';
 
-  // ── Web3Forms sends the acceptance notification email — no library needed, just a direct request.
-  // Sign up free at https://web3forms.com (just verify an email, no login needed). The key is public by design.
-  const WEB3FORMS_ACCESS_KEY = 'cc74c432-5567-46e2-9c05-56b505e5b126';
+  // Shop notification emails and Xero invoices are sent by the Worker itself the moment an approval or
+  // response is saved, so they still happen if the customer closes this page right after tapping.
 
   const params = new URLSearchParams(window.location.search);
   const bidId = params.get('id');
@@ -188,12 +186,6 @@
   const CALL_US = 'Call us at <a href="tel:4804428121" style="color:var(--text);">480-442-8121</a>';
   const DECLINE_REASONS = ['Price too high', 'Timing does not work', 'Going with another company', 'No longer doing the project', 'Other'];
   function fmtDate(iso) { try { return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return iso; } }
-  async function notifyShop(subject, message) {
-    try {
-      await fetchWithTimeout('https://api.web3forms.com/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_key: WEB3FORMS_ACCESS_KEY, subject, email: 'americanlegacyglass@gmail.com', message }) });
-    } catch (e) { console.error('Shop notification failed:', e); }
-  }
   // "Request changes" / "Decline" for a whole bid. mode: 'changes' | 'declined'.
   function openRespond(view, mode, presetText) {
     const host = document.getElementById('respHost'); if (!host) return;
@@ -228,12 +220,6 @@
         body: JSON.stringify({ jobId: bidId, type: mode, reason, comment: text }) }, 20000);
       let data = null; try { data = await res.json(); } catch (e) {}
       if (!res.ok || !data || !data.ok) { const e = new Error('failed'); e.userMessage = data && data.error; throw e; }
-      if (!data.already) {
-        await notifyShop((mode === 'declined' ? '✗ Bid DECLINED — ' : '✎ Changes requested — ') + (view.customer || 'Unknown') + ' (' + fmt(view.total || 0) + ')',
-          (mode === 'declined' ? 'A customer declined a bid.\n\nReason: ' + reason + '\n' : 'A customer asked for changes to a bid.\n\n') +
-          'Customer: ' + (view.customer || '') + '\nJob: ' + (view.jobDesc || '') + '\nBid ID: ' + bidId + '\n\n' + (mode === 'declined' ? 'Comment: ' : 'What they want changed: ') + (text || '(none)') +
-          '\n\n' + (mode === 'declined' ? 'Worth a call while they are still deciding.' : 'Revise the bid, save it, and send the link again.'));
-      }
       showResponded(data.view || view, mode);
     } catch (err) {
       btn.disabled = false; btn.textContent = mode === 'declined' ? 'Decline bid' : 'Send request';
@@ -324,14 +310,11 @@
         body: JSON.stringify({ jobId: bidId, coId: co.id, action, signerName: sv.name, agreed: sv.agreed, comment }) }, 20000);
       let data = null; try { data = await res.json(); } catch (e) {}
       if (!res.ok || !data || !data.ok) { const e = new Error('failed'); e.userMessage = data && data.error; throw e; }
-      if (!data.already) {
-        await notifyShop((action === 'approve' ? '✓ Change order APPROVED — ' : '✗ Change order declined — ') + (view.customer || '') + ' (#' + co.n + ', ' + fmt(co.total) + ')',
-          'Customer: ' + (view.customer || '') + '\nJob: ' + (view.jobDesc || '') + '\nBid ID: ' + bidId + '\nChange order #' + co.n + (co.title ? ' — ' + co.title : '') + '\nTotal: ' + fmt(co.total) + '\n' +
-          (action === 'approve' ? 'Signed by: ' + sv.name : 'Comment: ' + (comment || '(none)')));
-        if (action === 'approve') {
-          try { await fetchWithTimeout(WORKER + '/invoice-change-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId: bidId, coId: co.id }) }, 20000); }
-          catch (e) { console.error('Change order invoice failed:', e); }
-        }
+      // Belt and braces: the Worker already invoices an approved change order on its own; asking again is
+      // harmless (it never invoices one twice) and covers a Worker hiccup.
+      if (action === 'approve') {
+        try { await fetchWithTimeout(WORKER + '/invoice-change-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId: bidId, coId: co.id }) }, 20000); }
+        catch (e) { console.error('Change order invoice retry failed:', e); }
       }
       showChangeOrder(data.view);
     } catch (err) {
@@ -474,38 +457,8 @@
       }
       const fresh = data.view;
 
-      // Notify the shop by email via Web3Forms — only for the request that actually made the approval,
-      // so a double-tap or a second device never sends a duplicate.
-      if (!data.alreadyApproved) {
-        try {
-          const total = chosenOption ? chosenOption.total : (fresh.total || 0);
-          const emailRes = await fetchWithTimeout('https://api.web3forms.com/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_key: WEB3FORMS_ACCESS_KEY,
-              subject: '✓ Bid Approved — ' + (fresh.customer || 'Unknown') + ' (' + fmt(total) + ')' + (chosenOption ? ' — ' + chosenOption.label : ''),
-              email: 'americanlegacyglass@gmail.com', // "from" shown in the notification, not the recipient
-              message: 'A customer just approved a bid through the online link.\n\n' +
-                'Customer: ' + (fresh.customer || 'Unknown') + '\n' +
-                'Job: ' + (fresh.jobDesc || '') + '\n' +
-                (chosenOption ? 'Option chosen: ' + chosenOption.label + '\n' : '') +
-                'Signed by: ' + (fresh.signedName || signValues().name) + '\n' +
-                'Total: ' + fmt(total) + '\n' +
-                'Bid ID: ' + bidId + '\n\n' +
-                'Reach out to schedule the work.',
-            }),
-          });
-          const emailResult = await emailRes.json();
-          if (!emailResult.success) console.error('Web3Forms reported failure:', emailResult.message);
-        } catch (emailErr) {
-          // The approval itself already succeeded — this only means the notification email failed.
-          console.error('Email notification FAILED:', emailErr);
-        }
-      }
-
-      // Create the Xero invoice. Safe to ask for every time: the Worker never makes a second invoice for the
-      // same job, so if a lost connection hid the first attempt's result, this second try finishes the job.
+      // The Worker already started the invoice when it recorded the approval. Asking again is harmless — it
+      // never makes a second invoice for the same job — and covers a Worker hiccup on the first attempt.
       // Wrapped separately — the customer's approval already succeeded; a bookkeeping hiccup is ALG's to handle
       // (the Worker alerts ALG itself), not something to show them.
       try {
