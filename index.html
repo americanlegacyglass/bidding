@@ -6884,6 +6884,8 @@ const TD_BUCKETS = [
     test: j => tdOpenJob(j) && j.installDate && j.installDate >= tdToday() && j.installDate <= tdAddDays(tdToday(), 1) },
   { key: 'install', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>', title: 'Install date passed', hint: 'Mark it installed once the job is done',
     test: j => tdOpenJob(j) && j.installDate && j.installDate < tdToday() },
+  { key: 'coUnpaid', alert: true, icon: '⚠', title: 'Change order unpaid', hint: 'The main invoice is paid, but a separate change-order invoice is not — the job is not done until it is. Chase it in Xero.',
+    test: j => j.type === 'bid' && j.changeOrderUnpaid === true },
   { key: 'invoice', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-receipt"/></svg>', title: 'Installed — finish invoice', hint: 'Approve the Xero draft so the invoice goes out',
     test: j => j.type === 'bid' && j.installDoneAt && tdStage(j) === 'accepted' },
 ];
@@ -6915,6 +6917,7 @@ function tdJobBadges(job) {
   if (job.materialsInAt && !job.installDoneAt) out.push(`<span class="job-status-badge paid" title="Materials in ${escapeHtml(new Date(job.materialsInAt).toLocaleDateString('en-US'))}">${ic('box')}Materials in</span>`);
   if (job.installDate) out.push(`<span class="job-status-badge" title="${job.googleEventId ? 'On the Google Calendar' : 'Not on the Google Calendar yet'}">${ic('cal')}${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + (job.installTime ? ' ' + tdTime12(job.installTime) : ''))}</span>`);
   if (job.installDoneAt) out.push(`<span class="job-status-badge paid">${ic('wrench')}Installed</span>`);
+  if (job.changeOrderUnpaid) out.push(`<span class="job-status-badge" style="${warn}" title="Main invoice paid; a change-order invoice is still unpaid in Xero">⚠ Change order unpaid</span>`);
   return out.join('');
 }
 function tdJobActions(job) {
