@@ -457,6 +457,31 @@ onAuthStateChanged(auth, async user => {
   .td-card.zero .td-n { color:var(--muted); } .td-card.zero { opacity:.6; }
   .td-card.on { border-color:var(--invoice-accent); box-shadow:0 0 0 1px var(--invoice-accent) inset; }
   .td-card:hover { border-color:var(--accent2); }
+  .td-card.alert { border-color:rgba(224,96,96,.55); } .td-card.alert .td-n { color:#e06060; }
+  /* Six tabs don't fit in one row on a phone: two rows of three instead of cutting one off. */
+  @media (max-width: 640px) {
+    .tabs { display:grid; grid-template-columns:repeat(3, 1fr); }
+    .tabs .tab-btn { border-bottom:1px solid var(--border); padding:.6rem .3rem; }
+    .tabs .tab-btn:nth-child(3n) { border-right:none; }
+    .tabs .tab-btn:nth-last-child(-n+3) { border-bottom:none; }
+  }
+  .sc-bar { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.6rem; }
+  .sc-range { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:.04em; margin-left:.4rem; }
+  .sc-legend { display:flex; gap:1rem; flex-wrap:wrap; font-size:.72rem; color:var(--muted); margin-bottom:.8rem; }
+  .sc-k { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:.35rem; vertical-align:-1px; }
+  .sc-k-g { background:#5b8def; } .sc-k-alg { background:var(--green, #7ed4a0); } .sc-k-mat { background:#e0a060; } .sc-k-warn { background:#e06060; }
+  .sc-day { border:1px solid var(--border); border-radius:10px; background:var(--surface); margin-bottom:.5rem; padding:.55rem .7rem; }
+  .sc-day.today { border-color:var(--invoice-accent); box-shadow:0 0 0 1px var(--invoice-accent) inset; }
+  .sc-day.past { opacity:.6; }
+  .sc-dlab { font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:.3rem; }
+  .sc-item { display:flex; gap:.6rem; align-items:flex-start; padding:.4rem 0 .4rem .55rem; border-left:3px solid #5b8def; margin:.25rem 0; }
+  .sc-item.sc-alg { border-left-color:var(--green, #7ed4a0); } .sc-item.sc-mat { border-left-color:#e0a060; } .sc-item.sc-warn { border-left-color:#e06060; }
+  .sc-time { font-family:'DM Mono',monospace; font-size:.72rem; color:var(--muted); width:4.6rem; flex:none; padding-top:.1rem; }
+  .sc-main { flex:1; min-width:0; } .sc-title { font-size:.88rem; } .sc-title a { color:var(--text); text-decoration:none; } .sc-title a:hover { text-decoration:underline; }
+  .sc-sub { font-size:.74rem; color:var(--muted); overflow-wrap:anywhere; }
+  .sc-none { font-size:.75rem; color:var(--muted); padding-left:.55rem; }
+  .sc-empty { color:var(--muted); padding:1.5rem; text-align:center; }
+  .sc-banner { border:1px solid rgba(224,160,96,.45); background:rgba(224,160,96,.08); border-radius:10px; padding:.6rem .8rem; font-size:.8rem; margin-bottom:.6rem; }
   #tdNote { font-size:.78rem; color:var(--muted); margin:-.3rem 0 .6rem; }
   .td-actions { grid-column:1 / -1; flex-basis:100%; display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--border); }
   .td-lab { display:flex; flex-direction:column; gap:.2rem; font-size:.7rem; color:var(--muted); font-family:'DM Mono',monospace; }
@@ -1326,11 +1351,26 @@ onAuthStateChanged(auth, async user => {
 
     <button class="tab-btn active" data-tab="bid" onclick="switchTab('bid')"><svg class="ic" aria-hidden="true"><use href="#ic-clip"/></svg>Bid Estimate</button>
 
+    <button class="tab-btn" data-tab="schedule" onclick="switchTab('schedule')"><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Schedule</button>
+
     <button class="tab-btn" data-tab="customers" onclick="switchTab('customers')"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg>Customers</button>
 
     <button class="tab-btn" data-tab="drawing" onclick="switchTab('drawing')"><svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Drawing</button>
 
     <button class="tab-btn" data-tab="tutorial" onclick="switchTab('tutorial')"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg>Tutorial</button>
+  </div>
+
+  <!-- SCHEDULE TAB -->
+  <div class="tab-panel" id="tab-schedule">
+    <div class="sc-bar">
+      <button class="btn-job-open" onclick="scShift(-1)" aria-label="Previous two weeks">‹</button>
+      <button class="btn-job-open" onclick="scToday()">Today</button>
+      <button class="btn-job-open" onclick="scShift(1)" aria-label="Next two weeks">›</button>
+      <div id="scRange" class="sc-range"></div>
+      <button class="btn-job-open" style="margin-left:auto" onclick="scRender(true)">↻ Refresh</button>
+    </div>
+    <div class="sc-legend"><span><i class="sc-k sc-k-g"></i>Google Calendar</span><span><i class="sc-k sc-k-alg"></i>Install from this app</span><span><i class="sc-k sc-k-mat"></i>Materials expected</span><span><i class="sc-k sc-k-warn"></i>Install not on Google yet</span></div>
+    <div id="scBody"></div>
   </div>
 
   <!-- DASHBOARD TAB -->
@@ -2273,7 +2313,7 @@ function bidSnapshotForCompare() {
 function switchTab(tab) {
   // Warn before leaving an in-progress bid with real, unsaved changes (to Dashboard/Customers).
   // The Tutorial and Drawing tabs never ask: the bid stays exactly as it is while someone reads or draws, and Dashboard/Customers still ask on the way out.
-  if (tab !== 'bid' && tab !== 'tutorial' && tab !== 'drawing') {
+  if (tab !== 'bid' && tab !== 'tutorial' && tab !== 'drawing' && tab !== 'schedule') {
     // A flat-price line counts as real content even with no dimensions (otherwise a bid made only of flat-price items would leave with no warning).
     const hasContent = pieces.some(p => (getPieceW(p) && getPieceH(p)) || (p.flatPrice && (String(p.flatPriceDesc || '').trim() || parseFloat(p.flatPriceValue))));
     if (hasContent) {
@@ -2298,6 +2338,7 @@ function switchTab(tab) {
     renderOptionsBar();
   }
   if (tab === 'drawing' && window.drOnShow) drOnShow();
+  if (tab === 'schedule' && window.scRender) scRender();
 }
 window.switchTab = switchTab;
 function tutToggleAll(open) {
@@ -4822,6 +4863,12 @@ async function undoApproval(jobId) {
     let msg = '✓ Approval undone';
     if (data.xeroAction && data.xeroAction !== 'none') msg += ` — Xero invoice ${data.xeroAction.toLowerCase()}`;
     if (data.note) msg += ' — ' + data.note;
+    // The job is back to a pending bid, so its materials/install schedule no longer applies.
+    try {
+      const clear = {}; (typeof TD_SCHED_FIELDS !== 'undefined' ? TD_SCHED_FIELDS : []).forEach(f => { clear[f] = null; });
+      if (Object.keys(clear).length) await window._updateDoc(window._doc(window._db, 'jobs', jobId), clear);
+    } catch (e) { console.error('Could not clear schedule after undo:', e); msg += ' — clear the install/materials dates by hand'; }
+    if (window.gcalSyncJob) gcalSyncJob(jobId); // the Worker also does this; asking twice is harmless
     showToast(msg);
     await loadJobs();
   } catch (e) {
@@ -4918,7 +4965,9 @@ async function deleteJob(e, id) {
   }
   if (!confirm('Delete this job? This cannot be undone.')) return;
   try {
+    const hadInstall = (allJobs.find(j => j.id === id) || {}).installDate;
     await window._deleteDoc(window._doc(window._db, 'jobs', id));
+    if (hadInstall && window.gcalSyncJob) gcalSyncJob(id).then(r => { if (!r.ok) showToast('Job deleted, but its install is still on the Google Calendar — remove it there', 'error'); });
     if (currentJobId === id) currentJobId = null;
     showToast('Job deleted');
     await loadJobs();
@@ -6794,25 +6843,47 @@ setTimeout(() => { if (window._db) hwLoad(); }, 1500);
 // ═════════════════════════════════════════════════
 // TO-DO WIDGETS (Dashboard) + GLASS ORDER SHEET
 // New job fields (only ever set with updateDoc, so saving a bid never erases them):
-//   glassOrderedAt (ISO), installDate ('YYYY-MM-DD'), installDoneAt (ISO)
+//   glassOrderedAt (ISO), installDate ('YYYY-MM-DD'), installDoneAt (ISO) — plus the scheduling fields listed below
 // ═════════════════════════════════════════════════
 const TD_WAIT_DAYS = 3;
 let tdFilter = null;
 function tdDaysSince(iso) { if (!iso) return null; const t = Date.parse(iso); return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000); }
 function tdToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function tdStage(job) { return typeof getPipelineStage === 'function' ? getPipelineStage(job) : ''; }
+// ── Scheduling (materials → call → install) ──
+// Job fields (updateDoc only): glassOrderedAt (ISO, "materials ordered"), materialsDue ('YYYY-MM-DD'),
+// materialsHow ('deliver'|'pickup'), materialsWhere (store, for pickup), materialsWindow (delivery time, free text),
+// materialsInAt (ISO), installDate ('YYYY-MM-DD'), installTime ('HH:MM' or null), installDoneAt (ISO).
+// Materials always need someone from ALG: a delivery needs someone there; a pickup needs someone to go get it.
+const TD_SCHED_FIELDS = ['glassOrderedAt', 'materialsDue', 'materialsHow', 'materialsWhere', 'materialsWindow', 'materialsInAt', 'installDate', 'installTime', 'installDoneAt'];
+function tdAddDays(ymd, n) { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function tdOpenJob(j) { return j.type === 'bid' && ['accepted', 'invoiced', 'done'].includes(tdStage(j)) && !j.installDoneAt && tdStage(j) !== 'done'; }
+function tdWaitingMaterials(j) { return tdOpenJob(j) && j.glassOrderedAt && !j.materialsInAt; }
+function tdShortDate(ymd) { return ymd ? new Date(ymd + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''; }
+function tdTime12(hm) { if (!hm) return ''; const [h, m] = hm.split(':').map(Number); return ((h % 12) || 12) + (m ? ':' + String(m).padStart(2, '0') : '') + (h < 12 ? ' AM' : ' PM'); }
+function tdMaterialsLine(j) {
+  if (j.materialsHow === 'deliver') return 'Delivery' + (j.materialsWindow ? ' ' + j.materialsWindow : '') + ' — someone must be there';
+  if (j.materialsHow === 'pickup') return 'Pick up' + (j.materialsWhere ? ' at ' + j.materialsWhere : '');
+  return 'Materials';
+}
 // Each bucket: which jobs belong, and the one next step for them.
 const TD_BUCKETS = [
   { key: 'wait', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>', title: 'Waiting on customer', hint: `Sent ${TD_WAIT_DAYS}+ days ago, not approved — call them`,
     test: j => j.type === 'bid' && tdStage(j) === 'bid' && (tdDaysSince(j.savedAt) ?? 0) >= TD_WAIT_DAYS && !(j.customerResponse && j.customerResponse.type) },
   { key: 'changes', icon: '✎', title: 'Changes requested', hint: 'The customer asked for changes — revise the bid, save it and send the link again',
     test: j => j.type === 'bid' && tdStage(j) === 'bid' && j.customerResponse && j.customerResponse.type === 'changes' },
-  { key: 'order', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>', title: 'Approved — order glass', hint: 'Approved and no glass order marked yet',
-    test: j => j.type === 'bid' && ['accepted', 'invoiced'].includes(tdStage(j)) && !j.glassOrderedAt && !j.installDoneAt },
-  { key: 'schedule', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>', title: 'Ordered — schedule install', hint: 'Glass ordered, no install date set',
-    test: j => j.type === 'bid' && j.glassOrderedAt && !j.installDate && !j.installDoneAt && tdStage(j) !== 'done' },
+  { key: 'order', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>', title: 'Approved — order materials', hint: 'Approved and no materials order marked yet',
+    test: j => tdOpenJob(j) && !j.glassOrderedAt },
+  { key: 'matToday', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>', title: 'Materials today', hint: 'A delivery needs someone there; a pickup needs someone to go get it. Mark "Materials in" once you have it.',
+    test: j => tdWaitingMaterials(j) && j.materialsDue === tdToday() },
+  { key: 'matLate', alert: true, icon: '⚠', title: 'Materials overdue', hint: 'Expected date has passed and the materials are not marked in — call the supplier',
+    test: j => tdWaitingMaterials(j) && j.materialsDue && j.materialsDue < tdToday() },
+  { key: 'schedule', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>', title: 'Materials in — call to schedule', hint: 'Everything is in. Call the customer and set the install date.',
+    test: j => tdOpenJob(j) && j.materialsInAt && !j.installDate },
+  { key: 'soon', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>', title: 'Install today / tomorrow', hint: 'Installs coming up — check the materials and the crew',
+    test: j => tdOpenJob(j) && j.installDate && j.installDate >= tdToday() && j.installDate <= tdAddDays(tdToday(), 1) },
   { key: 'install', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>', title: 'Install date passed', hint: 'Mark it installed once the job is done',
-    test: j => j.type === 'bid' && j.installDate && j.installDate <= tdToday() && !j.installDoneAt && tdStage(j) !== 'done' },
+    test: j => tdOpenJob(j) && j.installDate && j.installDate < tdToday() },
   { key: 'invoice', icon: '<svg class="ic" aria-hidden="true"><use href="#ic-receipt"/></svg>', title: 'Installed — finish invoice', hint: 'Approve the Xero draft so the invoice goes out',
     test: j => j.type === 'bid' && j.installDoneAt && tdStage(j) === 'accepted' },
 ];
@@ -6820,7 +6891,7 @@ function tdRender() {
   const box = document.getElementById('tdWidgets'); if (!box || typeof allJobs === 'undefined') return;
   box.innerHTML = TD_BUCKETS.map(b => {
     const n = allJobs.filter(b.test).length;
-    return `<button type="button" class="td-card ${tdFilter === b.key ? 'on' : ''} ${n ? '' : 'zero'}" onclick="tdSetFilter('${b.key}')" title="${escapeHtml(b.hint)}"><span class="td-n">${n}</span><span class="td-t">${b.icon} ${escapeHtml(b.title)}</span></button>`;
+    return `<button type="button" class="td-card ${tdFilter === b.key ? 'on' : ''} ${n ? '' : 'zero'} ${b.alert && n ? 'alert' : ''}" onclick="tdSetFilter('${b.key}')" title="${escapeHtml(b.hint)}"><span class="td-n">${n}</span><span class="td-t">${b.icon} ${escapeHtml(b.title)}</span></button>`;
   }).join('');
   const note = document.getElementById('tdNote');
   if (note) {
@@ -6831,43 +6902,230 @@ function tdRender() {
 function tdSetFilter(k) { tdFilter = tdFilter === k ? null : k; renderDashboard(); }
 function tdJobBadges(job) {
   if (job.type !== 'bid') return '';
-  const out = [];
+  const out = [], ic = n => `<svg class="ic" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
+  const warn = 'color:#e06060;border-color:rgba(224,96,96,.45);background:rgba(224,96,96,.12)';
   if (typeof coJobBadges === 'function') out.push(coJobBadges(job));
-  if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>${d} days</span>`); }
-  if (job.glassOrderedAt) out.push(`<span class="job-status-badge" title="Glass ordered ${escapeHtml(new Date(job.glassOrderedAt).toLocaleDateString('en-US'))}"><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered</span>`);
-  if (job.installDate) out.push(`<span class="job-status-badge"><svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}</span>`);
-  if (job.installDoneAt) out.push(`<span class="job-status-badge paid"><svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed</span>`);
+  if (tdStage(job) === 'bid' && job.savedAt) { const d = tdDaysSince(job.savedAt); if (d >= TD_WAIT_DAYS) out.push(`<span class="job-status-badge" style="color:#e0a060;border-color:rgba(224,160,96,.4)">${ic('clock')}${d} days</span>`); }
+  if (job.glassOrderedAt && !job.materialsInAt && !job.installDoneAt) {
+    const late = job.materialsDue && job.materialsDue < tdToday();
+    const how = job.materialsHow === 'deliver' ? ' · delivery' : job.materialsHow === 'pickup' ? ' · pickup' : '';
+    const when = job.materialsDue ? (late ? 'Materials late — ' : 'Materials ') + new Date(job.materialsDue + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Ordered — no date';
+    out.push(`<span class="job-status-badge" style="${late ? warn : ''}" title="${escapeHtml(tdMaterialsLine(job))}">${ic('box')}${escapeHtml(when + how)}</span>`);
+  }
+  if (job.materialsInAt && !job.installDoneAt) out.push(`<span class="job-status-badge paid" title="Materials in ${escapeHtml(new Date(job.materialsInAt).toLocaleDateString('en-US'))}">${ic('box')}Materials in</span>`);
+  if (job.installDate) out.push(`<span class="job-status-badge" title="${job.googleEventId ? 'On the Google Calendar' : 'Not on the Google Calendar yet'}">${ic('cal')}${escapeHtml(new Date(job.installDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + (job.installTime ? ' ' + tdTime12(job.installTime) : ''))}</span>`);
+  if (job.installDoneAt) out.push(`<span class="job-status-badge paid">${ic('wrench')}Installed</span>`);
   return out.join('');
 }
 function tdJobActions(job) {
   const coA = typeof coJobActions === 'function' ? coJobActions(job) : '';
   if (job.type !== 'bid' || !['accepted', 'invoiced', 'done'].includes(tdStage(job))) return coA;
-  const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`;
-  let h = b('<svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
-  h += job.glassOrderedAt ? b('↺ Ordered', `tdSet('${job.id}','glassOrderedAt',null)`, 'Un-mark the glass order') : b('<svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg>Ordered', `tdSet('${job.id}','glassOrderedAt','now')`, 'Mark the glass as ordered');
-  h += b(job.installDate ? '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Change date' : '<svg class="ic" aria-hidden="true"><use href="#ic-cal"/></svg>Install date', `tdPickDate('${job.id}')`, 'Set the install date');
+  const b = (label, fn, title) => `<button class="btn-job-open" onclick="${fn}" title="${escapeHtml(title)}">${label}</button>`, ic = n => `<svg class="ic" aria-hidden="true"><use href="#ic-${n}"/></svg>`;
+  let h = b(ic('file') + 'Order sheet', `tdOrderSheetForJob('${job.id}')`, 'Download the glass order sheet for this job');
+  if (!job.glassOrderedAt) h += b(ic('box') + 'Ordered', `tdOrderedDialog('${job.id}')`, 'Mark the materials as ordered and when they are expected');
+  else if (!job.materialsInAt) {
+    h += b(ic('box') + 'Materials in', `tdSet('${job.id}','materialsInAt','now')`, 'Everything is here — ready to schedule');
+    h += b('✎ Expected date', `tdOrderedDialog('${job.id}')`, 'Change the expected date, delivery or pickup');
+    h += b('↺ Ordered', `tdUnorder('${job.id}')`, 'Un-mark the order');
+  } else h += b('↺ Materials in', `tdSet('${job.id}','materialsInAt',null)`, 'Un-mark materials in');
+  h += b(ic('cal') + (job.installDate ? 'Change install' : 'Install date'), `tdPickDate('${job.id}')`, 'Set the install date and time');
+ if (job.installDate && !job.installDoneAt && !job.googleEventId) h += `<a class="btn-job-open" style="text-decoration:none" href="${escapeHtml(tdCalLink(job))}" target="_blank" rel="noopener" title="Not on the Google Calendar yet — opens it with the install filled in">${ic('cal')}Add to Google Calendar</a>`;
   h += coA;
-  if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b('<svg class="ic" aria-hidden="true"><use href="#ic-wrench"/></svg>Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
+  if (job.installDate) h += job.installDoneAt ? b('↺ Installed', `tdSet('${job.id}','installDoneAt',null)`, 'Un-mark installed') : b(ic('wrench') + 'Installed', `tdSet('${job.id}','installDoneAt','now')`, 'Mark the install as done');
   return h;
 }
-async function tdSet(id, field, val) {
-  const job = allJobs.find(j => j.id === id); if (!job) return;
-  const v = val === 'now' ? new Date().toISOString() : val;
-  const prev = job[field];
-  job[field] = v; renderDashboard(); // show it straight away; the listener confirms
-  try { await window._updateDoc(window._doc(window._db, 'jobs', id), { [field]: v }); }
-  catch (e) { console.error('To-do update failed:', e); job[field] = prev; renderDashboard(); showToast('Could not save — try again', 'error'); }
+// Saves several fields at once; shows them straight away and rolls back if the save fails.
+async function tdSetMany(id, upd) {
+  const job = allJobs.find(j => j.id === id); if (!job) return false;
+  const prev = {}; for (const k in upd) prev[k] = job[k];
+  Object.assign(job, upd); renderDashboard();
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), upd); return true; }
+  catch (e) { console.error('To-do update failed:', e); Object.assign(job, prev); renderDashboard(); showToast('Could not save — try again', 'error'); return false; }
 }
+async function tdSet(id, field, val) { return tdSetMany(id, { [field]: val === 'now' ? new Date().toISOString() : val }); }
+function tdUnorder(id) {
+  if (!confirm('Un-mark this order? The expected date and delivery/pickup details are cleared too.')) return;
+  tdSetMany(id, { glassOrderedAt: null, materialsDue: null, materialsHow: null, materialsWhere: null, materialsWindow: null, materialsInAt: null });
+}
+// "Ordered" dialog: when it's expected, and whether it's delivered (someone must be there) or picked up.
+function tdOrderedDialog(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const how = job.materialsHow || 'pickup';
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Materials ordered — ${escapeHtml(job.customer || 'job')}</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem;margin-top:.7rem;">
+      <label class="td-lab">Expected date<input id="tdmDue" type="date" value="${escapeHtml(job.materialsDue || '')}"></label>
+      <label class="td-lab">Delivery or pickup<select id="tdmHow" onchange="tdmSync()"><option value="pickup" ${how === 'pickup' ? 'selected' : ''}>We pick it up at the store</option><option value="deliver" ${how === 'deliver' ? 'selected' : ''}>Delivered — someone must be there</option></select></label>
+      <label class="td-lab" id="tdmWhereL">Pick up at<input id="tdmWhere" maxlength="80" value="${escapeHtml(job.materialsWhere || job.orderSupplier || '')}" placeholder="Store / supplier"></label>
+      <label class="td-lab" id="tdmWinL">Delivery time (if known)<input id="tdmWin" maxlength="40" value="${escapeHtml(job.materialsWindow || '')}" placeholder="e.g. 8–10 AM"></label>
+    </div>
+    <div class="dr-hint" style="margin-top:.5rem">Leave the date blank if the supplier hasn't given one — it won't show as overdue until you add it.</div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="tdOrderedSave('${id}')">Save</button></div>`);
+  tdmSync();
+}
+function tdmSync() {
+  const d = (document.getElementById('tdmHow') || {}).value === 'deliver';
+  const w = document.getElementById('tdmWhereL'), n = document.getElementById('tdmWinL');
+  if (w) w.style.display = d ? 'none' : ''; if (n) n.style.display = d ? '' : 'none';
+}
+async function tdOrderedSave(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const q = i => (document.getElementById(i) || {}).value || '';
+  const due = q('tdmDue'), how = q('tdmHow') === 'deliver' ? 'deliver' : 'pickup';
+  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) { showToast('Pick a date', 'error'); return; }
+  const upd = { materialsDue: due || null, materialsHow: how, materialsWhere: how === 'pickup' ? (q('tdmWhere').trim().slice(0, 80) || null) : null, materialsWindow: how === 'deliver' ? (q('tdmWin').trim().slice(0, 40) || null) : null };
+  if (!job.glassOrderedAt) upd.glassOrderedAt = new Date().toISOString();
+  hwClose();
+  if (await tdSetMany(id, upd)) showToast('✓ Saved — ' + (due ? 'expected ' + tdShortDate(due) : 'no date yet'));
+}
+// Install date + optional time, then offers the Google Calendar link (no Google setup needed).
 function tdPickDate(id) {
   const job = allJobs.find(j => j.id === id); if (!job) return;
-  const v = prompt('Install date (YYYY-MM-DD). Leave blank to clear it.', job.installDate || tdToday());
-  if (v === null) return;
-  const s = v.trim();
-  if (s && !/^\d{4}-\d{2}-\d{2}$/.test(s)) { showToast('Use the format 2026-12-03', 'error'); return; }
-  if (s && isNaN(Date.parse(s + 'T00:00:00'))) { showToast('That date does not exist', 'error'); return; }
-  tdSet(id, 'installDate', s || null);
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Install — ${escapeHtml(job.customer || 'job')}</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    ${job.glassOrderedAt && !job.materialsInAt ? `<div class="dr-hint" style="margin-top:.5rem;color:#e0a060">Materials aren't marked in yet${job.materialsDue ? ' (expected ' + escapeHtml(tdShortDate(job.materialsDue)) + ')' : ''}.</div>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;margin-top:.7rem;">
+      <label class="td-lab">Install date<input id="tdiDate" type="date" value="${escapeHtml(job.installDate || '')}"></label>
+      <label class="td-lab">Start time (optional)<input id="tdiTime" type="time" value="${escapeHtml(job.installTime || '')}"></label>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:space-between;flex-wrap:wrap;">
+      ${job.installDate ? `<button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="tdInstallSave('${id}', true)">Clear date</button>` : '<span></span>'}
+      <span style="display:flex;gap:.5rem;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="tdInstallSave('${id}')">Save</button></span>
+    </div>`);
 }
-window.tdSetFilter = tdSetFilter; window.tdSet = tdSet; window.tdPickDate = tdPickDate;
+async function tdInstallSave(id, clear) {
+  const date = clear ? '' : (document.getElementById('tdiDate') || {}).value || '';
+  const time = clear ? '' : (document.getElementById('tdiTime') || {}).value || '';
+  if (!clear && !/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast('Pick a date', 'error'); return; }
+  if (time && !/^\d{2}:\d{2}$/.test(time)) { showToast('Pick a time', 'error'); return; }
+  if (!(await tdSetMany(id, { installDate: date || null, installTime: time || null }))) { hwClose(); return; }
+  hwModal(`<div class="dr-ptitle" style="margin:0">${clear ? 'Removing from' : 'Putting it on'} the Google Calendar…</div>`);
+  const r = await gcalSyncJob(id);
+  const job = allJobs.find(j => j.id === id);
+  if (clear) { hwClose(); showToast(r.ok ? 'Install date cleared — removed from the calendar' : 'Install date cleared, but the calendar could not be updated: ' + r.error, r.ok ? undefined : 'error'); return; }
+  if (r.ok) {
+    hwClose();
+    showToast('✓ Install set — ' + tdShortDate(date) + (time ? ', ' + tdTime12(time) : '') + ' · on the Google Calendar');
+    return;
+  }
+  hwModal(`
+    <div class="dr-ptitle" style="margin:0">Install saved — ${escapeHtml(tdShortDate(date) + (time ? ', ' + tdTime12(time) : ''))}</div>
+    <div class="dr-hint" style="margin-top:.5rem;color:#e0a060">It couldn't go on the Google Calendar automatically (${escapeHtml(r.error)}). You can add it by hand, or try "Put on calendar" from the Schedule tab later.</div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Done</button>
+      <a class="btn-add" style="width:auto;margin:0;text-decoration:none;display:inline-flex;align-items:center" href="${escapeHtml(tdCalLink(job))}" target="_blank" rel="noopener" onclick="hwClose()">Add by hand</a></div>`);
+}
+// Google Calendar "add event" link. With a time: a 3-hour block (adjust in Google). Without: an all-day event.
+// No prices go on the event — only what the crew needs.
+function tdCalLink(job) {
+  const ymd = job.installDate, compact = s => s.replace(/-/g, '');
+  let dates;
+  if (job.installTime) {
+    const [h, m] = job.installTime.split(':').map(Number), endH = h + 3;
+    const end = endH >= 24 ? compact(tdAddDays(ymd, 1)) + 'T' + String(endH - 24).padStart(2, '0') + String(m).padStart(2, '0') + '00'
+                           : compact(ymd) + 'T' + String(endH).padStart(2, '0') + String(m).padStart(2, '0') + '00';
+    dates = compact(ymd) + 'T' + String(h).padStart(2, '0') + String(m).padStart(2, '0') + '00/' + end;
+  } else dates = compact(ymd) + '/' + compact(tdAddDays(ymd, 1));
+  const details = [job.jobDesc && 'Job: ' + job.jobDesc, job.phone && 'Phone: ' + job.phone, job.location && 'Address: ' + job.location, 'ALG job ' + job.id].filter(Boolean).join('\n');
+  const p = new URLSearchParams({ action: 'TEMPLATE', text: 'Install — ' + (job.customer || 'job'), dates, ctz: 'America/Phoenix', details });
+  if (job.location) p.set('location', job.location);
+  return 'https://calendar.google.com/calendar/render?' + p.toString();
+}
+window.tdSetFilter = tdSetFilter; window.tdSet = tdSet; window.tdPickDate = tdPickDate; window.tdOrderedDialog = tdOrderedDialog; window.tdmSync = tdmSync;
+window.tdOrderedSave = tdOrderedSave; window.tdInstallSave = tdInstallSave; window.tdUnorder = tdUnorder;
+
+// ═════════════════════════════════════════════════
+// GOOGLE CALENDAR SYNC + SCHEDULE TAB
+// Install dates are put on the company Google Calendar by the Worker (it holds the Google connection;
+// nothing secret is in this file). The Schedule tab shows that calendar — everything on it — plus the
+// app's own expected material dates. Requests carry this login's Firebase token so only staff get in.
+// ═════════════════════════════════════════════════
+const GCAL_WORKER = 'https://morning-frost-ce94.rdenmyers1201.workers.dev';
+async function gcalAuthHeaders() {
+  const u = window._auth && window._auth.currentUser;
+  if (!u) throw new Error('Not signed in');
+  return { 'Authorization': 'Bearer ' + await u.getIdToken(), 'Content-Type': 'application/json' };
+}
+// Makes the Google Calendar match this job's install. Returns { ok, action, link } or { ok:false, error }.
+async function gcalSyncJob(jobId) {
+  try {
+    const res = await fetch(GCAL_WORKER + '/calendar-sync', { method: 'POST', headers: await gcalAuthHeaders(), body: JSON.stringify({ jobId }) });
+    let data = null; try { data = await res.json(); } catch (e) {}
+    if (!res.ok || !data || !data.ok) return { ok: false, error: (data && data.error) || ('HTTP ' + res.status) };
+    SC.cache = {}; // the calendar changed
+    return data;
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+window.gcalSyncJob = gcalSyncJob;
+
+const SC = { start: null, days: 14, cache: {}, loading: false };
+function scYmd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function scStartOfWeek(ymd) { const d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() - d.getDay()); return scYmd(d); }
+function scShift(n) { SC.start = tdAddDays(SC.start, n * SC.days); scRender(); }
+function scToday() { SC.start = scStartOfWeek(tdToday()); scRender(); }
+async function scLoad(from, to, force) {
+  const key = from + '_' + to;
+  if (!force && SC.cache[key]) return SC.cache[key];
+  try {
+    const res = await fetch(GCAL_WORKER + '/calendar-events?from=' + from + '&to=' + to, { headers: await gcalAuthHeaders(), cache: 'no-store' });
+    let data = null; try { data = await res.json(); } catch (e) {}
+    const out = (res.ok && data && data.ok) ? { events: data.events } : { events: [], error: (data && data.error) || 'Could not load the Google Calendar' };
+    SC.cache[key] = out; return out;
+  } catch (e) { return { events: [], error: 'Could not reach the calendar — check your connection' }; }
+}
+async function scRender(force) {
+  const box = document.getElementById('scBody'); if (!box) return;
+  if (!SC.start) SC.start = scStartOfWeek(tdToday());
+  const from = SC.start, to = tdAddDays(SC.start, SC.days - 1);
+  const fmtR = ymd => new Date(ymd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  document.getElementById('scRange').textContent = fmtR(from) + ' – ' + fmtR(to);
+  box.innerHTML = '<div class="sc-empty">Loading the calendar…</div>';
+  const { events, error } = await scLoad(from, to, force);
+  if (SC.start !== from) return; // they moved on while this loaded
+  // Day buckets: Google events, plus the app's own dates that Google doesn't have.
+  const days = {}; for (let i = 0; i < SC.days; i++) days[tdAddDays(from, i)] = [];
+  const onGoogle = new Set();
+  for (const e of events) {
+    if (e.jobId) onGoogle.add(e.jobId);
+    if (e.allDay) { for (let d = e.start; d < e.end; d = tdAddDays(d, 1)) if (days[d]) days[d].push({ kind: 'g', e, sort: '0' }); }
+    else { const d = e.start.slice(0, 10); if (days[d]) days[d].push({ kind: 'g', e, sort: e.start.slice(11, 16) }); }
+  }
+  for (const j of allJobs) {
+    if (j.type !== 'bid' || j.status !== 'accepted') continue;
+    if (j.installDate && days[j.installDate] && !onGoogle.has(j.id) && !error) days[j.installDate].push({ kind: 'install', j, sort: j.installTime || '0' });
+    if (j.installDate && days[j.installDate] && error) days[j.installDate].push({ kind: 'install', j, sort: j.installTime || '0', offline: true });
+    if (j.glassOrderedAt && !j.materialsInAt && j.materialsDue && days[j.materialsDue]) days[j.materialsDue].push({ kind: 'mat', j, sort: '1' });
+  }
+  const t12 = iso => tdTime12(iso.slice(11, 16));
+  const row = it => {
+    if (it.kind === 'g') {
+      const e = it.e, job = e.jobId ? allJobs.find(x => x.id === e.jobId) : null;
+      return `<div class="sc-item ${e.jobId ? 'sc-alg' : ''}"><div class="sc-time">${e.allDay ? 'All day' : escapeHtml(t12(e.start))}</div>
+        <div class="sc-main"><div class="sc-title">${e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener">${escapeHtml(e.title)}</a>` : escapeHtml(e.title)}</div>
+        ${e.location ? `<div class="sc-sub">${escapeHtml(e.location)}</div>` : ''}</div>
+        ${job ? `<button class="btn-job-open" onclick="scOpenJob('${job.id}')">Job</button>` : ''}</div>`;
+    }
+    const j = it.j;
+    if (it.kind === 'mat') return `<div class="sc-item sc-mat"><div class="sc-time">Expected</div><div class="sc-main"><div class="sc-title">Materials — ${escapeHtml(j.customer || '')}</div><div class="sc-sub">${escapeHtml(tdMaterialsLine(j))}</div></div><button class="btn-job-open" onclick="scOpenJob('${j.id}')">Job</button></div>`;
+    return `<div class="sc-item sc-warn"><div class="sc-time">${j.installTime ? escapeHtml(tdTime12(j.installTime)) : 'All day'}</div><div class="sc-main"><div class="sc-title">Install — ${escapeHtml(j.customer || '')}</div><div class="sc-sub">${it.offline ? 'From the app (calendar not loaded)' : 'Not on the Google Calendar yet'}</div></div>${it.offline ? '' : `<button class="btn-job-open" onclick="scPush('${j.id}', this)">Put on calendar</button>`}</div>`;
+  };
+  const today = tdToday();
+  let h = error ? `<div class="sc-banner">${escapeHtml(error)}. Showing the app's own dates only.</div>` : '';
+  for (const [d, items] of Object.entries(days)) {
+    items.sort((a, b) => a.sort.localeCompare(b.sort));
+    if (d < today && !items.length) continue; // empty past days are just clutter
+    const label = new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    h += `<div class="sc-day ${d === today ? 'today' : ''} ${d < today ? 'past' : ''}"><div class="sc-dlab">${label}${d === today ? ' · Today' : ''}</div>${items.length ? items.map(row).join('') : '<div class="sc-none">—</div>'}</div>`;
+  }
+  box.innerHTML = h;
+}
+function scOpenJob(id) { switchTab('dashboard'); setTimeout(() => { const s = document.getElementById('dashSearch'); const j = allJobs.find(x => x.id === id); if (s && j) { s.value = j.customer || ''; renderDashboard(); } }, 50); }
+async function scPush(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+  const r = await gcalSyncJob(id);
+  if (r.ok) { showToast('✓ On the Google Calendar'); scRender(true); }
+  else { showToast('Could not add it: ' + r.error, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Put on calendar'; } }
+}
+window.scShift = scShift; window.scToday = scToday; window.scRender = scRender; window.scOpenJob = scOpenJob; window.scPush = scPush;
 
 // ── Glass order sheet ──
 // Pieces/hardware for a saved job: the option the customer chose, otherwise the main bid.
@@ -6963,8 +7221,8 @@ async function tdOpenOrder(info, base, jobId) {
       <label class="td-lab">Supplier<input id="tdoSup" list="tdoSupList" value="${escapeHtml((job && job.orderSupplier) || '')}" placeholder="Who is this order for?"></label>
       <datalist id="tdoSupList">${sup.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
       <label class="td-lab">Your PO #<input id="tdoPo" value="${escapeHtml((job && job.orderPo) || '')}" placeholder="e.g. 674181"></label>
-      <label class="td-lab">Needed by<input id="tdoNeed" type="date"></label>
-      <label class="td-lab">Pickup or deliver<select id="tdoHow"><option value="pickup">We pick up</option><option value="deliver">Deliver to job site</option></select></label>
+      <label class="td-lab">Needed by<input id="tdoNeed" type="date" value="${escapeHtml((job && job.materialsDue) || '')}"></label>
+      <label class="td-lab">Pickup or deliver<select id="tdoHow"><option value="pickup">We pick up</option><option value="deliver" ${job && job.materialsHow === 'deliver' ? 'selected' : ''}>Deliver to job site</option></select></label>
       <label class="td-lab">Ordered by<input id="tdoMe" value="${escapeHtml(me.name || '')}" placeholder="Name"></label>
       <label class="td-lab">Call-back phone<input id="tdoPhone" value="${escapeHtml(me.phone || '')}" placeholder="Phone"></label>
     </div>
@@ -6972,7 +7230,7 @@ async function tdOpenOrder(info, base, jobId) {
     <div class="dr-hint" style="margin-top:0">Untick anything going to a different supplier, then make a second sheet for them.</div>
     ${rowsHtml}
     ${info.hw.some(h => String(h.name || '').trim()) ? `<label style="display:flex;gap:.4rem;align-items:center;font-size:.8rem;margin-top:.6rem;"><input type="checkbox" id="tdoHw" checked> Include the hardware list (${info.hw.filter(h => String(h.name || '').trim()).length})</label>` : ''}
-    ${jobId ? `<label style="display:flex;gap:.4rem;align-items:center;font-size:.8rem;margin-top:.4rem;"><input type="checkbox" id="tdoMark" ${job && job.glassOrderedAt ? '' : 'checked'}> Mark this job "glass ordered" and save the supplier and PO on it</label>` : ''}
+    ${jobId ? `<label style="display:flex;gap:.4rem;align-items:center;font-size:.8rem;margin-top:.4rem;"><input type="checkbox" id="tdoMark" ${job && job.glassOrderedAt ? '' : 'checked'}> Mark this job "materials ordered" and save the supplier, PO, needed-by date and pickup/delivery on it</label>` : ''}
     <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" onclick="tdConfirmOrder()">⬇ Download order sheet</button></div>`);
 }
 async function tdConfirmOrder() {
@@ -6992,7 +7250,9 @@ async function tdConfirmOrder() {
   if (o.jobId) {
     const job = allJobs.find(j => j.id === o.jobId);
     if (job && o.markChecked) {
-      const upd = { orderSupplier: supplier || null, orderPo: po || null };
+      const upd = { orderSupplier: supplier || null, orderPo: po || null, materialsHow: info.how === 'deliver' ? 'deliver' : 'pickup' };
+      if (info.need) upd.materialsDue = info.need;
+      if (info.how !== 'deliver' && supplier && !job.materialsWhere) upd.materialsWhere = supplier.slice(0, 80);
       if (!job.glassOrderedAt) upd.glassOrderedAt = new Date().toISOString();
       Object.assign(job, upd); renderDashboard();
       try { await window._updateDoc(window._doc(window._db, 'jobs', job.id), upd); } catch (e) { console.error(e); showToast('Sheet downloaded, but marking the job failed', 'error'); }
