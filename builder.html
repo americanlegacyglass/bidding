@@ -165,8 +165,8 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-// Public config — safe to publish. What the website may do is limited by the Firestore rules (read prices, create a request; nothing else).
+import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+// Public config — safe to publish. The website only READS prices from Firestore; requests go through the Worker (rate-limited).
 const app = initializeApp({
   apiKey: "AIzaSyCA4Fk7aLGnrd5U2T0-dmbrr6BimVC1TK8",
   authDomain: "glass-bidding-and-invoicing.firebaseapp.com",
@@ -176,7 +176,7 @@ const app = initializeApp({
   appId: "1:849136314530:web:91f69219a4096a61428ffb"
 });
 const db = getFirestore(app);
-const WEB3FORMS_ACCESS_KEY = 'cc74c432-5567-46e2-9c05-56b505e5b126'; // public by design
+const WORKER = 'https://morning-frost-ce94.rdenmyers1201.workers.dev';
 const SHOP_EMAIL = 'americanlegacyglass@gmail.com';
 if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embed');
 
@@ -719,21 +719,27 @@ async function send() {
   if (v('cCompany')) { showDone(name); return; } // bots fill hidden fields — pretend it worked, save nothing
   try { const last = +localStorage.getItem('alg_lead_at') || 0; if (Date.now() - last < 60000) { err.textContent = 'You just sent a request — we\'ll be in touch soon.'; return; } } catch (e) {}
   const d = design(), e = estimate(PRICING, d);
-  const lead = { name: name.slice(0, 80), phone: phone.slice(0, 30), email: email.slice(0, 120), place: place.slice(0, 120), notes: notes.slice(0, 1000),
-    design: d, lo: e ? e.lo : 0, hi: e ? e.hi : 0, status: 'new', src: 'web', createdAt: serverTimestamp() };
+  // The Worker saves the request and emails the shop. It checks the same things as above, and limits how many
+  // requests one internet address (and the whole site) can send per day, so nobody can flood the database.
+  const summary = [...$('summary').querySelectorAll('li')].map(li => li.children[0].textContent + ': ' + li.children[1].textContent);
+  const tile = { done: 'done', progress: 'being installed', planning: 'not started' }[d.tile] || '—', when = { asap: 'ASAP', soon: '1–3 months', later: 'just getting prices' }[d.when] || '—';
+  summary.push('Tile: ' + tile, 'Timing: ' + when);
+  const body = { name: name.slice(0, 80), phone: phone.slice(0, 30), email: email.slice(0, 120), place: place.slice(0, 120), notes: notes.slice(0, 1000),
+    design: d, lo: e ? e.lo : 0, hi: e ? e.hi : 0, summary, company: v('cCompany') };
   const btn = $('sendBtn'); btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    await addDoc(collection(db, 'leads'), lead);
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+    let res, data = null;
+    try { res = await fetch(WORKER + '/submit-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }); }
+    finally { clearTimeout(timer); }
+    try { data = await res.json(); } catch (x) {}
+    if (!res.ok || !data || !data.ok) { const x = new Error('failed'); x.userMessage = data && data.error; x.status = res.status; throw x; }
     try { localStorage.setItem('alg_lead_at', String(Date.now())); } catch (x) {}
-    const lines = [...$('summary').querySelectorAll('li')].map(li => li.children[0].textContent + ': ' + li.children[1].textContent).join('\n');
-    const tile = { done: 'done', progress: 'being installed', planning: 'not started' }[d.tile] || '—', when = { asap: 'ASAP', soon: '1–3 months', later: 'just getting prices' }[d.when] || '—';
-    fetch('https://api.web3forms.com/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      access_key: WEB3FORMS_ACCESS_KEY, subject: '🚿 Website shower request — ' + name, email: SHOP_EMAIL, from_name: 'ALG website',
-      message: `New shower design from the website.\n\nName: ${name}\nPhone: ${phone}\nEmail: ${email || '—'}\nCity/ZIP: ${place}\n\n${lines}\nTile: ${tile}\nTiming: ${when}\nWebsite range shown: ${e ? money(e.lo) + ' – ' + money(e.hi) : 'none'}\n\nNotes: ${notes || '—'}\n\nIt's also in the staff app under Dashboard → Website requests.` }) }).catch(() => {});
     showDone(name);
   } catch (x) {
     console.error(x); btn.disabled = false; btn.textContent = 'Request my free measure';
-    err.innerHTML = `Sorry — that didn't go through. Please try again, or email us at <a href="mailto:${SHOP_EMAIL}">${SHOP_EMAIL}</a>.`;
+    err.innerHTML = (x.userMessage && x.status !== 500 ? esc(x.userMessage) + ' ' : 'Sorry — that didn\'t go through. Please try again, or ') +
+      `email us at <a href="mailto:${SHOP_EMAIL}">${SHOP_EMAIL}</a>.`;
   }
 }
 function showDone(name) {
