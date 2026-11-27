@@ -56,6 +56,8 @@ onAuthStateChanged(auth, async user => {
       window._currentUserRole = (roleSnap.exists() && roleSnap.data().role === 'employee') ? 'employee' : 'owner';
       const staffBtn = document.getElementById('btnManageStaff');
       if (staffBtn) staffBtn.style.display = window._currentUserRole === 'owner' ? '' : 'none';
+      const profitBtn = document.getElementById('btnJobProfit');
+      if (profitBtn) profitBtn.style.display = window._currentUserRole === 'owner' ? '' : 'none';
     } catch (e) {
       console.error('Could not check staff role, defaulting to owner access:', e);
       window._currentUserRole = 'owner';
@@ -464,6 +466,28 @@ onAuthStateChanged(auth, async user => {
     .tabs .tab-btn { border-bottom:1px solid var(--border); padding:.6rem .3rem; }
     .tabs .tab-btn:nth-child(3n) { border-right:none; }
     .tabs .tab-btn:nth-last-child(-n+3) { border-bottom:none; }
+  }
+  .hw-box .dr-in, .hw-box select.dr-in { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:.4rem .5rem; font-family:'DM Sans',sans-serif; font-size:.82rem; width:100%; }
+  .hw-box .dr-btn { background:none; border:1px solid var(--border); border-radius:8px; color:var(--text); cursor:pointer; padding:.45rem .9rem; font-family:'DM Sans',sans-serif; font-size:.85rem; }
+  .hw-box .dr-btn.on { background:var(--text); color:#111; border-color:var(--text); font-weight:600; } .hw-box .dr-btn:disabled { opacity:.4; cursor:default; }
+  .jp-sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.5rem; margin:.8rem 0 .5rem; }
+  .jp-sum > div { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.5rem .7rem; display:flex; flex-direction:column; }
+  .jp-sum span { font-family:'DM Mono',monospace; font-size:.66rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .jp-sum b { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; font-weight:400; } .jp-sum i { font-style:normal; font-size:.75rem; color:var(--muted); }
+  .jp-table { margin-top:.6rem; }
+  .jp-tr { display:grid; grid-template-columns:minmax(0,2.2fr) 1fr 1fr 1fr 1.1fr auto; gap:.5rem; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+  .jp-tr small { display:block; color:var(--muted); font-size:.7rem; } .jp-th { font-family:'DM Mono',monospace; font-size:.66rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .jp-muted { color:var(--muted); } .jp-none { color:var(--muted); font-style:normal; font-size:.75rem; }
+  .jp-dot { display:inline-block; min-width:1.2em; padding:0 .3em; border-radius:999px; background:#e0a060; color:#111; font-size:.68rem; text-align:center; }
+  .jp-bill { display:grid; grid-template-columns:5.5rem minmax(0,1fr) auto auto auto; gap:.5rem; align-items:center; padding:.45rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }
+  .jp-bill small { display:block; color:var(--muted); font-size:.7rem; overflow-wrap:anywhere; }
+  .jp-amt { font-size:.72rem; color:var(--muted); display:flex; align-items:center; gap:.25rem; } .jp-amt input { width:6rem; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:.3rem .4rem; }
+  .wp-tr { display:grid; grid-template-columns:minmax(0,1.6fr) 1fr 1fr 1fr; gap:.5rem; padding:.3rem 0; font-size:.82rem; border-bottom:1px solid rgba(255,255,255,.04); }
+  .wp-th { font-family:'DM Mono',monospace; font-size:.66rem; color:var(--muted); text-transform:uppercase; }
+  .wp-job { display:flex; justify-content:space-between; gap:.6rem; align-items:center; padding:.35rem 0; border-bottom:1px solid var(--border); font-size:.8rem; } .wp-job small { display:block; color:var(--muted); font-size:.7rem; }
+  @media (max-width: 640px) {
+    .jp-tr { grid-template-columns:minmax(0,1fr) auto auto auto; } .jp-tr > span:nth-child(3), .jp-tr > span:nth-child(4) { display:none; }
+    .jp-bill { grid-template-columns:minmax(0,1fr) auto; } .jp-bill > span:first-child { display:none; }
   }
   .sc-bar { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.6rem; }
   .sc-range { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:.04em; margin-left:.4rem; }
@@ -1408,6 +1432,7 @@ onAuthStateChanged(auth, async user => {
         style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;padding:0.32rem 0.75rem;outline:none;transition:border-color 0.2s;width:200px;"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <button onclick="exportAllData()" title="Download every job and customer as a backup file" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">⬇ Backup</button>
+      <button id="btnJobProfit" onclick="jpOpen()" title="Invoiced vs. supplier bills, per job" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;">$ Job profit</button>
       <button id="btnManageStaff" onclick="toggleStaffPanel()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:0.72rem;padding:0.32rem 0.7rem;white-space:nowrap;"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg>Manage Staff</button>
     </div>
 
@@ -7130,6 +7155,259 @@ async function scPush(id, btn) {
 }
 window.scShift = scShift; window.scToday = scToday; window.scRender = scRender; window.scOpenJob = scOpenJob; window.scPush = scPush;
 
+// ═════════════════════════════════════════════════
+// JOB PROFIT (owner only) + WEBSITE PRICE SUGGESTIONS
+// Profit = what Xero says was invoiced (main invoice + separate change-order invoices) − supplier bills linked
+// to the job. Install labor is the owners' own time, so it isn't subtracted. Bills come from Xero read-only
+// through the Worker; which bills belong to which job is saved on the job as costBills[] (updateDoc only).
+// Bills are matched by our PO # or the customer's name in the bill's reference / line text; staff confirm.
+// ═════════════════════════════════════════════════
+const JP = { days: 90, data: null, loadedKey: '', view: null, search: '' };
+async function jpFetch(invoiceIds, billsFrom) {
+  const res = await fetch(GCAL_WORKER + '/xero-finance', { method: 'POST', headers: await gcalAuthHeaders(), body: JSON.stringify({ invoiceIds, billsFrom }) });
+  let d = null; try { d = await res.json(); } catch (e) {}
+  if (!res.ok || !d || !d.ok) throw new Error((d && d.error) || ('HTTP ' + res.status));
+  return d;
+}
+function jpNorm(s) { return ' ' + String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' '; }
+function jpStart(job) { return String(job.acceptedAt || job.date || job.savedAt || '').slice(0, 10); }
+function jpCoInvoiceIds(job) { return (job.changeOrders || []).filter(c => c && c.xeroMode === 'separate' && c.xeroInvoiceId).map(c => c.xeroInvoiceId); }
+// What the bid expected materials to cost (glass + edges + fabrication at list price, plus hardware cost) — before markup.
+function jpExpectedMaterials(job) {
+  const parts = tdJobParts(job);
+  let t = 0;
+  (parts.pieces || []).forEach(p => { if (p && (p.flatPrice || (getPieceW(p) && getPieceH(p)))) t += getPieceGlassTotal(p) + getPieceEdgeTotal(p) + getPieceFabTotal(p); });
+  (parts.hardware || []).forEach(h => { t += parseFloat(h && h.cost) || 0; });
+  return Math.round(t * 100) / 100;
+}
+// How sure we are a bill belongs to a job: 3 = our PO # or job ID on it, 2 = customer's full name, 1 = last name only.
+function jpMatch(job, bill) {
+  if (bill.date && jpStart(job) && bill.date < tdAddDays(jpStart(job), -30)) return null; // bill from before the job existed
+  const hay = jpNorm(bill.reference + ' ' + (bill.lines || []).join(' '));
+  const po = jpNorm(job.orderPo).trim();
+  if (po.length >= 3 && hay.includes(' ' + po + ' ')) return { score: 3, why: 'PO ' + job.orderPo };
+  if (hay.includes(' ' + job.id.toLowerCase() + ' ')) return { score: 3, why: 'job ID' };
+  const name = jpNorm(job.customer).trim();
+  if (name.length >= 4 && name.includes(' ') && hay.includes(' ' + name + ' ')) return { score: 2, why: 'customer name' };
+  const last = name.split(' ').pop();
+  if (last && last.length >= 4 && hay.includes(' ' + last + ' ')) return { score: 1, why: 'last name "' + last + '"' };
+  return null;
+}
+function jpJobs() {
+  const from = tdAddDays(tdToday(), -JP.days);
+  return allJobs.filter(j => j.type === 'bid' && j.status === 'accepted' && jpStart(j) >= from).sort((a, b) => jpStart(b).localeCompare(jpStart(a)));
+}
+async function jpOpen(force) {
+  if (window._currentUserRole === 'employee') { showToast('Only the owner login can see job profit', 'error'); return; }
+  const jobs = jpJobs(), key = JP.days + '|' + jobs.map(j => j.id).join(',');
+  JP.view = null;
+  if (force || !JP.data || JP.loadedKey !== key) {
+    hwModal('<div class="dr-ptitle" style="margin:0">Job profit</div><div class="dr-hint" style="margin-top:.6rem">Reading invoices and supplier bills from Xero…</div>');
+    try {
+      const ids = jobs.flatMap(j => [j.xeroInvoiceId, ...jpCoInvoiceIds(j)]).filter(Boolean);
+      JP.data = await jpFetch(ids, tdAddDays(tdToday(), -JP.days - 30)); JP.loadedKey = key;
+    } catch (e) {
+      hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Job profit</div><button class="btn-remove" onclick="hwClose()">✕</button></div><div class="dr-hint" style="margin-top:.6rem;color:#e06060">Couldn't read Xero: ${escapeHtml(e.message)}</div>`);
+      return;
+    }
+  }
+  jpRender();
+}
+function jpRow(job) {
+  const inv = new Map((JP.data.invoices || []).map(i => [i.id, i]));
+  const ids = [job.xeroInvoiceId, ...jpCoInvoiceIds(job)].filter(Boolean);
+  const live = ids.map(id => inv.get(id)).filter(i => i && i.status !== 'VOIDED' && i.status !== 'DELETED');
+  const fromXero = live.length > 0;
+  const revenue = fromXero ? live.reduce((s, i) => s + i.total, 0) : jobDisplayTotal(job);
+  const owed = live.reduce((s, i) => s + i.amountDue, 0);
+  const materials = (job.costBills || []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+  const linked = new Set((job.costBills || []).map(b => b.id));
+  const suggested = (JP.data.bills || []).map(b => ({ b, m: jpMatch(job, b) })).filter(x => x.m && x.m.score >= 2 && !linked.has(x.b.id));
+  return { job, revenue, fromXero, owed, materials, profit: revenue - materials, expected: jpExpectedMaterials(job), suggested, nBills: linked.size };
+}
+function jpRender() {
+  const rows = jpJobs().map(jpRow);
+  const T = rows.reduce((a, r) => ({ rev: a.rev + r.revenue, mat: a.mat + r.materials }), { rev: 0, mat: 0 });
+  // Profit only from jobs that have bills linked — a job with no bills isn't 100% profit, it's unknown.
+  const done = rows.filter(r => r.nBills), P = done.reduce((a, r) => ({ rev: a.rev + r.revenue, mat: a.mat + r.materials }), { rev: 0, mat: 0 });
+  const pct = (p, r) => r > 0 ? Math.round(p / r * 100) + '%' : '—';
+  const linkedAll = new Set(allJobs.flatMap(j => (j.costBills || []).map(b => b.id)));
+  const unlinked = (JP.data.bills || []).filter(b => !linkedAll.has(b.id));
+  const nSug = rows.reduce((s, r) => s + r.suggested.length, 0);
+  const sel = `<select onchange="JP.days=+this.value;jpOpen()" class="dr-in" style="max-width:150px">${[30, 90, 180, 365].map(d => `<option value="${d}" ${JP.days === d ? 'selected' : ''}>Last ${d} days</option>`).join('')}</select>`;
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div class="dr-ptitle" style="margin:0">Job profit</div><span style="display:flex;gap:.4rem;align-items:center">${sel}<button class="btn-job-open" onclick="jpOpen(true)">↻</button><button class="btn-remove" onclick="hwClose()">✕</button></span></div>
+    <div class="jp-sum"><div><span>Jobs</span><b>${rows.length}</b></div><div><span>Invoiced</span><b>${fmt(T.rev)}</b></div><div><span>Material bills</span><b>${fmt(T.mat)}</b></div><div><span>Profit · ${done.length} job${done.length === 1 ? '' : 's'} with bills</span><b style="color:var(--green,#7ed4a0)">${done.length ? fmt(P.rev - P.mat) : '—'}</b><i>${done.length ? pct(P.rev - P.mat, P.rev) + ' of ' + fmt(P.rev) : 'link bills to see profit'}</i></div></div>
+    <div class="dr-hint">Profit = invoiced in Xero − supplier bills linked to the job. Install is the owners' own time, so it isn't subtracted — this is what the job leaves for you after materials.${nSug ? ` <b>${nSug} bill${nSug === 1 ? '' : 's'} look${nSug === 1 ? 's' : ''} like they belong to these jobs</b> — open a job to link ${nSug === 1 ? 'it' : 'them'}.` : ''}${JP.data.truncated ? ' Only the newest 800 bills were read — pick a shorter period.' : ''}</div>
+    <div class="jp-table">
+      <div class="jp-tr jp-th"><span>Job</span><span>Invoiced</span><span>Materials</span><span>Bid expected</span><span>Profit</span><span></span></div>
+      ${rows.map(r => `<div class="jp-tr">
+        <span><b>${escapeHtml(r.job.customer || '')}</b><small>${escapeHtml(r.job.jobDesc || '')}${r.fromXero ? '' : ' · <i title="No Xero invoice found — using the bid total">from bid</i>'}${r.owed > 0.004 ? ' · ' + fmt(r.owed) + ' still owed' : ''}</small></span>
+        <span>${fmt(r.revenue)}</span>
+        <span>${r.nBills ? fmt(r.materials) : '<i class="jp-none">none linked</i>'}</span>
+        <span class="jp-muted">${r.expected ? fmt(r.expected) : '—'}</span>
+        <span>${r.nBills ? `<b>${fmt(r.profit)}</b> <small>${pct(r.profit, r.revenue)}</small>` : '<i class="jp-none">—</i>'}</span>
+        <span><button class="btn-job-open" onclick="jpJob('${r.job.id}')">Bills${r.suggested.length ? ` <span class="jp-dot">${r.suggested.length}</span>` : ''}</button></span>
+      </div>`).join('') || '<div class="dr-hint">No approved jobs in this period.</div>'}
+    </div>
+    <details style="margin-top:.8rem"><summary class="dr-sub" style="cursor:pointer">Bills not linked to any job (${unlinked.length})</summary>
+      <div class="dr-hint">Overhead (fuel, tools, shop supplies) belongs here. Anything for a job: open that job's Bills and link it.</div>
+      ${unlinked.slice(0, 60).map(b => `<div class="jp-bill"><span>${escapeHtml(b.date)}</span><span><b>${escapeHtml(b.supplier)}</b> ${escapeHtml(b.number || b.reference)}<small>${escapeHtml([b.reference, ...(b.lines || [])].filter(Boolean).join(' · ').slice(0, 140))}</small></span><span>${fmt(b.total)}</span></div>`).join('')}
+    </details>`);
+  const box = document.querySelector('#hwModal .hw-box'); if (box) box.style.maxWidth = '980px';
+}
+function jpJob(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  JP.view = id;
+  const r = jpRow(job);
+  const linked = job.costBills || [];
+  const linkedIds = new Set(linked.map(b => b.id));
+  const elsewhere = id2 => allJobs.filter(j => j.id !== id && (j.costBills || []).some(b => b.id === id2)).map(j => j.customer);
+  const q = jpNorm(JP.search).trim();
+  const others = q ? (JP.data.bills || []).filter(b => !linkedIds.has(b.id) && jpNorm([b.supplier, b.number, b.reference, ...(b.lines || [])].join(' ')).includes(q)).slice(0, 25) : [];
+  const billLine = (b, act, extra = '') => `<div class="jp-bill"><span>${escapeHtml(b.date || '')}</span><span><b>${escapeHtml(b.supplier || '')}</b> ${escapeHtml(b.number || b.reference || '')}<small>${escapeHtml([b.reference, ...(b.lines || [])].filter(Boolean).join(' · ').slice(0, 140))}${extra}</small></span><span>${fmt(b.total)}</span>${act}</div>`;
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">${escapeHtml(job.customer || '')} — bills</div><span style="display:flex;gap:.4rem"><button class="btn-job-open" onclick="jpRender()">‹ All jobs</button><button class="btn-remove" onclick="hwClose()">✕</button></span></div>
+    <div class="jp-sum"><div><span>Invoiced</span><b>${fmt(r.revenue)}</b></div><div><span>Materials</span><b>${fmt(r.materials)}</b></div><div><span>Profit</span><b style="color:var(--green,#7ed4a0)">${fmt(r.profit)}</b><i>${r.revenue > 0 ? Math.round(r.profit / r.revenue * 100) + '%' : ''}</i></div><div><span>Bid expected materials</span><b class="jp-muted">${fmt(r.expected)}</b></div></div>
+    <div class="dr-sub">Linked to this job</div>
+    ${linked.length ? linked.map(b => `<div class="jp-bill"><span>${escapeHtml(b.date || '')}</span><span><b>${escapeHtml(b.supplier || '')}</b> ${escapeHtml(b.number || '')}<small>Bill total ${fmt(b.total || b.amount)}${elsewhere(b.id).length ? ' · also on ' + escapeHtml(elsewhere(b.id).join(', ')) : ''}</small></span>
+        <label class="jp-amt" title="If this bill covers more than one job, put only this job's share">This job $<input value="${escapeHtml(String(b.amount))}" inputmode="decimal" onchange="jpSetAmount('${id}','${escapeHtml(b.id)}',this.value)"></label><button class="btn-remove" style="width:auto;padding:.3rem .6rem" onclick="jpUnlink('${id}','${escapeHtml(b.id)}')">Unlink</button></div>`).join('') : '<div class="dr-hint" style="margin:0">None yet.</div>'}
+    ${r.suggested.length ? `<div class="dr-sub">Looks like this job's</div>${r.suggested.sort((a, b) => b.m.score - a.m.score).map(x => billLine(x.b, `<button class="btn-job-open" onclick="jpLink('${id}','${escapeHtml(x.b.id)}')">Link</button>`, ' · matched on ' + escapeHtml(x.m.why) + (elsewhere(x.b.id).length ? ' · already on ' + escapeHtml(elsewhere(x.b.id).join(', ')) : ''))).join('')}${r.suggested.length > 1 ? `<button class="btn-add" style="width:auto;margin-top:.4rem" onclick="jpLinkAll('${id}')">Link all ${r.suggested.length}</button>` : ''}` : ''}
+    <div class="dr-sub">Find another bill</div>
+    <input class="dr-in" id="jpSearch" placeholder="Supplier, bill #, PO, name…" value="${escapeHtml(JP.search)}" oninput="JP.search=this.value;clearTimeout(JP.t);JP.t=setTimeout(()=>{jpJob('${id}');const s=document.getElementById('jpSearch');if(s){s.focus();s.setSelectionRange(s.value.length,s.value.length);}},250)">
+    ${others.map(b => billLine(b, `<button class="btn-job-open" onclick="jpLink('${id}','${escapeHtml(b.id)}')">Link</button>`, elsewhere(b.id).length ? ' · already on ' + escapeHtml(elsewhere(b.id).join(', ')) : '')).join('')}
+    ${q && !others.length ? '<div class="dr-hint">No matching bills in this period.</div>' : ''}`);
+  const box = document.querySelector('#hwModal .hw-box'); if (box) box.style.maxWidth = '980px';
+}
+async function jpSaveBills(id, list) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const prev = job.costBills; job.costBills = list;
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), { costBills: list }); }
+  catch (e) { console.error(e); job.costBills = prev; showToast('Could not save — try again', 'error'); }
+  jpJob(id);
+}
+function jpLink(id, billId, quiet) {
+  const job = allJobs.find(j => j.id === id), b = (JP.data.bills || []).find(x => x.id === billId); if (!job || !b) return;
+  if ((job.costBills || []).some(x => x.id === billId)) return;
+  const entry = { id: b.id, number: b.number || '', supplier: b.supplier || '', date: b.date || '', total: b.total, amount: b.total, linkedAt: new Date().toISOString() };
+  return jpSaveBills(id, (job.costBills || []).concat(entry));
+}
+async function jpLinkAll(id) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const r = jpRow(job);
+  const add = r.suggested.map(x => ({ id: x.b.id, number: x.b.number || '', supplier: x.b.supplier || '', date: x.b.date || '', total: x.b.total, amount: x.b.total, linkedAt: new Date().toISOString() }));
+  await jpSaveBills(id, (job.costBills || []).concat(add));
+}
+function jpUnlink(id, billId) { const job = allJobs.find(j => j.id === id); if (job) jpSaveBills(id, (job.costBills || []).filter(b => b.id !== billId)); }
+function jpSetAmount(id, billId, raw) {
+  const job = allJobs.find(j => j.id === id); if (!job) return;
+  const v = parseFloat(String(raw).replace(/[$,]/g, ''));
+  if (isNaN(v) || v < 0) { showToast('Enter an amount', 'error'); jpJob(id); return; }
+  jpSaveBills(id, (job.costBills || []).map(b => b.id === billId ? Object.assign({}, b, { amount: Math.round(v * 100) / 100 }) : b));
+}
+window.jpOpen = jpOpen; window.jpRender = jpRender; window.jpJob = jpJob; window.jpLink = jpLink; window.jpLinkAll = jpLinkAll; window.jpUnlink = jpUnlink; window.jpSetAmount = jpSetAmount; window.JP = JP;
+
+// ── Website price suggestions from past jobs ──
+// For each approved job: glass area, glass type, a best-guess layout (correctable, saved as showerLayout), and
+// what was actually charged (the Xero main invoice when there is one — change orders left out, since the
+// website prices the shower itself). Then: glass rate = median of (glass part of the price ÷ area); layout
+// base = median of (price − area × that rate). A number needs at least 3 jobs, or it isn't suggested.
+const WP_MIN_JOBS = 3;
+function wpGlassKey(pieces) {
+  const area = { clear: 0, lowiron: 0, frost: 0 };
+  pieces.forEach(p => { const t = ((p.glassType || '') + ' ' + (p.glassTypeName || '') + ' ' + (p.glassTreatment || '')).toLowerCase();
+    const k = /low.?iron|starphire|optiwhite|ultra.?clear/.test(t) ? 'lowiron' : /frost|acid|satin|sandblast|obscure|rain/.test(t) ? 'frost' : 'clear';
+    area[k] += getPieceW(p) * getPieceH(p) / 144 * (parseFloat(p.qty) || 1); });
+  return Object.entries(area).sort((a, b) => b[1] - a[1])[0][0];
+}
+// Best guess from the pieces and hardware; the owner can correct it in the list.
+function wpGuessLayout(pieces, hardware) {
+  const hw = (hardware || []).map(h => String(h.name || '')).join(' ').toLowerCase();
+  const list = []; pieces.forEach(p => { for (let i = 0; i < (parseInt(p.qty) || 1); i++) list.push({ w: getPieceW(p), h: getPieceH(p) }); });
+  const n = list.length, maxH = Math.max(...list.map(x => x.h));
+  if (/slid|roller|barn|bypass/.test(hw)) return 'slider';
+  if (maxH >= 84) return 'steam';
+  if (n === 1) return /hinge|pivot/.test(hw) ? 'door' : 'panel';
+  if (n === 2) return maxH <= 66 ? 'tub' : 'doorpanel';
+  if (n === 3) { const s = list.slice().sort((a, b) => a.w - b.w); return Math.abs(s[0].w - s[1].w) <= 2 && s[2].w <= 30 ? 'neo' : (/90|glass.to.glass/.test(hw) ? 'corner' : 'pdp'); }
+  return 'corner';
+}
+function wpMedian(a) { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function wpJobData(invByid) {
+  return allJobs.filter(j => j.type === 'bid' && j.status === 'accepted').map(job => {
+    const parts = tdJobParts(job);
+    const pieces = (parts.pieces || []).filter(p => p && !p.flatPrice && getPieceW(p) && getPieceH(p));
+    if (!pieces.length) return null;
+    const area = pieces.reduce((s, p) => s + getPieceW(p) * getPieceH(p) / 144 * (parseFloat(p.qty) || 1), 0);
+    const mk = 1 + ((parseFloat(job.margin) || 0) + (parseFloat(job.surcharge) || 0)) / 100;
+    const bidTotal = jobDisplayTotal(job);
+    const inv = invByid.get(job.xeroInvoiceId);
+    const actual = inv && inv.status !== 'VOIDED' && inv.status !== 'DELETED' && inv.total > 0 ? inv.total : bidTotal;
+    if (!(actual > 0) || !(bidTotal > 0) || area < 3) return null;
+    const glassPart = pieces.reduce((s, p) => s + (getPieceGlassTotal(p) + getPieceEdgeTotal(p) + getPieceFabTotal(p)) * mk, 0) * (actual / bidTotal);
+    return { job, area, glass: wpGlassKey(pieces), layout: job.showerLayout || wpGuessLayout(pieces, parts.hardware), guessed: !job.showerLayout, actual, fromXero: actual !== bidTotal || !!inv, glassRate: glassPart / area };
+  }).filter(Boolean);
+}
+function wpSuggest(rows, current) {
+  const rate = {}, base = {}, n = { rate: {}, base: {} };
+  Object.keys(LD_GLASS).forEach(g => { const xs = rows.filter(r => r.glass === g).map(r => r.glassRate); n.rate[g] = xs.length; if (xs.length >= WP_MIN_JOBS) rate[g] = Math.round(wpMedian(xs)); });
+  const useRate = g => rate[g] || (current.rate || {})[g] || 0;
+  Object.keys(LD_LAYOUTS).forEach(l => { const xs = rows.filter(r => r.layout === l && useRate(r.glass)).map(r => r.actual - r.area * useRate(r.glass)); n.base[l] = xs.length; if (xs.length >= WP_MIN_JOBS) base[l] = Math.max(0, Math.round(wpMedian(xs) / 10) * 10); });
+  // How far the formula lands from what was actually charged → a range wide enough to cover most jobs.
+  const errs = rows.map(r => { const b = base[r.layout] ?? (current.base || {})[r.layout], g = useRate(r.glass); return b && g ? Math.abs((b + r.area * g) - r.actual) / r.actual * 100 : null; }).filter(x => x != null).sort((a, b) => a - b);
+  const rangePct = errs.length >= WP_MIN_JOBS ? Math.min(40, Math.max(5, Math.round(errs[Math.floor(errs.length * 0.75)] || errs[errs.length - 1]))) : null;
+  return { rate, base, n, rangePct };
+}
+const WP = { rows: null, current: null };
+async function wpOpen() {
+  if (window._currentUserRole === 'employee') return;
+  hwModal('<div class="dr-ptitle" style="margin:0">Suggest website prices</div><div class="dr-hint" style="margin-top:.6rem">Reading what past jobs were actually invoiced in Xero…</div>');
+  let pr = JSON.parse(JSON.stringify(LD_PRICE_DEFAULT));
+  try { const snap = await window._getDoc(window._doc(window._db, 'publicPricing', 'shower')); if (snap.exists()) pr = Object.assign(pr, snap.data()); } catch (e) {}
+  WP.current = pr;
+  let invByid = new Map(), note = '';
+  try {
+    const ids = allJobs.filter(j => j.type === 'bid' && j.status === 'accepted' && j.xeroInvoiceId).map(j => j.xeroInvoiceId);
+    const d = await jpFetch(ids, null); invByid = new Map(d.invoices.map(i => [i.id, i]));
+  } catch (e) { note = 'Couldn\'t read Xero (' + e.message + ') — using the bid totals instead.'; }
+  WP.inv = invByid; WP.note = note;
+  wpRender();
+}
+function wpRender() {
+  const rows = wpJobData(WP.inv), cur = WP.current, sug = wpSuggest(rows, cur);
+  const money0 = v => v ? '$' + Math.round(v).toLocaleString('en-US') : '—';
+  const line = (label, curV, sugV, n, unit) => `<div class="wp-tr"><span>${escapeHtml(label)}</span><span class="jp-muted">${curV ? money0(curV) + unit : '—'}</span><span>${sugV != null ? '<b>' + money0(sugV) + unit + '</b>' : `<i class="jp-none">need ${WP_MIN_JOBS}+ jobs</i>`}</span><span class="jp-muted">${n} job${n === 1 ? '' : 's'}</span></div>`;
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Suggest website prices</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    <div class="dr-hint">From ${rows.length} approved job${rows.length === 1 ? '' : 's'} with sized glass: what each was actually invoiced, split into glass and everything else. Change orders aren't counted. Nothing is published until you press Publish on the next screen.${WP.note ? '<br><span style="color:#e0a060">' + escapeHtml(WP.note) + '</span>' : ''}</div>
+    <div class="wp-tr wp-th"><span></span><span>Now</span><span>Suggested</span><span>Based on</span></div>
+    <div class="dr-sub">Glass, $ per sq ft</div>${Object.entries(LD_GLASS).map(([k, t]) => line(t, cur.rate[k], sug.rate[k], sug.n.rate[k], '')).join('')}
+    <div class="dr-sub">Layout base</div>${Object.entries(LD_LAYOUTS).map(([k, t]) => line(t, cur.base[k], sug.base[k], sug.n.base[k], '')).join('')}
+    <div class="dr-sub">Range</div><div class="wp-tr"><span>± percent</span><span class="jp-muted">${cur.rangePct || 15}%</span><span>${sug.rangePct != null ? '<b>' + sug.rangePct + '%</b>' : '<i class="jp-none">—</i>'}</span><span class="jp-muted">covers 3 of 4 past jobs</span></div>
+    <div class="dr-hint">Finish and extras aren't suggested — there isn't enough to separate them yet. Keep your own numbers there.</div>
+    <details style="margin-top:.6rem" ${rows.some(r => r.guessed) ? 'open' : ''}><summary class="dr-sub" style="cursor:pointer">Jobs used — check the layouts (${rows.filter(r => r.guessed).length} guessed)</summary>
+      <div class="dr-hint">Layouts were guessed from the glass pieces and hardware. Fix any wrong one — it's saved on the job and the numbers update.</div>
+      ${rows.map(r => `<div class="wp-job"><span><b>${escapeHtml(r.job.customer || '')}</b><small>${r.area.toFixed(1)} sq ft · ${escapeHtml(LD_GLASS[r.glass])} · ${fmt(r.actual)}${r.fromXero ? '' : ' (bid)'}</small></span>
+        <select class="dr-in" style="max-width:190px;${r.guessed ? 'border-color:#e0a060' : ''}" onchange="wpSetLayout('${r.job.id}',this.value)">${Object.entries(LD_LAYOUTS).map(([k, t]) => `<option value="${k}" ${r.layout === k ? 'selected' : ''}>${escapeHtml(t)}${r.guessed && r.layout === k ? ' (guess)' : ''}</option>`).join('')}</select></div>`).join('') || '<div class="dr-hint">No approved jobs with sized glass yet.</div>'}
+    </details>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem"><button class="dr-btn" onclick="ldOpenPricing()">Back</button><button class="dr-btn on" onclick="wpApply()" ${Object.keys(sug.rate).length || Object.keys(sug.base).length ? '' : 'disabled'}>Use suggested numbers</button></div>`);
+  WP.sug = sug;
+}
+async function wpSetLayout(id, layout) {
+  const job = allJobs.find(j => j.id === id); if (!job || !LD_LAYOUTS[layout]) return;
+  job.showerLayout = layout;
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), { showerLayout: layout }); } catch (e) { showToast('Could not save the layout', 'error'); }
+  wpRender();
+}
+// Opens the normal Website prices form with the suggestions filled in — the owner reviews and publishes there.
+function wpApply() {
+  const s = WP.sug; if (!s) return;
+  const over = { rate: Object.assign({}, WP.current.rate, s.rate), base: Object.assign({}, WP.current.base, s.base) };
+  if (s.rangePct != null) over.rangePct = s.rangePct;
+  ldOpenPricing(over).then(() => showToast('Suggested numbers filled in — check them, then Publish'));
+}
+window.wpOpen = wpOpen; window.wpSetLayout = wpSetLayout; window.wpApply = wpApply;
+
 // ── Glass order sheet ──
 // Pieces/hardware for a saved job: the option the customer chose, otherwise the main bid.
 function tdJobParts(job) {
@@ -7592,16 +7870,19 @@ function ldOpenDrawing(id) {
   showToast('Sizes filled in from the website — these are the customer\'s measurements. Check them on site, then press Build shower.' + extra);
 }
 // ── website prices ──
-async function ldOpenPricing() {
+async function ldOpenPricing(override) {
   if (window._currentUserRole === 'employee') { showToast('Only the owner login can change website prices', 'error'); return; }
   let pr = JSON.parse(JSON.stringify(LD_PRICE_DEFAULT));
   try { const snap = await window._getDoc(window._doc(window._db, 'publicPricing', 'shower')); if (snap.exists()) pr = Object.assign(pr, snap.data()); } catch (e) { console.error(e); }
   ['rate', 'base', 'finish', 'extra'].forEach(k => { pr[k] = Object.assign({}, LD_PRICE_DEFAULT[k], pr[k] || {}); });
+  if (override && typeof override === 'object') ['rate', 'base'].forEach(k => { if (override[k]) Object.assign(pr[k], override[k]); });
+  if (override && override.rangePct) pr.rangePct = override.rangePct;
   const inp = (grp, k, v, ph) => `<input class="dr-in" style="max-width:110px" data-grp="${grp}" data-k="${k}" value="${v ? escapeHtml(String(v)) : ''}" placeholder="${ph}" inputmode="decimal">`;
   const row = (label, html) => `<label class="dr-row"><span>${label}</span>${html}</label>`;
   hwModal(`<div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Website prices</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
     <div class="dr-hint">The website shows a <b>price range</b>, never one number: (layout base + glass area × glass rate + finish extra) ± the range %. Customers see these numbers as a range only. A layout or glass with no number shows "price after we measure" instead.</div>
     <label style="display:flex;gap:.4rem;align-items:center;margin:.4rem 0 .6rem;font-size:.8rem"><input type="checkbox" id="ldEnabled" ${pr.enabled ? 'checked' : ''}> Show price ranges on the website</label>
+    <button class="btn-job-open" style="margin-bottom:.6rem" onclick="wpOpen()" title="Work out these numbers from what past jobs were actually invoiced">📊 Suggest from past jobs</button>
     <div class="dr-sub">Layout base (hardware + install, $)</div>${Object.entries(LD_LAYOUTS).map(([k, t]) => row(k === 'slider' ? 'Single slider' : t, inp('base', k, pr.base[k], 'e.g. 900'))).join('')}${['bypass', 'barn', 'corner'].map(k => row(LD_SLIDE[k] + ' <small style="opacity:.6">(blank = single slider price)</small>', inp('base', 'slider_' + k, pr.base['slider_' + k], 'same as single'))).join('')}
     <div class="dr-sub">Glass, $ per square foot</div>${Object.entries(LD_GLASS).map(([k, t]) => row(t, inp('rate', k, pr.rate[k], 'e.g. 28'))).join('')}
     <div class="dr-sub">Finish extra (per job, $)</div>${Object.entries(LD_FIN).map(([k, t]) => row(t, inp('finish', k, pr.finish[k], '0'))).join('')}
