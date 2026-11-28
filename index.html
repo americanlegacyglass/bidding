@@ -4939,9 +4939,9 @@ async function deleteJob(e, id) {
   }
   if (!confirm('Delete this job? This cannot be undone.')) return;
   try {
-    const hadInstall = (allJobs.find(j => j.id === id) || {}).installDate;
+    const dj = allJobs.find(j => j.id === id) || {}, hadInstall = dj.installDate || (dj.status === 'accepted' && !dj.glassOrderedAt);
     await window._deleteDoc(window._doc(window._db, 'jobs', id));
-    if (hadInstall && window.gcalSyncJob) gcalSyncJob(id).then(r => { if (!r.ok) showToast('Job deleted, but its install is still on the Google Calendar — remove it there', 'error'); });
+    if (hadInstall && window.gcalSyncJob) gcalSyncJob(id).then(r => { if (!r.ok) showToast('Job deleted, but it is still on the Google Calendar — remove it there', 'error'); });
     if (currentJobId === id) currentJobId = null;
     showToast('Job deleted');
     await loadJobs();
@@ -6941,8 +6941,16 @@ async function tdSetMany(id, upd) {
   const job = allJobs.find(j => j.id === id); if (!job) return false;
   const prev = {}; for (const k in upd) prev[k] = job[k];
   Object.assign(job, upd); renderDashboard();
-  try { await window._updateDoc(window._doc(window._db, 'jobs', id), upd); return true; }
+  try { await window._updateDoc(window._doc(window._db, 'jobs', id), upd); }
   catch (e) { console.error('To-do update failed:', e); Object.assign(job, prev); renderDashboard(); showToast('Could not save — try again', 'error'); return false; }
+  if ('glassOrderedAt' in upd || 'installDoneAt' in upd) gcalReminderSync(id);
+  return true;
+}
+// Ordered / un-ordered / finished → the "Order glass" reminder on the Google Calendar is removed or put back.
+// Runs in the background; quiet when the calendar isn't connected.
+function gcalReminderSync(id) {
+  if (!window.gcalSyncJob) return;
+  gcalSyncJob(id).then(r => { if (!r.ok && !/not connected/i.test(r.error || '')) showToast('Saved — but the "Order glass" reminder on the Google Calendar could not be updated', 'error'); });
 }
 async function tdSet(id, field, val) { return tdSetMany(id, { [field]: val === 'now' ? new Date().toISOString() : val }); }
 function tdUnorder(id) {
@@ -7369,7 +7377,7 @@ async function tdConfirmOrder() {
       if (info.how !== 'deliver' && supplier && !job.materialsWhere) upd.materialsWhere = supplier.slice(0, 80);
       if (!job.glassOrderedAt) upd.glassOrderedAt = new Date().toISOString();
       Object.assign(job, upd); renderDashboard();
-      try { await window._updateDoc(window._doc(window._db, 'jobs', job.id), upd); } catch (e) { console.error(e); showToast('Sheet downloaded, but marking the job failed', 'error'); }
+      try { await window._updateDoc(window._doc(window._db, 'jobs', job.id), upd); if ('glassOrderedAt' in upd) gcalReminderSync(job.id); } catch (e) { console.error(e); showToast('Sheet downloaded, but marking the job failed', 'error'); }
     }
   }
 }
