@@ -3668,16 +3668,13 @@ async function pdfDrawingImage(drawingId) {
   for (let i = 0; i < 30 && !(DR.list || []).some(d => d.id === drawingId); i++) await new Promise(r => setTimeout(r, 100));
   const src = (DR.list || []).find(d => d.id === drawingId);
   if (!src) { showToast('The chosen drawing could not be found — PDF made without it', 'error'); return null; }
-  const keep = { cur: DR.cur, sel: DR.sel, tool: DR.tool, tmp: DR.tmp, undo: DR.undo, redo: DR.redo, dirty: DR.dirty, _snap: DR._snap };
   try {
-    const d = JSON.parse(JSON.stringify(src));
-    drLoad(d); // same clean-up the Drawing tab does on open
+    const d = drNormalize(JSON.parse(JSON.stringify(src))); // a cleaned copy — the Drawing tab is never touched
     if (!d.objects.some(o => o.type === 'panel')) return null;
     const r = drSvgDoc(d, 'customer', { px: 3, real: d.real !== false, bg: '#ffffff', pad: 8, customerDims: true });
     const canvas = await drSvgToCanvas(r.svg, r.w * r.px, r.h * r.px, 2);
     return { dataUrl: canvas.toDataURL('image/png'), w: r.w * r.px, h: r.h * r.px };
   } catch (e) { console.error('Drawing for PDF failed:', e); return null; }
-  finally { Object.assign(DR, keep); }
 }
 // "Drawing on PDF" picker on the bid tab: lists saved drawings; the choice is saved with the bid.
 function pdfDrawingOptionsRender(selected) {
@@ -5218,6 +5215,10 @@ function drFmtPlain(v) { return drFmt(v).replace(/"/g, ''); }
 const drEsc = s => escapeHtml(s);
 const drNum = (v, d = 0) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
 function drClone(o) { return JSON.parse(JSON.stringify(o)); }
+// Plan-view walls are stored as { x1, y1, x2, y2 }. Older drawings (and exported files) used [x1, y1, x2, y2] —
+// a list inside a list, which Firestore refuses to save ("Nested arrays are not supported"). Read both, write objects.
+function drWall(w) { return Array.isArray(w) ? w : [w && w.x1, w && w.y1, w && w.x2, w && w.y2].map(v => Number(v) || 0); }
+function drWallObj(w) { const a = drWall(w); return { x1: a[0], y1: a[1], x2: a[2], y2: a[3] }; }
 function drNew() { return { id: null, name: '', customer: '', job: '', shopNotes: '', objects: [], real: true, finish: 'chrome' }; }
 function drObj(id) { return DR.cur && DR.cur.objects.find(o => o.id === id); }
 function drPanels() { return DR.cur.objects.filter(o => o.type === 'panel'); }
@@ -5395,7 +5396,7 @@ const DR_GLASS_REAL = {
 function drPlanBounds(o) {
   let x0 = 0, y0 = 0, x1 = 10, y1 = 10, first = true;
   const add = (x, y) => { if (first) { x0 = x1 = x; y0 = y1 = y; first = false; } x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
-  (o.walls || []).forEach(w => { add(w[0], w[1]); add(w[2], w[3]); });
+  (o.walls || []).map(drWall).forEach(w => { add(w[0], w[1]); add(w[2], w[3]); });
   (o.glass || []).forEach(g => { add(g.x1, g.y1); add(g.x2, g.y2); });
   if (o.door) { const r = o.door.r; add(o.door.hx - r, o.door.hy - r); add(o.door.hx + r, o.door.hy + r); }
   return { x0, y0, x1, y1 };
@@ -5406,7 +5407,7 @@ function drPlanSvg(o, opt, ink) {
   let s = `<g transform="translate(${o.x},${o.y})" ${opt.edit ? `data-id="${o.id}" style="cursor:move"` : ''}>`;
   const b = drPlanBounds(o);
   if (opt.edit) s += `<rect x="${b.x0 - 2}" y="${b.y0 - 2}" width="${b.x1 - b.x0 + 4}" height="${b.y1 - b.y0 + 4}" fill="transparent" stroke="${sel ? '#e8c27a' : 'none'}" stroke-width="${1.2 / px}" stroke-dasharray="${4 / px} ${3 / px}"/>`;
-  (o.walls || []).forEach(w => { s += `<line x1="${f(w[0])}" y1="${f(w[1])}" x2="${f(w[2])}" y2="${f(w[3])}" stroke="${opt.dark ? '#777' : '#8a8a8a'}" stroke-width="3" stroke-linecap="square"/>`; });
+  (o.walls || []).map(drWall).forEach(w => { s += `<line x1="${f(w[0])}" y1="${f(w[1])}" x2="${f(w[2])}" y2="${f(w[3])}" stroke="${opt.dark ? '#777' : '#8a8a8a'}" stroke-width="3" stroke-linecap="square"/>`; });
   (o.glass || []).forEach(g => {
     s += `<line x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}" stroke="${g.role === 'door' ? 'none' : glassCol}" stroke-width="0.9" stroke-linecap="butt"/>`;
     if (g.role !== 'door') s += `<line x1="${f(g.x1)}" y1="${f(g.y1)}" x2="${f(g.x2)}" y2="${f(g.y2)}" stroke="${ink}" stroke-width="${0.6 / px}" />`;
@@ -5685,9 +5686,9 @@ function drInit() {
 function drReset() { if (window._unsubscribeDrawings) { try { window._unsubscribeDrawings(); } catch (e) {} } DR.listening = false; DR.list = []; DR.cur = null; DR.sel = null; DR.dirty = false; }
 window.drReset = drReset;
 
-function drLoad(d) {
-  DR.cur = d; DR.sel = null; DR.tool = 'select'; DR.tmp = null; DR.undo = []; DR.redo = []; DR.dirty = false;
-  DR._snap = JSON.stringify(d.objects);
+// Cleans up a drawing that came from the database, a file or a template. No screen updates, no app state —
+// safe to use on a copy (the bid PDF uses it to draw a saved drawing without touching the Drawing tab).
+function drNormalize(d) {
   // repair anything odd that came from the database
   d.objects = (Array.isArray(d.objects) ? d.objects : []).filter(o => o && typeof o === 'object' && ['panel', 'marker', 'dim', 'label', 'plan'].includes(o.type));
   if (d.real === undefined) d.real = true; if (!DR_FINISH[d.finish]) d.finish = 'chrome';
@@ -5701,8 +5702,13 @@ function drLoad(d) {
       if (o.shape === 'poly' && (!Array.isArray(o.pts) || o.pts.length < 3)) o.shape = 'rect';
       if (!['left', 'right'].includes(o.swing)) delete o.swing;
     }
-    if (o.type === 'plan') { o.x = drNum(o.x); o.y = drNum(o.y); if (!Array.isArray(o.walls)) o.walls = []; if (!Array.isArray(o.glass)) o.glass = []; }
+    if (o.type === 'plan') { o.x = drNum(o.x); o.y = drNum(o.y); if (!Array.isArray(o.walls)) o.walls = []; o.walls = o.walls.map(drWallObj); if (!Array.isArray(o.glass)) o.glass = []; }
   });
+  return d;
+}
+function drLoad(d) {
+  DR.cur = d; DR.sel = null; DR.tool = 'select'; DR.tmp = null; DR.undo = []; DR.redo = []; DR.dirty = false;
+  drNormalize(d);
   DR._snap = JSON.stringify(d.objects);
   drRender(); drRenderList();
 }
@@ -5721,6 +5727,7 @@ async function drSave() {
   const d = DR.cur;
   if (!String(d.name || '').trim()) { showToast('Give the drawing a name first', 'error'); const n = document.getElementById('drName'); if (n) n.focus(); return; }
   const data = drClone({ name: d.name.trim(), customer: d.customer || '', job: d.job || '', shopNotes: d.shopNotes || '', objects: d.objects, real: d.real !== false, finish: d.finish || 'chrome', version: 2 });
+  data.objects.forEach(o => { if (o && o.type === 'plan' && Array.isArray(o.walls)) o.walls = o.walls.map(drWallObj); }); // Firestore can't store lists inside lists
   data.updatedAt = new Date().toISOString();
   try {
     if (d.id) {
@@ -6377,15 +6384,15 @@ function shPlan(layout, n, front, ret, hingeLeft) {
     // walls run back from each end, square to their panels, until they meet in the corner
     const t = (P3.x - P0.x - P3.y + P0.y) / (2 * k);
     const tt = t > 0 && t < 200 ? t : 24, C = { x: P0.x + tt * k, y: P0.y - tt * k };
-    walls.push([P0.x, P0.y, C.x, C.y], [P3.x, P3.y, C.x, C.y]);
+    walls.push({ x1: P0.x, y1: P0.y, x2: C.x, y2: C.y }, { x1: P3.x, y1: P3.y, x2: C.x, y2: C.y });
     const hp = hingeLeft ? P1 : P2;
     door = { hx: hp.x, hy: hp.y, r: n.B, a0: hingeLeft ? 0 : Math.PI, a1: H };
     notes.push('135° corners. Door swings out of the shower.');
     return { walls, glass, door, notes };
   }
   const W = n.W; let x = 0;
-  walls.push([0, layout === 'corner' ? -n.D : -14, 0, 2]);
-  if (layout === 'corner') walls.push([0, -n.D, W + 2, -n.D]); else walls.push([W, -14, W, 2]);
+  walls.push({ x1: 0, y1: layout === 'corner' ? -n.D : -14, x2: 0, y2: 2 });
+  if (layout === 'corner') walls.push({ x1: 0, y1: -n.D, x2: W + 2, y2: -n.D }); else walls.push({ x1: W, y1: -14, x2: W, y2: 2 });
   front.forEach(m => {
     const xa = m.pn.x - 12, xb = xa + (m.p.role === 'door' ? m.p.w : m.pn.botW || m.pn.w);
     if (m.p.slide) { glass.push({ x1: xa, y1: m.p.back ? 0 : 1.5, x2: xb, y2: m.p.back ? 0 : 1.5, role: 'slide' }); if (!m.p.back) notes.push('Sliding — no swing room needed.'); x = xb; return; }
