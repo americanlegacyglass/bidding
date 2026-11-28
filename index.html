@@ -1605,7 +1605,9 @@ onAuthStateChanged(auth, async user => {
           <div class="grand-value" id="grandTotal">$0.00</div>
         </div>
         <div id="bidSaveActions">
-          <button class="btn-print" onclick="saveBidPDF()">⬇ Save Bid as PDF</button>
+          <label style="display:flex;flex-direction:column;gap:.25rem;margin-top:1rem;font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);">Drawing on the PDF
+            <select id="bidPdfDrawing" onfocus="pdfDrawingOptionsRender()" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:.5rem .6rem;font-family:'DM Sans',sans-serif;font-size:.85rem;"><option value="">No drawing on the PDF</option></select></label>
+          <button class="btn-print" style="margin-top:.6rem" onclick="saveBidPDF()">⬇ Save Bid as PDF</button>
           <button class="btn-print" onclick="tdOrderSheetFromBid()" title="Glass sizes, glass type, edges, holes and hardware for your supplier. No prices."><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg>Glass Order Sheet</button>
           <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;margin-top:0.35rem;"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>Save the bid first — otherwise the PDF won't include the online approval link</div>
           <div class="save-bar" style="margin-top:0.75rem;margin-bottom:0;">
@@ -1913,7 +1915,7 @@ onAuthStateChanged(auth, async user => {
       <details class="tut-sec">
         <summary>8 &middot; The Drawing tab</summary>
         <div class="tut-body">
-          <p>The <b><svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Drawing</b> tab makes shop drawings. It is separate from the bid: nothing in it has a price, and nothing in it is added to a bid, the PDF or the customer's approval page. The customer only sees a drawing if you send them the customer version.</p>
+          <p>The <b><svg class="ic" aria-hidden="true"><use href="#ic-pen"/></svg>Drawing</b> tab makes shop drawings. It is separate from the bid: nothing in it has a price, and nothing in it is added to a bid's price or the customer's approval page. To show a drawing on the bid PDF, save it here, then pick it under <b>Drawing on the PDF</b> on the Bid tab (above Save Bid as PDF) — the PDF shows its customer view, with no prices.</p>
           <h4>Start a drawing</h4>
           <ul>
             <li>Type a <b>Drawing name</b> (required to save), and a customer and job if you want them on the printout.</li>
@@ -2345,6 +2347,7 @@ function switchTab(tab) {
     if (pieces.length === 0) addPiece();
     calculate();
     renderOptionsBar();
+    if (window.pdfDrawingOptionsRender) pdfDrawingOptionsRender(); // start loading saved drawings for the PDF picker
   }
   if (tab === 'drawing' && window.drOnShow) drOnShow();
   if (tab === 'schedule' && window.scRender) scRender();
@@ -3453,6 +3456,7 @@ function resetBid() {
   });
   document.getElementById('bidDate').valueAsDate = new Date();
   document.getElementById('bidValidUntil').value = coDefaultValidUntil();
+  pdfDrawingOptionsRender('');
   document.getElementById('bidSaveStatus').textContent = 'Save this bid to the dashboard';
 
   const marginEl = document.getElementById('bidMargin'); if (marginEl) marginEl.value='';
@@ -3503,252 +3507,189 @@ function pdfHeader(doc, title, subtitle, date) {
 // `doc`, starting on the current page, from whatever bid data is currently live. For a bid with
 // options this runs once per option (the caller swaps each option's data in). `opt` is null for an
 // ordinary bid, or { label, description, index, count } for one option of several.
+// Bid PDF layout (customer-facing): header · customer band · glass/hardware (+ the chosen drawing on the right) ·
+// notes & exclusions (side by side when short, full width with one bullet per typed line when long) · total box with
+// a big APPROVE ONLINE button (only when the bid is saved) · acceptance with signature lines (name/date fillable).
+// No per-line prices anywhere — the total is the only dollar figure, as before.
+// PDF_DRAWING is set by saveBidPDF (async) just before this runs: { dataUrl, w, h } or null.
+let PDF_DRAWING = null;
+const PDF_TAGLINE = 'Glass experience since 1988';
 function renderBidPdfPage(doc, opt) {
-  {
-    const taxRate=0; // AZ MRRA — always exempt, tax paid to suppliers on materials
-    const glassTotal=totalGlass();
-    const hwTotal=totalHardware(), edgeTotal=totalEdging(), laborTotal=totalLabor(), fabTotal=totalFabrication();
-    const taxableBase=glassTotal+hwTotal+edgeTotal+fabTotal;
-    const extTotal=totalExtras(taxableBase);
-    const marginPct=parseFloat(document.getElementById('bidMargin')?.value)||0;
-    const surchargePct=parseFloat(document.getElementById('bidSurcharge')?.value)||0;
-    const glassMkup=1+(marginPct+surchargePct)/100;
-    const hwMkup=1+marginPct/100;
-    const mkup=glassMkup;
-    const baseSubtotal=(taxableBase+extTotal);
-    const taxAmt=Math.round(Math.round(baseSubtotal*100)/100*(taxRate/100)*100)/100;
-    const glassBase=glassTotal+edgeTotal+fabTotal+extTotal;
-    const markupAmt=glassBase*(glassMkup-1)+hwTotal*(hwMkup-1);
-    const taxableTotal=baseSubtotal;
-    const grand=baseSubtotal+taxAmt+markupAmt+laborTotal;
-    const pageW=doc.internal.pageSize.getWidth(), M=50, R=pageW-M;
-    const bidDateVal=document.getElementById('bidDate').value;
-    const displayDate=bidDateVal?new Date(bidDateVal+'T00:00:00').toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const grand = buildSnapshotCore().total; // same number the bid tab, the dashboard and the Xero invoice use
+  const pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight(), M = 50, R = pageW - M;
+  const BOTTOM = pageH - 46; // room for the page-number footer
+  const val = id => ((document.getElementById(id) || {}).value || '').trim();
+  const bidDateVal = val('bidDate');
+  const displayDate = (bidDateVal ? new Date(bidDateVal + 'T00:00:00') : new Date()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const gray = v => doc.setTextColor(v, v, v);
+  const font = (sz, st) => { doc.setFontSize(sz); doc.setFont('helvetica', st || 'normal'); };
+  const label = (t, x, yy, w) => { font(7.5, 'bold'); gray(120); doc.text(String(t).toUpperCase(), x, yy); doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.5); doc.line(x, yy + 4, x + w, yy + 4); };
+  let y = pdfHeader(doc, 'BID ESTIMATE', 'BID ESTIMATE  —  ' + PDF_TAGLINE, displayDate);
+  const brk = need => { if (y + need > BOTTOM) { doc.addPage(); y = 50; return true; } return false; };
 
-    let y = pdfHeader(doc, 'BID ESTIMATE', 'BID ESTIMATE  —  Serving Arizona Since 1988', displayDate);
+  // ── customer band ──
+  const cname = val('customerName'), cphone = val('customerPhone'), cemail = val('customerEmail');
+  const jdesc = val('jobDesc'), jloc = val('jobLocation'), billAddr = val('billingAddress');
+  const contact = [cphone, cemail].filter(Boolean).join('  ·  ');
+  const leftLines = [contact, billAddr].filter(Boolean), rightLines = jloc ? [jloc] : [];
+  font(10, 'bold');
+  const jobTitle = jdesc ? doc.splitTextToSize(jdesc, R - (pageW / 2 + 10)) : [];
+  const bandH = 24 + Math.max(leftLines.length * 15, (jobTitle.length - 1) * 13 + rightLines.length * 15) + 12;
+  doc.setFillColor(236, 238, 242); doc.rect(0, y, pageW, bandH, 'F');
+  let ly = y + 20, ry = y + 20;
+  font(10, 'bold'); gray(40);
+  if (cname) doc.text('Customer: ' + cname, M, ly);
+  if (jobTitle.length) { doc.text(jobTitle, pageW / 2 + 10, ry); ry += (jobTitle.length - 1) * 13; }
+  font(9); gray(90);
+  leftLines.forEach(t => { ly += 15; doc.text(doc.splitTextToSize(t, pageW / 2 - M - 10)[0], M, ly); });
+  rightLines.forEach(t => { ry += 15; doc.text(doc.splitTextToSize(t, R - (pageW / 2 + 10))[0], pageW / 2 + 10, ry); });
+  y += bandH + 22;
 
-    const cname=document.getElementById('customerName').value.trim();
-    const cphone=document.getElementById('customerPhone').value.trim();
-    const cemail=document.getElementById('customerEmail').value.trim();
-    const jdesc=document.getElementById('jobDesc').value.trim();
-    const jloc =document.getElementById('jobLocation').value.trim();
-    const billAddr=document.getElementById('billingAddress').value.trim();
-
-    // Build contact line
-    const contactParts = [cphone, cemail].filter(Boolean);
-    const contactLine = contactParts.join('  ·  ');
-
-    // Left column: Customer, then Billing Address below it. Right column: Job
-    // description, then Job Location below it — always at the same X as the
-    // description above it, whether or not a billing address is also present,
-    // so "Job:" and the address underneath actually line up.
-    const addressLineCount = (jloc || billAddr) ? 1 : 0;
-
-    // Calculate info bar height based on how many lines we need
-    const infoLines = [cname||jdesc, contactLine].filter(Boolean).length + addressLineCount;
-    const infoBarH = 14 + infoLines * 16;
-
-    doc.setFillColor(235,238,242); doc.rect(0,90,pageW,infoBarH,'F');
-    let infoY = 106;
-    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(40,40,40);
-    if(cname) { doc.text('Customer: '+cname, M, infoY); }
-    if(jdesc) { doc.text('Job: '+jdesc, pageW/2, infoY); }
-    infoY += 16;
-    if (jloc || billAddr) {
-      doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
-      if (billAddr) doc.text(billAddr, M, infoY);
-      if (jloc) doc.text(jloc, pageW/2, infoY);
-      infoY += 16;
-    }
-    if(contactLine){
-      // Phone and email sit right next to each other on one line, left-aligned,
-      // instead of split across the page width.
-      doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
-      doc.text(contactLine, M, infoY);
-    }
-    y = 90 + infoBarH + 15;
-
-    function gray(v){doc.setTextColor(v,v,v);}
-    function drawColor(v){doc.setDrawColor(v,v,v);}
-    function fillColor(v){doc.setFillColor(v,v,v);}
-    const pageH = doc.internal.pageSize.getHeight();
-    const BOTTOM_MARGIN = 90; // leaves room for the footer stamp on every page
-    // If the next chunk of content would run past the bottom margin, start a fresh
-    // page instead of letting it clip or spill awkwardly — keeps every page clean.
-    function checkPageBreak(neededHeight){
-      neededHeight = neededHeight || 20;
-      if (y + neededHeight > pageH - BOTTOM_MARGIN) {
-        doc.addPage();
-        y = 50;
-      }
-    }
-    function sectionLabel(text){
-      checkPageBreak(30);
-      doc.setFontSize(7);doc.setFont('helvetica','bold');gray(130);
-      doc.text(text.toUpperCase(),M,y);
-      drawColor(200);doc.setLineWidth(0.5);doc.line(M,y+3,R,y+3);y+=16;
-    }
-    function row(left,right,size,weight){
-      size=size||10;weight=weight||'normal';
-      // Every call site now passes an empty right value (no per-item pricing
-      // shown anymore), so the left text can safely wrap across the full
-      // width instead of assuming a narrower column reserved for a price —
-      // combined descriptions (piece + edge + fabrication) can get long.
-      const lines = doc.splitTextToSize(left, R-M);
-      checkPageBreak(lines.length*size*1.8+6);
-      doc.setFontSize(size);doc.setFont('helvetica',weight);
-      gray(80);doc.text(lines,M,y);
-      if(right){ gray(20);doc.setFont('helvetica',weight);doc.text(right,R,y,{align:'right'}); }
-      y+=lines.length*size*1.8;
-    }
-    function divider(){drawColor(180);doc.setLineWidth(0.75);doc.line(M,y,R,y);y+=14;}
-    if (opt) {
-      doc.setFontSize(10);doc.setFont('helvetica','bold');gray(30);
-      doc.text('OPTION ' + opt.index + ' OF ' + opt.count + '  -  ' + String(opt.label).toUpperCase().slice(0, 40), M, y);
-      y += 14;
-      if (opt.description) {
-        const dl = doc.splitTextToSize(opt.description, R-M);
-        doc.setFontSize(9);doc.setFont('helvetica','normal');gray(100);
-        doc.text(dl, M, y);
-        y += dl.length*12;
-      }
-      y += 8;
-    }
-    sectionLabel('Glass & Fabrication');
-    pieces.filter(p=>p.flatPrice||(getPieceW(p)&&getPieceH(p))).forEach(p=>{
-      const gparts=[p.thickness?p.thickness:''  ,p.glassType].filter(Boolean).join(' · ');
-      const descParts=[getPieceDisplay(p)+(gparts?' · '+gparts:'')];
-      if(getPieceEdgeTotal(p)>0){ descParts.push((p.edgeName||'Edging')+' edges'); }
-      const fabNames=Object.keys(p.fabrications||{});
-      if(fabNames.length){ descParts.push(fabNames.join(', ')); }
-      const desc=descParts.join(', ');
-      // Chris doesn't want per-item pricing shown to customers — one combined
-      // description line per piece, no separate gray sub-lines for edging or
-      // fabrication anymore; the single grand total at the bottom is the only
-      // dollar figure that appears anywhere on this document now.
-      row(desc, '');
-    });
-    y+=6;
-    if(hardware.length>0){
-      sectionLabel('Hardware/Extra');
-      hardware.forEach(h=>row(h.name||'Hardware item', ''));
-      y+=6;
-    }
-    if(extras.length>0){
-      sectionLabel('Additional Costs');
-      extras.forEach(e=>row(e.name||'Additional Cost', ''));
-      y+=6;
-    }
-    divider();
-    // Notes now shown above the total price, not after the deposit line
-    const bidNotes=document.getElementById('bidNotes').value.trim();
-    if(bidNotes){
-      const nlPre=doc.splitTextToSize(bidNotes,R-M);
-      checkPageBreak(nlPre.length*12+24);
-      doc.setFontSize(8);doc.setFont('helvetica','bold');gray(80);doc.text('NOTES',M,y);
-      doc.setDrawColor(200,200,200);doc.setLineWidth(0.5);doc.line(M,y+3,R,y+3);y+=14;
-      doc.setFont('helvetica','normal');gray(80);
-      doc.text(nlPre,M,y);y+=nlPre.length*12+10;
-    }
-    const bidExclusions=document.getElementById('bidExclusions').value.trim();
-    if(bidExclusions){
-      const elPre=doc.splitTextToSize(bidExclusions,R-M);
-      checkPageBreak(elPre.length*12+24);
-      doc.setFontSize(8);doc.setFont('helvetica','bold');gray(80);doc.text('EXCLUSIONS',M,y);
-      doc.setDrawColor(200,200,200);doc.setLineWidth(0.5);doc.line(M,y+3,R,y+3);y+=14;
-      doc.setFont('helvetica','normal');gray(80);
-      doc.text(elPre,M,y);y+=elPre.length*12+10;
-    }
-    y+=10;
-    fillColor(20);doc.roundedRect(M-12,y-12,pageW-(M-12)*2,52,5,5,'F');
-    doc.setFontSize(10);doc.setFont('helvetica','bold');gray(160);doc.text(opt ? ('TOTAL BID - ' + String(opt.label).toUpperCase().slice(0, 40)) : 'TOTAL BID',M,y+10);
-    doc.setFontSize(22);gray(255);doc.text(fmt(grand),R,y+12,{align:'right'});
-    y+=62;
-    if (depositRequired) {
-      y+=8;
-      const deposit=grand*0.5;
-      doc.setFontSize(9);doc.setFont('helvetica','bold');gray(60);
-      doc.text('Once signed we require a 50% deposit to begin production',M,y);y+=16;
-      doc.text('Deposit Amount:',M,y);
-      gray(20);doc.text(fmt(deposit),R,y,{align:'right'});y+=18;
-    }
-    { const vu = (document.getElementById('bidValidUntil') || {}).value;
-      if (vu) { doc.setFontSize(9);doc.setFont('helvetica','normal');gray(80);doc.text('This price is valid until ' + coFmtDate(vu) + '.',M,y+4);y+=16; } }
-    doc.setDrawColor(180,180,180);doc.setLineWidth(0.5);doc.line(M,y,R,y);y+=10;
-    y+=20;
-    doc.setFontSize(8);doc.setFont('helvetica','normal');
-    const acceptText = 'By signing below, I authorize American Legacy Glass to proceed with the work described in this estimate at the price quoted.' + (depositRequired ? ' I understand that a 50% deposit is required before work begins.' : '');
-    const acceptLines = doc.splitTextToSize(acceptText, R-M);
-    const paymentText = depositRequired
-      ? 'We accept the following payments: Cash, Check, Zelle (Zelle Tag: 1americanlegacy), Credit Card (a processing fee will be added).'
-      : '';
-    const paymentLines = paymentText ? doc.splitTextToSize(paymentText, R-M) : [];
-
-    // Box height grows dynamically to fit the text AND the two signature rows below it —
-    // Only show the "approve online" link if this bid has actually been saved —
-    // there's no valid link to a bid that doesn't have an ID yet.
-    const hasOnlineLink = !!currentJobId;
-    const linkLineH = hasOnlineLink ? 20 : 0;
-
-    // 102 covers the label, divider, gaps, and both signature/printed-name rows; the rest
-    // scales with however many lines the acceptance and payment paragraphs actually take.
-    const boxContentH = 102 + acceptLines.length*11 + paymentLines.length*11 + linkLineH;
-    checkPageBreak(boxContentH + 20); // keep the whole acceptance/signature block on one page
-    doc.setFillColor(250,250,250);
-    doc.setDrawColor(210,210,210);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(M-12, y-10, pageW-(M-12)*2, boxContentH, 5, 5, 'FD');
-    doc.setFontSize(7.5);doc.setFont('helvetica','bold');gray(80);
-    doc.text('ACCEPTANCE OF ESTIMATE', M, y+4);
-    doc.setDrawColor(180,180,180);doc.setLineWidth(0.4);
-    doc.line(M, y+8, R, y+8);
-    y+=18;
-    doc.setFontSize(8);doc.setFont('helvetica','normal');gray(100);
-    doc.text(acceptLines, M, y);
-    y+=acceptLines.length*11+10;
-    if (paymentLines.length) {
-      doc.setFont('helvetica','bold');gray(80);
-      doc.text(paymentLines, M, y);
-      y+=paymentLines.length*11;
-    }
-    if (hasOnlineLink) {
-      // Real clickable link area, built from wherever this app is hosted — opens
-      // view-bid.html with this bid's ID so the customer can approve it from their phone.
-      const base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-      const approvalUrl = base + 'view-bid.html?id=' + currentJobId;
-      doc.setFontSize(8.5);doc.setFont('helvetica','bold');
-      doc.setTextColor(30,100,180);
-      const linkLabel = 'Or approve this bid online instantly — tap here';
-      doc.textWithLink(linkLabel, M, y+8, { url: approvalUrl });
-      doc.setDrawColor(30,100,180);doc.setLineWidth(0.5);
-      doc.line(M, y+9.5, M+doc.getTextWidth(linkLabel), y+9.5);
-      y+=20;
-    }
-    y+=14;
-    const col1X = M;
-    const col2X = pageW/2 + 10;
-    const lineW  = (pageW/2) - M - 20;
-    doc.setDrawColor(60,60,60);doc.setLineWidth(0.75);
-    doc.line(col1X, y, col1X+lineW, y);
-    doc.setFontSize(7);doc.setFont('helvetica','normal');gray(130);
-    doc.text('Customer Signature', col1X, y+10);
-    doc.line(col2X, y, col2X+lineW, y);
-    doc.text('Date', col2X, y+10);
-    y+=28;
-    doc.setDrawColor(60,60,60);doc.setLineWidth(0.75);
-    doc.line(col1X, y, col1X+lineW, y);
-    doc.setFontSize(7);doc.setFont('helvetica','normal');gray(130);
-    doc.text('Printed Name', col1X, y+10);
-    doc.line(col2X, y, col2X+lineW, y);
-    doc.setFontSize(9);doc.setFont('helvetica','bold');gray(30);
-    doc.text('Chris Couto', col2X, y-3);
-    doc.setFontSize(7);doc.setFont('helvetica','normal');gray(130);
-    doc.text('American Legacy Glass Representative', col2X, y+10);
-    y+=30;
-    doc.setFontSize(7.5);doc.setFont('helvetica','normal');gray(170);
-    doc.text('American Legacy Glass  •  americanlegacyglass.com  •  Serving Arizona Since 1988',pageW/2,y,{align:'center'});
+  // ── option heading (multi-option bids) ──
+  if (opt) {
+    font(10.5, 'bold'); gray(30);
+    doc.text('OPTION ' + opt.index + ' OF ' + opt.count + '  —  ' + String(opt.label).toUpperCase().slice(0, 50), M, y); y += 14;
+    if (opt.description) { const dl = doc.splitTextToSize(opt.description, R - M); font(9); gray(100); doc.text(dl, M, y); y += dl.length * 12; }
+    y += 10;
   }
+
+  // ── glass / hardware (left) + drawing (right, only if one was picked) ──
+  const draw = PDF_DRAWING;
+  const dW = 182, colW = draw ? R - M - dW - 20 : R - M;
+  const topY = y;
+  let dH = 0;
+  if (draw) {
+    const innerW = dW - 16, innerH = Math.min(132, Math.max(100, innerW * draw.h / draw.w));
+    const s = Math.min(innerW / draw.w, (innerH) / draw.h), iw = draw.w * s, ih = draw.h * s;
+    dH = ih + 30;
+    doc.setDrawColor(215, 215, 215); doc.setFillColor(250, 250, 251); doc.setLineWidth(0.5);
+    doc.roundedRect(R - dW, topY - 10, dW, dH, 6, 6, 'FD');
+    font(7); gray(130); doc.text('DRAWING (not to scale)', R - dW + 10, topY + 3);
+    doc.addImage(draw.dataUrl, 'PNG', R - dW + (dW - iw) / 2, topY + 10, iw, ih);
+  }
+  const rowsOut = (items, w) => { font(9.5); gray(50); items.forEach(t => { const ls = doc.splitTextToSize(t, w); brk(ls.length * 13 + 4); doc.text(ls, M, y); y += ls.length * 13 + 2; }); };
+  const glassItems = pieces.filter(p => p.flatPrice || (getPieceW(p) && getPieceH(p))).map(p => {
+    const g = [p.thickness || '', p.glassType].filter(Boolean).join(' ');
+    const parts = [getPieceDisplay(p) + (g ? ' · ' + g : '')];
+    if (getPieceEdgeTotal(p) > 0) parts.push((p.edgeName || 'Polished') + ' edges');
+    const fab = Object.keys(p.fabrications || {}); if (fab.length) parts.push(fab.join(', '));
+    return parts.join(', ');
+  });
+  if (glassItems.length) { label('Glass & Fabrication', M, y, colW); y += 20; rowsOut(glassItems, colW); y += 12; }
+  const hwItems = hardware.map(h => String(h.name || '').trim()).filter(Boolean);
+  if (hwItems.length) {
+    label('Hardware', M, y, colW); y += 20; font(9.5); gray(50);
+    const half = (colW - 14) / 2, twoCol = hwItems.length > 1 && hwItems.every(t => doc.getTextWidth('• ' + t) <= half);
+    if (twoCol) { for (let i = 0; i < hwItems.length; i += 2) { brk(16); doc.text('• ' + hwItems[i], M, y); if (hwItems[i + 1]) doc.text('• ' + hwItems[i + 1], M + half + 14, y); y += 15; } }
+    else rowsOut(hwItems.map(t => '• ' + t), colW);
+    y += 12;
+  }
+  const exItems = extras.map(e => String(e.name || '').trim()).filter(Boolean);
+  if (exItems.length) { label('Additional', M, y, colW); y += 20; rowsOut(exItems.map(t => '• ' + t), colW); y += 12; }
+  if (draw && doc.internal.getCurrentPageInfo().pageNumber === doc.internal.getNumberOfPages()) y = Math.max(y, topY + dH);
+  y += 10;
+
+  // ── notes & exclusions ──
+  const notes = val('bidNotes'), excl = val('bidExclusions');
+  const linesOf = (t, w) => { font(8.5); return t.split('\n').map(x => x.trim()).filter(Boolean).flatMap(x => doc.splitTextToSize(x, w)); };
+  const halfW = (R - M - 22) / 2, rx = M + halfW + 22;
+  const sideBySide = notes && excl && linesOf(notes, halfW).length <= 4 && linesOf(excl, halfW).length <= 4;
+  if (sideBySide) {
+    const a = linesOf(notes, halfW), b = linesOf(excl, halfW);
+    brk(Math.max(a.length, b.length) * 11 + 30);
+    label('Notes', M, y, halfW); label('Exclusions', rx, y, R - rx); y += 15;
+    font(8.5); gray(80); doc.text(a, M, y); doc.text(b, rx, y);
+    y += Math.max(a.length, b.length) * 11 + 18;
+  } else {
+    const block = (title, txt) => {
+      if (!txt) return;
+      const paras = txt.split('\n').map(x => x.trim()).filter(Boolean);
+      brk(40); label(title, M, y, R - M); y += 15;
+      paras.forEach(par => {
+        font(8.5); const ls = doc.splitTextToSize(par, R - M - 12);
+        brk(ls.length * 11 + 4); gray(80);
+        if (paras.length > 1) doc.text('•', M, y);
+        doc.text(ls, paras.length > 1 ? M + 12 : M, y); y += ls.length * 11 + 3;
+      });
+      y += 12;
+    };
+    block('Notes', notes); block('Exclusions', excl);
+  }
+
+  // ── total + approve online (never split across pages) ──
+  const totalH = 86;
+  brk(totalH + 10);
+  doc.setFillColor(18, 18, 18); doc.roundedRect(M - 10, y, R - M + 20, totalH, 8, 8, 'F');
+  font(9, 'bold'); gray(170); doc.text(opt ? ('TOTAL  —  ' + String(opt.label).toUpperCase().slice(0, 34)) : 'TOTAL', M + 6, y + 22);
+  font(26, 'bold'); doc.setTextColor(255, 255, 255); doc.text(fmt(grand), M + 6, y + 51);
+  const vu = val('bidValidUntil');
+  const sub = [depositRequired ? '50% deposit to start: ' + fmt(grand * 0.5) : '', vu ? 'Price valid until ' + coFmtDate(vu) : ''].filter(Boolean).join('   ·   ');
+  if (sub) { font(8.5); gray(175); doc.text(sub, M + 6, y + 70); }
+  if (currentJobId) {
+    const base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+    const url = base + 'view-bid.html?id=' + currentJobId;
+    const bw = 168, bh = 32, bx = R - bw, by = y + 16;
+    doc.setFillColor(126, 212, 160); doc.roundedRect(bx, by, bw, bh, 6, 6, 'F');
+    font(11.5, 'bold'); doc.setTextColor(10, 31, 20); doc.text('APPROVE ONLINE  >', bx + bw / 2, by + 20.5, { align: 'center' });
+    doc.link(bx, by, bw, bh, { url });
+    font(7.5); gray(175); doc.text('Review, sign and approve in a minute', bx + bw / 2, by + 46, { align: 'center' });
+  }
+  y += totalH + 16;
+
+  // ── acceptance (signature lines; printed name and date are fillable in PDF apps) ──
+  font(8.5);
+  const accept = doc.splitTextToSize('By signing, I authorize American Legacy Glass to do the work described at the price quoted' + (depositRequired ? ', and understand a 50% deposit is required before production begins.' : '.'), R - M);
+  const pay = depositRequired ? doc.splitTextToSize('Payment: cash, check, Zelle (1americanlegacy), or credit card (processing fee added).', R - M) : [];
+  brk(84 + accept.length * 11 + pay.length * 11); // exact height of this section, so it stays on the page whenever it truly fits
+  label('Acceptance', M, y, R - M); y += 16;
+  font(8.5); gray(80); doc.text(accept, M, y); y += accept.length * 11 + 6;
+  if (pay.length) { font(8.5, 'bold'); gray(60); doc.text(pay, M, y); y += pay.length * 11; }
+  y += 30;
+  // One row: signature · printed name · date (name and date are fillable in PDF apps)
+  const tag = opt ? ' ' + opt.index : '';
+  const field = (name, x, yy, w) => { try { const f = new doc.AcroFormTextField(); f.fieldName = name + tag; f.Rect = [x, yy - 15, w, 15]; f.fontSize = 10; doc.addField(f); } catch (e) { /* plain lines still work */ } };
+  const gap = 16, colw = (R - M - gap * 2) / 3, cx = [M, M + colw + gap, M + (colw + gap) * 2];
+  doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.6);
+  cx.forEach(x => doc.line(x, y, x + colw, y));
+  font(7.5); gray(130);
+  doc.text('Customer signature', cx[0], y + 11); doc.text('Printed name', cx[1], y + 11); doc.text('Date', cx[2], y + 11);
+  field('Printed name', cx[1], y, colw); field('Date', cx[2], y, colw);
+  y += 26;
+  font(8); gray(110); doc.text('American Legacy Glass representative: ', M, y);
+  font(8.5, 'bold'); gray(30); doc.text('Chris Couto', M + doc.getTextWidth('American Legacy Glass representative: ') + 2, y);
 }
+
+// Renders the bid's chosen drawing (Drawing tab, realistic customer view) to a PNG for the PDF, without
+// touching whatever drawing is open on the Drawing tab. Returns null if none is chosen or it can't be drawn.
+async function pdfDrawingImage(drawingId) {
+  if (!drawingId) return null;
+  // The drawings list loads in the background; give it up to 3 seconds if the PDF is made right away.
+  if (!DR.listening && typeof drInit === 'function') { try { drInit(); } catch (e) {} }
+  for (let i = 0; i < 30 && !(DR.list || []).some(d => d.id === drawingId); i++) await new Promise(r => setTimeout(r, 100));
+  const src = (DR.list || []).find(d => d.id === drawingId);
+  if (!src) { showToast('The chosen drawing could not be found — PDF made without it', 'error'); return null; }
+  const keep = { cur: DR.cur, sel: DR.sel, tool: DR.tool, tmp: DR.tmp, undo: DR.undo, redo: DR.redo, dirty: DR.dirty, _snap: DR._snap };
+  try {
+    const d = JSON.parse(JSON.stringify(src));
+    drLoad(d); // same clean-up the Drawing tab does on open
+    if (!d.objects.some(o => o.type === 'panel')) return null;
+    const r = drSvgDoc(d, 'customer', { px: 3, real: d.real !== false, bg: '#ffffff', pad: 8, customerDims: true });
+    const canvas = await drSvgToCanvas(r.svg, r.w * r.px, r.h * r.px, 2);
+    return { dataUrl: canvas.toDataURL('image/png'), w: r.w * r.px, h: r.h * r.px };
+  } catch (e) { console.error('Drawing for PDF failed:', e); return null; }
+  finally { Object.assign(DR, keep); }
+}
+// "Drawing on PDF" picker on the bid tab: lists saved drawings; the choice is saved with the bid.
+function pdfDrawingOptionsRender(selected) {
+  const el = document.getElementById('bidPdfDrawing'); if (!el) return;
+  if (typeof drInit === 'function' && !DR.listening && window._db) { try { drInit(); } catch (e) {} }
+  const cur = selected !== undefined ? selected : el.value;
+  const list = (DR.list || []);
+  el.innerHTML = '<option value="">No drawing on the PDF</option>' + list.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name || 'Untitled')}${d.customer ? ' — ' + escapeHtml(d.customer) : ''}</option>`).join('') +
+    (cur && !list.some(d => d.id === cur) ? `<option value="${escapeHtml(cur)}">(saved drawing — loading…)</option>` : '');
+  el.value = cur || '';
+}
+window.pdfDrawingOptionsRender = pdfDrawingOptionsRender;
 
 // "Your Options" cover page for a multi-option bid: every option's name, description and ONE total
 // (never per-line prices), then a pointer to the full estimates that follow.
@@ -3758,7 +3699,7 @@ function renderBidOptionsSummaryPage(doc, rows) {
   const displayDate = (bidDateVal ? new Date(bidDateVal + 'T00:00:00') : new Date())
     .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const gray = v => doc.setTextColor(v, v, v);
-  let y = pdfHeader(doc, 'BID ESTIMATE', 'BID ESTIMATE  -  YOUR OPTIONS  -  Serving Arizona Since 1988', displayDate);
+  let y = pdfHeader(doc, 'BID ESTIMATE', 'BID ESTIMATE  -  YOUR OPTIONS  -  ' + PDF_TAGLINE, displayDate);
   const cname = document.getElementById('customerName').value.trim();
   const jdesc = document.getElementById('jobDesc').value.trim();
   y += 28;
@@ -3769,7 +3710,7 @@ function renderBidOptionsSummaryPage(doc, rows) {
   doc.setFontSize(16); doc.setFont('helvetica', 'bold'); gray(20);
   doc.text('Your Options', M, y); y += 17;
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); gray(110);
-  const intro = doc.splitTextToSize('We have prepared ' + rows.length + ' options for you. Each option\'s full estimate follows on the next pages. To choose, sign the acceptance box on the page for the option you want, or approve it online.', R - M);
+  const intro = doc.splitTextToSize('We have prepared ' + rows.length + ' options for you. Each option\'s full estimate follows on the next pages. The quickest way to choose is to approve online.', R - M);
   doc.text(intro, M, y); y += intro.length * 12 + 14;
   rows.forEach((r, i) => {
     const descLines = r.description ? doc.splitTextToSize(r.description, R - M - 160) : [];
@@ -3790,23 +3731,23 @@ function renderBidOptionsSummaryPage(doc, rows) {
     y += boxH + 10;
   });
   if (currentJobId) {
-    // Same clickable approval link the single-option PDF carries; the page itself lets them pick.
+    // Same big button as each option page: one tap to choose and approve online.
     const base = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
     const approvalUrl = base + 'view-bid.html?id=' + currentJobId;
-    y += 6;
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 100, 180);
-    const linkLabel = 'Or choose and approve your option online - tap here';
-    doc.textWithLink(linkLabel, M, y, { url: approvalUrl });
-    doc.setDrawColor(30, 100, 180); doc.setLineWidth(0.5);
-    doc.line(M, y + 1.5, M + doc.getTextWidth(linkLabel), y + 1.5);
+    const bw = 230, bh = 34, bx = M, by = y + 4;
+    doc.setFillColor(126, 212, 160); doc.roundedRect(bx, by, bw, bh, 6, 6, 'F');
+    doc.setFontSize(11.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 31, 20);
+    doc.text('CHOOSE & APPROVE ONLINE  >', bx + bw / 2, by + 21.5, { align: 'center' });
+    doc.link(bx, by, bw, bh, { url: approvalUrl });
   }
 }
 
 // One PDF for the whole bid. An ordinary bid is exactly the single estimate it has always been.
 // A bid with options is: a "Your Options" summary page, then each option's full estimate (each with
 // its own acceptance + signature box), all in the same file.
-function saveBidPDF() {
+async function saveBidPDF() {
   try {
+    PDF_DRAWING = await pdfDrawingImage(((document.getElementById('bidPdfDrawing') || {}).value) || '');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:'pt', format:'letter' });
     if (!optionStates || optionStates.length < 2) {
@@ -3831,6 +3772,7 @@ function saveBidPDF() {
       doc.setPage(i);
       doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(160, 160, 160);
       doc.text('American Legacy Glass', M, pageH - 30);
+      doc.text('americanlegacyglass.com  •  ' + PDF_TAGLINE, pageW / 2, pageH - 30, { align: 'center' });
       doc.text('Page ' + i + ' of ' + pageCount, R, pageH - 30, { align: 'right' });
     }
     // Named download ("ALG Bid - Customer - 2026-09-25.pdf") instead of opening
@@ -3843,6 +3785,7 @@ function saveBidPDF() {
     doc.setProperties({ title: pdfName.replace(/\.pdf$/, '') });
     doc.save(pdfName);
   } catch(err){alert('PDF error: '+err.message);}
+  finally { PDF_DRAWING = null; }
 }
 
 // Builds a filename that's safe on Windows, Mac, iPhone, and Android:
@@ -4449,6 +4392,7 @@ function buildSnapshotCore() {
     surcharge:parseFloat(document.getElementById('bidSurcharge')?.value) || 0,
     depositRequired,
     validUntil: (document.getElementById('bidValidUntil') || {}).value || null,
+    pdfDrawingId: (document.getElementById('bidPdfDrawing') || {}).value || null,
     person:   activePerson,
     pieces:   JSON.parse(JSON.stringify(pieces)),
     hardware: JSON.parse(JSON.stringify(hardware)),
@@ -4949,6 +4893,7 @@ function openJob(id) {
     });
     if (job.date) document.getElementById('bidDate').value = job.date;
     document.getElementById('bidValidUntil').value = job.validUntil || '';
+    pdfDrawingOptionsRender(job.pdfDrawingId || '');
     if (job.margin)    document.getElementById('bidMargin').value    = job.margin;
     if (job.surcharge) document.getElementById('bidSurcharge').value = job.surcharge;
     setActivePerson(job.person || 'chris');
@@ -5729,6 +5674,7 @@ function drInit() {
       DR.list = snap.docs.filter(x => isSafeId(x.id)).map(x => ({ id: x.id, ...x.data() }))
         .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
       drRenderList();
+      if (window.pdfDrawingOptionsRender) pdfDrawingOptionsRender();
     }, err => {
       console.error('Drawings listener error:', err);
       DR.denied = true; DR.listening = false; drRenderList();
