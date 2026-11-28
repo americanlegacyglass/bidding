@@ -4656,7 +4656,7 @@ function renderDashboard() {
           <div class="job-name">${escapeHtml(job.customer)}</div>
           ${desc ? `<div class="job-desc">${escapeHtml(desc)}</div>` : ''}
           <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);margin-top:0.15rem;">${dateStr}</div>
-          ${isAcceptedBid ? `<div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:0.1rem;">${job.approvedVia === 'staff' ? '✓ Approved by ' + escapeHtml(job.approvedByEmail || 'staff') : (job.approvalSignature && job.approvalSignature.name ? `<span title="${escapeHtml('Signed ' + new Date(job.approvalSignature.at).toLocaleString('en-US') + ' · IP ' + (job.approvalSignature.ip || 'unknown') + ' · ' + (job.approvalSignature.userAgent || ''))}"><svg class="ic" aria-hidden="true"><use href="#ic-sign"/></svg>Signed online by ${escapeHtml(job.approvalSignature.name)}, ${escapeHtml(new Date(job.approvalSignature.at).toLocaleDateString('en-US'))}</span>` : '✓ Approved online by customer')}</div>` : ''}
+          ${isAcceptedBid ? `<div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-top:0.1rem;">${job.approvedVia === 'staff' ? '✓ Customer said yes' + (APPROVE_HOW[job.approvedHow] ? ' ' + APPROVE_HOW[job.approvedHow].toLowerCase() : '') + ' — recorded by ' + escapeHtml(job.approvedByEmail || 'staff') + (job.acceptedAt ? ', ' + escapeHtml(new Date(job.acceptedAt).toLocaleDateString('en-US')) : '') + (job.approvedNote ? ` <span title="${escapeHtml(job.approvedNote)}">(note)</span>` : '') : (job.approvalSignature && job.approvalSignature.name ? `<span title="${escapeHtml('Signed ' + new Date(job.approvalSignature.at).toLocaleString('en-US') + ' · IP ' + (job.approvalSignature.ip || 'unknown') + ' · ' + (job.approvalSignature.userAgent || ''))}"><svg class="ic" aria-hidden="true"><use href="#ic-sign"/></svg>Signed online by ${escapeHtml(job.approvalSignature.name)}, ${escapeHtml(new Date(job.approvalSignature.at).toLocaleDateString('en-US'))}</span>` : '✓ Approved online by customer')}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0;">
@@ -4669,7 +4669,7 @@ function renderDashboard() {
       </div>
       <div class="job-actions">
         <button class="btn-job-open" onclick="openJob('${job.id}')">Open</button>
-        ${isPendingBid && !(job.customerResponse && job.customerResponse.type === 'declined') ? `<button class="btn-job-open" style="color:#7ed4a0;border-color:rgba(126,212,160,0.35);" onclick="manuallyApproveBid('${job.id}')" title="Use only when the customer agreed in person or by phone — not through the online approval link">✓ Approve Manually</button>` : ''}
+        ${isPendingBid ? `<button class="btn-job-open" style="color:#7ed4a0;border-color:rgba(126,212,160,0.35);" onclick="manuallyApproveBid('${job.id}')" title="The customer said yes by text, email, phone or in person — approve it, create the Xero invoice and put Order glass on the calendar">✓ Customer said yes</button>` : ''}
         ${isAcceptedBid && window._currentUserRole !== 'employee' ? `<button class="btn-job-open" style="color:#e0a060;border-color:rgba(224,160,96,0.35);" onclick="undoApproval('${job.id}')" title="Voids the Xero invoice (if any) and resets this bid to pending">Undo</button>` : ''}
         ${window._currentUserRole !== 'employee' ? `<button class="btn-job-del" onclick="deleteJob(event,'${job.id}')">✕</button>` : ''}
       </div>
@@ -4774,44 +4774,67 @@ async function dismissPipelineDrift(e, jobId) {
   }
 }
 
-async function manuallyApproveBid(jobId) {
-  if (!confirm('Mark this bid as approved? Use this only when the customer agreed in person or over the phone — not for a bid they can still approve online themselves. This will create the Xero invoice right away.')) return;
-  const db = window._db;
-  let selectedOptionId = null;
-  const theJob = allJobs.find(j => j.id === jobId);
-  const theOpts = getJobOptions(theJob);
-  if (theOpts) {
-    const menu = theOpts.map((o, i) => (i + 1) + ') ' + o.label + ' — ' + fmt(o.total)).join('\n');
-    const ans = prompt('Which option did the customer choose?\n\n' + menu + '\n\nType the number:');
-    const idx = parseInt(ans, 10) - 1;
-    if (!(idx >= 0 && idx < theOpts.length)) { showToast('No option chosen — nothing was approved', 'error'); return; }
-    selectedOptionId = theOpts[idx].id;
-  }
+// "Customer said yes": the customer agreed by text, email, phone or in person instead of the online link.
+// Does what online approval does: approves (with which option), creates the Xero invoice, and puts the
+// "Order glass" reminder on the Google Calendar. Records how they said yes and who recorded it.
+const APPROVE_HOW = { text: 'By text', email: 'By email', phone: 'On the phone', person: 'In person' };
+function manuallyApproveBid(jobId) {
+  const job = allJobs.find(j => j.id === jobId); if (!job) return;
+  if (currentJobId === jobId && _lastSavedBidSnapshot !== null && bidSnapshotForCompare() !== _lastSavedBidSnapshot) { showToast('Save the bid first — the yes applies to the saved version', 'error'); return; }
+  const opts = getJobOptions(job);
+  const declined = job.customerResponse && job.customerResponse.type === 'declined';
+  hwModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div class="dr-ptitle" style="margin:0">Customer said yes — ${escapeHtml(job.customer || 'job')}</div><button class="btn-remove" onclick="hwClose()">✕</button></div>
+    ${declined ? '<div class="dr-hint" style="margin-top:.5rem;color:#e0a060">This customer declined online earlier. Only continue if they changed their mind.</div>' : ''}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem;margin-top:.7rem;">
+      <label class="td-lab">How did they say yes?<select id="maHow">${Object.entries(APPROVE_HOW).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
+      ${opts ? `<label class="td-lab">Which option?<select id="maOpt"><option value="">— pick one —</option>${opts.map(o => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.label)} — ${fmt(o.total)}</option>`).join('')}</select></label>` : `<div class="td-lab">Total<div style="font-weight:600;margin-top:.35rem">${fmt(jobDisplayTotal(job))}</div></div>`}
+    </div>
+    <label class="td-lab" style="margin-top:.5rem">Note (optional)<input id="maNote" maxlength="200" placeholder='e.g. texted "sounds good, go ahead"'></label>
+    <div class="dr-hint" style="margin-top:.5rem">This creates the Xero invoice and puts "Order glass" on the Google Calendar.</div>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;"><button class="btn-remove" style="width:auto;padding:.4rem .8rem" onclick="hwClose()">Cancel</button><button class="btn-add" style="width:auto;margin:0" id="maGo" onclick="manuallyApproveSave('${jobId}')">✓ Approve</button></div>`);
+}
+async function manuallyApproveSave(jobId) {
+  const job = allJobs.find(j => j.id === jobId); if (!job) return;
+  const opts = getJobOptions(job);
+  const how = (document.getElementById('maHow') || {}).value;
+  const optId = opts ? (document.getElementById('maOpt') || {}).value : null;
+  const note = ((document.getElementById('maNote') || {}).value || '').trim().slice(0, 200);
+  if (!APPROVE_HOW[how]) { showToast('Pick how they said yes', 'error'); return; }
+  if (opts && !opts.some(o => o.id === optId)) { showToast('Pick the option they chose', 'error'); return; }
+  const go = document.getElementById('maGo'); if (go) { go.disabled = true; go.textContent = 'Approving…'; }
   try {
-    await window._updateDoc(window._doc(db, 'jobs', jobId), {
+    // Never approve over a bid that changed since this screen loaded (approved online meanwhile, etc.).
+    const fresh = await window._getDoc(window._doc(window._db, 'jobs', jobId));
+    if (!fresh.exists() || (fresh.data().status === 'accepted')) { hwClose(); showToast('This bid was already approved', 'error'); await loadJobs(); return; }
+    await window._updateDoc(window._doc(window._db, 'jobs', jobId), {
       status: 'accepted',
       acceptedAt: new Date().toISOString(),
       approvedVia: 'staff',
+      approvedHow: how,
+      approvedNote: note || null,
       approvedByEmail: window._auth?.currentUser?.email || 'unknown',
       pipelineStage: 'accepted',
-      ...(selectedOptionId ? { selectedOptionId } : {}),
+      ...(optId ? { selectedOptionId: optId } : {}),
     });
-    const res = await fetch('https://morning-frost-ce94.rdenmyers1201.workers.dev/create-xero-invoice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    });
+  } catch (e) { hwClose(); showToast('Could not approve: ' + e.message, 'error'); return; }
+  hwModal('<div class="dr-ptitle" style="margin:0">Creating the Xero invoice…</div>');
+  let msg = '✓ Approved', bad = false;
+  try {
+    const res = await fetch('https://morning-frost-ce94.rdenmyers1201.workers.dev/create-xero-invoice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jobId }) });
     const data = await res.json();
-    if (!data.ok) {
-      showToast('Marked approved, but invoice creation failed: ' + (data.error || 'unknown error'), 'error');
-    } else {
-      showToast('✓ Marked approved' + (data.alreadyInvoiced ? '' : ' — Xero invoice created'));
-    }
-    await loadJobs();
-  } catch (e) {
-    showToast('Manual approval failed: ' + e.message, 'error');
+    if (!data.ok) { msg += ' — but the Xero invoice failed: ' + (data.error || 'unknown error'); bad = true; }
+    else msg += data.alreadyInvoiced ? '' : ' — Xero invoice created';
+  } catch (e) { msg += ' — but the Xero invoice failed: ' + e.message; bad = true; }
+  if (window.gcalSyncJob) {
+    const r = await gcalSyncJob(jobId);
+    if (r.ok) msg += ' · "Order glass" on the calendar';
+    else if (!/not connected/i.test(r.error || '')) { msg += ' · calendar reminder failed: ' + r.error; bad = true; }
   }
+  hwClose(); showToast(msg, bad ? 'error' : undefined);
+  await loadJobs();
 }
+window.manuallyApproveBid = manuallyApproveBid; window.manuallyApproveSave = manuallyApproveSave;
 
 // Reverses a mistaken approval — voids/deletes the Xero invoice if one was
 // created, and resets the job back to a normal, re-approvable bid. Requires
