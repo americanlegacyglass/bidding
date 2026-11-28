@@ -3574,11 +3574,11 @@ function renderBidPdfPage(doc, opt) {
 
   // ── glass / hardware (left) + drawing (right, only if one was picked) ──
   const draw = PDF_DRAWING;
-  const dW = 182, colW = draw ? R - M - dW - 20 : R - M;
+  const dW = 238, colW = draw ? R - M - dW - 18 : R - M;
   const topY = y;
   let dH = 0;
   if (draw) {
-    const innerW = dW - 16, innerH = Math.min(132, Math.max(100, innerW * draw.h / draw.w));
+    const innerW = dW - 12, innerH = Math.min(205, Math.max(120, innerW * draw.h / draw.w));
     const s = Math.min(innerW / draw.w, (innerH) / draw.h), iw = draw.w * s, ih = draw.h * s;
     dH = ih + 30;
     doc.setDrawColor(215, 215, 215); doc.setFillColor(250, 250, 251); doc.setLineWidth(0.5);
@@ -3690,10 +3690,10 @@ async function pdfDrawingImage(drawingId) {
   try {
     const d = drNormalize(JSON.parse(JSON.stringify(src))); // a cleaned copy — the Drawing tab is never touched
     if (!d.objects.some(o => o.type === 'panel')) return null;
-    const r = drSvgDoc(d, 'customer', { px: 3, real: d.real !== false, bg: '#ffffff', pad: 8, customerDims: true });
+    const r = drSvgDoc(d, 'customer', { px: 2.3, real: d.real !== false, bg: '#ffffff', pad: 8, customerDims: true });
     // Size it for print, not the screen: the PDF box is at most ~166 × 132 pt, so ~900 px on the long side is
     // still sharp (about 4× the printed size) — then JPEG instead of PNG. Keeps a bid PDF to ~100–200 KB.
-    const w = r.w * r.px, h = r.h * r.px, mult = Math.min(2, 900 / Math.max(w, h));
+    const w = r.w * r.px, h = r.h * r.px, mult = Math.min(4, 1100 / Math.max(w, h));
     const canvas = await drSvgToCanvas(r.svg, w, h, mult);
     return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), w, h };
   } catch (e) { console.error('Drawing for PDF failed:', e); return null; }
