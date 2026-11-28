@@ -5317,7 +5317,8 @@ function drPanelName(d, p) {
 
 // ── SVG rendering ──
 // opt: { mode:'shop'|'customer', px:pixels-per-inch (sizes strokes/text), edit:bool, sel:id, customerDims:bool, dark:bool }
-function drBounds(d, mode, customerDims) {
+function drBounds(d, mode, customerDims, px) {
+  const nfs = Math.max(9 / (px || 4), 2), nlh = nfs * 1.2; // plan-note text size and line height, same as drPlanSvg
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const add = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   d.objects.forEach(o => {
@@ -5329,7 +5330,7 @@ function drBounds(d, mode, customerDims) {
     } else if (o.type === 'label' && drShown(o, mode)) {
       add(o.x, o.y - o.size); add(o.x + Math.max(4, String(o.text || '').length * o.size * 0.6), o.y + 1);
     } else if (o.type === 'plan' && drShown(o, mode)) {
-      const b = drPlanBounds(o); add(o.x + b.x0, o.y + b.y0 - 6); add(o.x + b.x1, o.y + b.y1 + 2 + (o.notes || []).length * 3.2); (o.notes || []).forEach(t => add(o.x + b.x0 + String(t).length * 1.15, o.y + b.y1));
+      const b = drPlanBounds(o); add(o.x + b.x0, o.y + b.y0 - 6); add(o.x + b.x1, o.y + b.y1 + 2 + (o.notes || []).length * nlh + nfs * 0.3); (o.notes || []).forEach(t => add(o.x + b.x0 + String(t).length * nfs * 0.55, o.y + b.y1));
     }
   });
   if (x0 === Infinity) return { x0: 0, y0: 0, x1: 100, y1: 70 };
@@ -5421,7 +5422,12 @@ function drPlanBounds(o) {
   const add = (x, y) => { if (first) { x0 = x1 = x; y0 = y1 = y; first = false; } x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
   (o.walls || []).map(drWall).forEach(w => { add(w[0], w[1]); add(w[2], w[3]); });
   (o.glass || []).forEach(g => { add(g.x1, g.y1); add(g.x2, g.y2); });
-  if (o.door) { const r = o.door.r; add(o.door.hx - r, o.door.hy - r); add(o.door.hx + r, o.door.hy + r); }
+  if (o.door) { // only the swing arc itself (from closed to open), not the whole circle
+    const dd = o.door, r = +dd.r || 0, a0 = +dd.a0 || 0, a1 = +dd.a1 || 0;
+    let span = ((a1 - a0) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); if (span > Math.PI) span -= Math.PI * 2;
+    add(dd.hx, dd.hy);
+    for (let i = 0; i <= 24; i++) { const a = a0 + span * i / 24; add(dd.hx + r * Math.cos(a), dd.hy + r * Math.sin(a)); }
+  }
   return { x0, y0, x1, y1 };
 }
 function drPlanSvg(o, opt, ink) {
@@ -5444,7 +5450,8 @@ function drPlanSvg(o, opt, ink) {
     s += `<circle cx="${f(dd.hx)}" cy="${f(dd.hy)}" r="${2.5 / px}" fill="${ink}"/>`;
   }
   s += `<text x="${b.x0}" y="${b.y0 - 3}" font-size="${Math.max(10 / px, 2.2)}" font-family="Arial,sans-serif" fill="${ink}" font-weight="bold">${drEsc(o.title || 'PLAN VIEW (top down)')}</text>`;
-  (o.notes || []).forEach((t, i) => { s += `<text x="${b.x0}" y="${b.y1 + 4 + i * 3}" font-size="${Math.max(9 / px, 2)}" font-family="Arial,sans-serif" fill="${ink}" opacity="0.8">${drEsc(t)}</text>`; });
+  const nfs = Math.max(9 / px, 2);
+  (o.notes || []).forEach((t, i) => { s += `<text x="${b.x0}" y="${b.y1 + 2 + nfs + i * nfs * 1.2}" font-size="${nfs}" font-family="Arial,sans-serif" fill="${ink}" opacity="0.8">${drEsc(t)}</text>`; });
   return s + '</g>';
 }
 // Edge lengths of a polygon panel (shop sheet) — so an out-of-square or notched piece can be cut without guessing.
@@ -5562,7 +5569,7 @@ function drContent(d, opt) {
 }
 
 function drSvgDoc(d, mode, o = {}) {
-  const px = o.px || DR.scale, b = drBounds(d, mode, o.customerDims), pad = o.pad == null ? 8 : o.pad;
+  const px = o.px || DR.scale, b = drBounds(d, mode, o.customerDims, px), pad = o.pad == null ? 8 : o.pad;
   let x0 = o.edit ? 0 : b.x0 - pad, y0 = o.edit ? 0 : b.y0 - pad;
   let x1 = o.edit ? Math.max(b.x1 + 40, 120) : b.x1 + pad, y1 = o.edit ? Math.max(b.y1 + 30, 80) : b.y1 + pad;
   const w = x1 - x0, h = y1 - y0;
